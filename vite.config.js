@@ -1,0 +1,1 @@
+// contenido simulado para vite.config.js

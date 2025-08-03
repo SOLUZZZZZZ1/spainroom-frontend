@@ -1,0 +1,1 @@
+// componente simulado CardSpainRoom.jsx

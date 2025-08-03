@@ -1,0 +1,1 @@
+// componente simulado Navbar.jsx

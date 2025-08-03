@@ -1,0 +1,1 @@
+export default function Oportunidades() { return <div>Oportunidades reales para colaboradores e inversores</div>; }
