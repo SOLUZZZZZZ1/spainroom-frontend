@@ -1,0 +1,9 @@
+// Añade este bloque dentro de export default defineConfig({...})
+server: {
+  proxy: {
+    '/api/cedula': {
+      target: 'http://localhost:5001',
+      changeOrigin: true,
+    },
+  },
+},

@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "titulo": "Habitación luminosa en Centro",
+    "precio": 400,
+    "zona": "Centro",
+    "metros": 12,
+    "banho_privado": false,
+    "descripcion": "Habitación muy luminosa cerca de Sol. Cama 135x200, escritorio, armario y ventana exterior.",
+    "imagenes": ["/images/hab1-1.jpg", "/images/hab1-2.jpg"]
+  },
+  {
+    "id": 2,
+    "titulo": "Habitación con balcón",
+    "precio": 380,
+    "zona": "Salamanca",
+    "metros": 11,
+    "banho_privado": false,
+    "descripcion": "Con balcón a calle tranquila. Amueblada y lista para entrar. Metro cercano.",
+    "imagenes": ["/images/hab2-1.jpg", "/images/hab2-2.jpg"]
+  },
+  {
+    "id": 3,
+    "titulo": "Suite con baño privado",
+    "precio": 520,
+    "zona": "Chamberí",
+    "metros": 16,
+    "banho_privado": true,
+    "descripcion": "Suite amplia con baño privado y armario empotrado. Finca moderna.",
+    "imagenes": ["/images/hab3-1.jpg", "/images/hab3-2.jpg"]
+  },
+  {
+    "id": 4,
+    "titulo": "Habitación económica",
+    "precio": 320,
+    "zona": "Tetuán",
+    "metros": 10,
+    "banho_privado": false,
+    "descripcion": "Opción asequible en zona bien comunicada. Wifi incluido.",
+    "imagenes": ["/images/hab4-1.jpg", "/images/hab4-2.jpg"]
+  },
+  {
+    "id": 5,
+    "titulo": "Habitación exterior reformada",
+    "precio": 450,
+    "zona": "Retiro",
+    "metros": 13,
+    "banho_privado": false,
+    "descripcion": "Reforma reciente, exterior y silenciosa. Parque del Retiro a 5 min.",
+    "imagenes": ["/images/hab5-1.jpg", "/images/hab5-2.jpg"]
+  },
+  {
+    "id": 6,
+    "titulo": "Master room con vestidor",
+    "precio": 590,
+    "zona": "Arganzuela",
+    "metros": 18,
+    "banho_privado": true,
+    "descripcion": "Espaciosa, con vestidor y gran ventana. Edificio con ascensor.",
+    "imagenes": ["/images/hab6-1.jpg", "/images/hab6-2.jpg"]
+  }
+]

@@ -1,0 +1,26 @@
+.sos-btn-floating {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: #dc2626; /* rojo alerta */
+  color: #fff;
+  font-weight: bold;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  user-select: none;
+}
+
+.sos-btn-floating:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+  background: #b91c1c; /* un rojo un poco más oscuro al hover */
+}

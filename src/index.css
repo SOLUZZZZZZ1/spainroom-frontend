@@ -1,1 +1,8 @@
+<<<<<<< HEAD
 // contenido simulado para index.css
+=======
+﻿:root { color-scheme: light dark; }
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+a { color: inherit; text-decoration: none; }
+>>>>>>> 780c84d (SpainRoom: actualizar App.jsx y VerificacionViviendaSR.jsx)
