@@ -1,33 +1,3 @@
-<<<<<<< HEAD
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Navbar from "./components/Navbar";
-import Home from "./screens/Home";
-import Listado from "./screens/Listado";
-import Jobs from "./screens/Jobs";
-import Reservas from "./screens/Reservas";
-import Admin from "./screens/Admin";
-import Oportunidades from "./screens/Oportunidades";
-import Footer from "./components/Footer";
-
-function App() {
-  return (
-    <BrowserRouter>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/listado" element={<Listado />} />
-        <Route path="/jobs" element={<Jobs />} />
-        <Route path="/reservas" element={<Reservas />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/oportunidades" element={<Oportunidades />} />
-      </Routes>
-      <Footer />
-    </BrowserRouter>
-  );
-}
-
-export default App;
-=======
 import NavbarSR from "./components/NavbarSR";
 import VerificacionViviendaSR from "./components/VerificacionViviendaSR";
 
@@ -104,10 +74,7 @@ export default function App() {
 
       {/* INICIO */}
       <Wrap id="inicio">
-        <div style={{
-          textAlign: "center",
-          margin: "16px 0 8px"
-        }}>
+        <div style={{ textAlign: "center", margin: "16px 0 8px" }}>
           <h2 style={H.h2white}>Bienvenido a SpainRoom</h2>
           <p style={H.pwhite}>
             Encuentra habitaciones listas para entrar a vivir en las mejores zonas.
@@ -164,4 +131,3 @@ export default function App() {
     </div>
   );
 }
->>>>>>> 780c84d (SpainRoom: actualizar App.jsx y VerificacionViviendaSR.jsx)
