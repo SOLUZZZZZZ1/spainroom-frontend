@@ -1,25 +1,29 @@
-﻿import React from "react";
+﻿import "./inicio.css";
 
 export default function Inicio() {
-  const WRAP = { paddingTop: 88 };
-  const hero = { textAlign: "center", padding: "40px 20px" };
-  const logo = { width: 200, height: "auto", marginBottom: 20 };
-  const h1 = { fontSize: "2.5rem", marginBottom: 10 };
-  const sub = { fontSize: "1.2rem", lineHeight: 1.6, maxWidth: 600, margin: "0 auto" };
-
   return (
-    <div style={WRAP}>
-      <section style={hero}>
-        <img src="/cabezera.png" style={logo} alt="SpainRoom" />
-        <h1 style={h1}>Bienvenido a SpainRoom</h1>
-        <p style={sub}>
+    <main className="sr-hero" role="main">
+      <div className="sr-hero__bg" aria-hidden="true" />
+      <div className="sr-hero__overlay" />
+
+      <section className="sr-hero__content" aria-label="Bienvenida">
+        <img
+          src="/logo.png"
+          alt="Logo SpainRoom"
+          className="sr-hero__logo"
+          width="240"
+          height="auto"
+        />
+
+        <h1 className="sr-hero__title">Bienvenido a SpainRoom</h1>
+
+        <p className="sr-hero__subtitle">
           Encuentra habitaciones listas para entrar a vivir en las mejores zonas.
           <br />
-          SpainRoom conecta personas, viviendas y oportunidades.
-          <br />
-          Confiable, moderno y cercano.
+          SpainRoom conecta personas, viviendas y oportunidades. Confiable,
+          moderno y cercano.
         </p>
       </section>
-    </div>
+    </main>
   );
 }

@@ -1,23 +1,69 @@
-<<<<<<< HEAD
-// componente simulado CardSpainRoom.jsx
-=======
-import React from "react";
+import { Link } from "react-router-dom";
+import "./cardSpainRoom.css";
 
-export default function CardSpainRoom({ title, children }) {
+/**
+ * Props:
+ * - id (string)  -> para el enlace de detalles
+ * - title, location, price, features[], image, badge
+ * - onReserve()  -> callback al pulsar Reservar
+ */
+export default function CardSpainRoom({
+  id,
+  title,
+  location,
+  price,
+  features = [],
+  image = "/casa-diseno.jpg",
+  badge,
+  onReserve,
+}) {
   return (
-    <div
-      style={{
-        border: "1px solid #e5e7eb",
-        borderRadius: 12,
-        padding: 16,
-        boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
-        background: "#fff",
-        marginBottom: 16,
-      }}
-    >
-      {title && <h3 style={{ marginTop: 0 }}>{title}</h3>}
-      <div>{children}</div>
-    </div>
+    <article className="sr-card">
+      <figure className="sr-card__figure">
+        <img src={image} alt={title} className="sr-card__img" loading="lazy" />
+        {badge ? <figcaption className="sr-card__badge">{badge}</figcaption> : null}
+      </figure>
+
+      <div className="sr-card__body">
+        <header className="sr-card__header">
+          <h3 className="sr-card__title" title={title}>{title}</h3>
+          <div className="sr-card__price">
+            {new Intl.NumberFormat("es-ES", {
+              style: "currency",
+              currency: "EUR",
+              maximumFractionDigits: 0,
+            }).format(price)}
+            <span className="sr-card__period">/mes</span>
+          </div>
+        </header>
+
+        <p className="sr-card__location">{location}</p>
+
+        {features?.length > 0 && (
+          <ul className="sr-card__features">
+            {features.slice(0, 4).map((f, i) => (
+              <li key={i} className="sr-chip">{f}</li>
+            ))}
+          </ul>
+        )}
+
+        <footer className="sr-card__footer">
+          <button
+            type="button"
+            className="sr-btn-brand"
+            onClick={onReserve}
+          >
+            Reservar
+          </button>
+
+          <Link
+            to={`/habitaciones/${encodeURIComponent(id)}`}
+            className="sr-btn-ghost"
+          >
+            Ver detalles
+          </Link>
+        </footer>
+      </div>
+    </article>
   );
 }
->>>>>>> 780c84d (SpainRoom: actualizar App.jsx y VerificacionViviendaSR.jsx)
