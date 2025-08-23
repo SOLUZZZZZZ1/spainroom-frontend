@@ -1,8 +1,8 @@
-// Lee la URL del backend desde variables Vite
+// src/services/api.js
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
 export async function sendReservationToApi(payload) {
-  const res = await fetch(`${API_BASE}/api/reservas`, {
+  const res = await fetch(`${API_BASE}/reservas`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
