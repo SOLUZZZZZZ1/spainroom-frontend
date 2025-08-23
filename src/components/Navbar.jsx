@@ -12,28 +12,18 @@ export default function Navbar() {
             className="sr-navbar__logo"
             width="100"
             height="auto"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         </Link>
 
         <nav className="sr-navbar__nav" aria-label="Navegación principal">
-          <NavLink to="/" end className="sr-link">
-            Inicio
-          </NavLink>
-          <NavLink to="/listado" className="sr-link">
-            Listado
-          </NavLink>
-          <NavLink to="/jobs" className="sr-link">
-            Jobs
-          </NavLink>
-          <NavLink to="/reservas" className="sr-link">
-            Reservas
-          </NavLink>
-          <NavLink to="/admin" className="sr-link">
-            Admin
-          </NavLink>
-          <NavLink to="/oportunidades" className="sr-link">
-            Oportunidades
-          </NavLink>
+          <NavLink to="/" end className="sr-link">Inicio</NavLink>
+          <NavLink to="/listado" className="sr-link">Listado</NavLink>
+          <NavLink to="/jobs" className="sr-link">Jobs</NavLink>
+          <NavLink to="/reservas" className="sr-link">Reservas</NavLink>
+          <NavLink to="/propietarios" className="sr-link">Propietarios</NavLink>
+          <NavLink to="/admin" className="sr-link">Admin</NavLink>
+          <NavLink to="/oportunidades" className="sr-link">Oportunidades</NavLink>
         </nav>
       </div>
     </header>

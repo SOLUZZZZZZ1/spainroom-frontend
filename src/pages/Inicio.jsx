@@ -11,8 +11,9 @@ export default function Inicio() {
           src="/logo.png"
           alt="Logo SpainRoom"
           className="sr-hero__logo"
-          width="240"
+          width="260"
           height="auto"
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
         />
 
         <h1 className="sr-hero__title">Bienvenido a SpainRoom</h1>

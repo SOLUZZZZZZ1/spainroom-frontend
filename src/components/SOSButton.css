@@ -1,26 +1,25 @@
-.sos-btn-floating {
+.sr-sos{
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 100;
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background: #dc2626; /* rojo alerta */
-  color: #fff;
-  font-weight: bold;
-  font-size: 18px;
-  display: flex;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9999;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  background: #ef4444; /* rojo */
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: .5px;
   text-decoration: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  user-select: none;
+  box-shadow: 0 12px 28px rgba(239,68,68,.35);
+  border: 2px solid rgba(255,255,255,.85);
+  transition: transform .08s ease, filter .15s ease;
 }
-
-.sos-btn-floating:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.5);
-  background: #b91c1c; /* un rojo un poco más oscuro al hover */
+.sr-sos:hover{ filter: brightness(1.05); transform: translateY(-1px); }
+.sr-sos:active{ transform: translateY(0); }
+@media (max-width: 480px){
+  .sr-sos{ right: 12px; bottom: 12px; width: 54px; height: 54px; }
 }
