@@ -1,243 +1,241 @@
-import { useMemo, useState } from "react";
-import { JOBS, JOB_ZONES } from "../data/jobs.js";
-import MapPlaceholder from "../components/MapPlaceholder.jsx";
-import JobCard from "../components/JobCard.jsx";
+import { useEffect, useMemo, useState } from "react";
+import { getJobsNearby, searchJobs } from "../lib/api";
 
-function distanceKm(a, b) {
-  // Haversine
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLon = ((b.lng - a.lng) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const x =
-    Math.sin(dLat / 2) ** 2 +
-    Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
-  return 2 * R * Math.asin(Math.sqrt(x));
+function ResultCard({ job }) {
+  return (
+    <div className="rounded-2xl border p-4 bg-white shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="font-semibold text-gray-900">{job.title}</h3>
+        {job.distance_km != null && (
+          <span className="text-xs rounded-lg bg-blue-50 text-blue-700 px-2 py-1">
+            {job.distance_km.toFixed(1)} km
+          </span>
+        )}
+      </div>
+      <p className="text-sm text-gray-600 mt-1">
+        {job.company || "Empresa no indicada"} · {job.location || "Ubicación"}
+      </p>
+      {job.salary && <p className="text-sm text-gray-700 mt-1">{job.salary}</p>}
+      <div className="mt-3 flex items-center gap-2">
+        {job.url && (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-xl bg-blue-600 text-white text-sm px-3 py-2 hover:bg-blue-700"
+          >
+            Ver oferta
+          </a>
+        )}
+        {job.source && <span className="text-xs text-gray-500">Fuente: {job.source}</span>}
+      </div>
+    </div>
+  );
 }
 
+const demoNearby = (lat, lng) => ([
+  {
+    id: "demo-1",
+    title: "Dependiente/a tienda barrio",
+    company: "Comercio Local",
+    location: "Cerca de tu ubicación",
+    distance_km: 0.7,
+    salary: "1.100–1.300 € / mes",
+    url: "#",
+    source: "Demo",
+    lat, lng,
+  },
+  {
+    id: "demo-2",
+    title: "Camarero/a fin de semana",
+    company: "Bar La Plaza",
+    location: "Zona centro",
+    distance_km: 1.8,
+    salary: "8–10 € / hora",
+    url: "#",
+    source: "Demo",
+    lat, lng,
+  },
+]);
+
+const demoSearch = (q) => ([
+  {
+    id: "demo-s1",
+    title: `(${q || "General"}) Reponedor/a supermercado`,
+    company: "SuperMax",
+    location: "Distrito norte",
+    distance_km: 4.2,
+    salary: "1.200–1.400 € / mes",
+    url: "#",
+    source: "Demo",
+  },
+  {
+    id: "demo-s2",
+    title: `(${q || "General"}) Recepcionista hotel`,
+    company: "Hotel Centro",
+    location: "Centro ciudad",
+    distance_km: 6.9,
+    salary: "1.300–1.600 € / mes",
+    url: "#",
+    source: "Demo",
+  },
+]);
+
 export default function Jobs() {
-  // Estado buscador general (2 km)
-  const [zoneGeneral, setZoneGeneral] = useState(JOB_ZONES[0].key);
+  // Geolocalización
+  const [coords, setCoords] = useState(null);
+  const [geoError, setGeoError] = useState(null);
 
-  // Estado buscador específico (10 km)
-  const [zoneSpecific, setZoneSpecific] = useState(JOB_ZONES[0].key);
-  const [query, setQuery] = useState("");
+  // General (2 km)
+  const [nearby, setNearby] = useState([]);
+  const [loadingNearby, setLoadingNearby] = useState(false);
+  const [errNearby, setErrNearby] = useState(null);
 
-  const zoneGeneralObj = useMemo(
-    () => JOB_ZONES.find((z) => z.key === zoneGeneral),
-    [zoneGeneral]
-  );
-  const zoneSpecificObj = useMemo(
-    () => JOB_ZONES.find((z) => z.key === zoneSpecific),
-    [zoneSpecific]
-  );
+  // Búsqueda (10 km)
+  const [q, setQ] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState([]);
+  const [errSearch, setErrSearch] = useState(null);
 
-  // Resultados
-  const resultsGeneral = useMemo(() => {
-    if (!zoneGeneralObj) return [];
-    return JOBS.filter((j) => {
-      const d = distanceKm(zoneGeneralObj.coords, j.coords);
-      return d <= 2; // radio 2 km
-    }).sort((a, b) => (a.postedAt < b.postedAt ? 1 : -1));
-  }, [zoneGeneralObj]);
+  // Pedir geolocalización al cargar
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoError("Geolocalización no disponible en este navegador.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoError(null);
+      },
+      (err) => {
+        setGeoError("No se pudo obtener tu ubicación (permiso denegado o error).");
+        // Aun así seguimos con demo en fallback
+        setCoords(null);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 120000 }
+    );
+  }, []);
 
-  const resultsSpecific = useMemo(() => {
-    if (!zoneSpecificObj) return [];
-    const q = query.trim().toLowerCase();
-    return JOBS.filter((j) => {
-      const d = distanceKm(zoneSpecificObj.coords, j.coords);
-      if (d > 10) return false; // radio 10 km
-      if (!q) return true;
-      const hay =
-        j.title.toLowerCase().includes(q) ||
-        j.company.toLowerCase().includes(q) ||
-        j.tags?.some((t) => t.toLowerCase().includes(q));
-      return hay;
-    }).sort((a, b) => (a.postedAt < b.postedAt ? 1 : -1));
-  }, [zoneSpecificObj, query]);
+  // Cargar “cerca de mí” (2 km) cuando hay coords
+  useEffect(() => {
+    async function run() {
+      setLoadingNearby(true);
+      setErrNearby(null);
+      try {
+        if (coords) {
+          const data = await getJobsNearby({ lat: coords.lat, lng: coords.lng, radius_km: 2 });
+          setNearby(Array.isArray(data) ? data : data.items || []);
+        } else {
+          // Fallback demo si no hay coords
+          setNearby(demoNearby());
+        }
+      } catch (e) {
+        setErrNearby(e.message || "Error cargando ofertas cercanas");
+        setNearby(demoNearby(coords?.lat, coords?.lng));
+      } finally {
+        setLoadingNearby(false);
+      }
+    }
+    run();
+  }, [coords]);
+
+  const canSearch = useMemo(() => coords != null, [coords]);
+
+  // Ejecutar búsqueda específica (10 km)
+  async function onSearch(e) {
+    e?.preventDefault();
+    setSearching(true);
+    setErrSearch(null);
+    try {
+      if (coords) {
+        const data = await searchJobs({ q, lat: coords.lat, lng: coords.lng, radius_km: 10 });
+        setResults(Array.isArray(data) ? data : data.items || []);
+      } else {
+        setResults(demoSearch(q));
+      }
+    } catch (e) {
+      setErrSearch(e.message || "Error buscando ofertas");
+      setResults(demoSearch(q));
+    } finally {
+      setSearching(false);
+    }
+  }
 
   return (
-    <main style={{ maxWidth: 1200, margin: "24px auto", padding: "0 16px" }}>
-      <h2 style={{ marginTop: 0 }}>SpainRoom Jobs</h2>
+    <div className="mx-auto max-w-7xl px-4 py-8">
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Ofertas de empleo cerca de ti</h1>
+      {geoError && (
+        <div className="mb-4 rounded-xl bg-yellow-50 text-yellow-800 text-sm p-3">
+          {geoError} — Mostrando resultados de demostración.
+        </div>
+      )}
 
       {/* Buscador general (2 km) */}
-      <section
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 16,
-          padding: 12,
-          boxShadow: "0 8px 24px rgba(10,23,45,.06)",
-          marginBottom: 16,
-        }}
-      >
-        <h3 style={{ marginTop: 6, marginBottom: 10 }}>Ofertas cerca (radio 2 km)</h3>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(12, 1fr)",
-            gap: 12,
-            alignItems: "end",
-          }}
-        >
-          <label style={{ gridColumn: "span 6", display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
-              Zona de referencia
-            </span>
-            <select
-              value={zoneGeneral}
-              onChange={(e) => setZoneGeneral(e.target.value)}
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 10,
-                padding: "10px 12px",
-                fontSize: 14,
-              }}
-            >
-              {JOB_ZONES.map((z) => (
-                <option key={z.key} value={z.key}>
-                  {z.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div style={{ gridColumn: "span 6" }}>
-            {zoneGeneralObj ? (
-              <MapPlaceholder
-                lat={zoneGeneralObj.coords.lat}
-                lng={zoneGeneralObj.coords.lng}
-                label="Radio 2 km"
-              />
-            ) : null}
-          </div>
+      <section className="rounded-2xl border bg-white p-4 mb-6">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-semibold">General (radio 2 km)</h2>
+          <button
+            className="rounded-xl bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200"
+            onClick={() => {
+              // Forzar recarga
+              setCoords((c) => (c ? { ...c } : c));
+            }}
+            disabled={loadingNearby}
+          >
+            {loadingNearby ? "Actualizando..." : "Actualizar"}
+          </button>
         </div>
 
-        <div
-          className="sr-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(12, 1fr)",
-            gap: 16,
-            marginTop: 12,
-          }}
-        >
-          {resultsGeneral.map((job) => (
-            <div key={job.id} style={{ gridColumn: "span 6" }}>
-              <JobCard job={job} />
-            </div>
-          ))}
-        </div>
-
-        {!resultsGeneral.length && (
-          <p style={{ marginTop: 10, color: "#6b7280" }}>
-            No hay ofertas a 2 km de la zona seleccionada.
-          </p>
+        {errNearby && (
+          <div className="mt-3 rounded-xl bg-red-50 text-red-700 text-sm p-3">{errNearby}</div>
         )}
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {loadingNearby
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-2xl border p-4 bg-gray-50 h-28" />
+              ))
+            : nearby.map((job) => <ResultCard key={job.id || job.title} job={job} />)}
+        </div>
       </section>
 
       {/* Buscador específico (10 km) */}
-      <section
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 16,
-          padding: 12,
-          boxShadow: "0 8px 24px rgba(10,23,45,.06)",
-        }}
-      >
-        <h3 style={{ marginTop: 6, marginBottom: 10 }}>
-          Encuentra un trabajo concreto (radio 10 km)
-        </h3>
+      <section className="rounded-2xl border bg-white p-4">
+        <h2 className="font-semibold">Búsqueda específica (radio 10 km)</h2>
+        <form onSubmit={onSearch} className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+          <input
+            className="rounded-xl border px-3 py-2 text-sm"
+            placeholder="Ej. camarero, dependiente, recepcionista…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <button
+            className="rounded-xl bg-blue-600 text-white text-sm px-4 py-2 hover:bg-blue-700 disabled:opacity-50"
+            disabled={searching || !canSearch}
+          >
+            {searching ? "Buscando..." : "Buscar"}
+          </button>
+        </form>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(12, 1fr)",
-            gap: 12,
-            alignItems: "end",
-          }}
-        >
-          <label style={{ gridColumn: "span 4", display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
-              Zona de referencia
-            </span>
-            <select
-              value={zoneSpecific}
-              onChange={(e) => setZoneSpecific(e.target.value)}
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 10,
-                padding: "10px 12px",
-                fontSize: 14,
-              }}
-            >
-              {JOB_ZONES.map((z) => (
-                <option key={z.key} value={z.key}>
-                  {z.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ gridColumn: "span 5", display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
-              Palabra clave (ej: camarero, recepción…)
-            </span>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Escribe tu búsqueda"
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 10,
-                padding: "10px 12px",
-                fontSize: 14,
-              }}
-            />
-          </label>
-
-          <div style={{ gridColumn: "span 3" }}>
-            {zoneSpecificObj ? (
-              <MapPlaceholder
-                lat={zoneSpecificObj.coords.lat}
-                lng={zoneSpecificObj.coords.lng}
-                label="Radio 10 km"
-              />
-            ) : null}
-          </div>
-        </div>
-
-        <div
-          className="sr-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(12, 1fr)",
-            gap: 16,
-            marginTop: 12,
-          }}
-        >
-          {resultsSpecific.map((job) => (
-            <div key={job.id} style={{ gridColumn: "span 6" }}>
-              <JobCard job={job} />
-            </div>
-          ))}
-        </div>
-
-        {!resultsSpecific.length && (
-          <p style={{ marginTop: 10, color: "#6b7280" }}>
-            No hay resultados a 10 km para esa palabra clave en la zona elegida.
+        {!canSearch && (
+          <p className="text-xs text-gray-500 mt-2">
+            Activa la geolocalización para resultados reales. De momento verás ejemplos.
           </p>
         )}
-      </section>
 
-      <style>{`
-        @media (max-width: 1024px) {
-          .sr-grid > div { grid-column: span 12; }
-        }
-      `}</style>
-    </main>
+        {errSearch && (
+          <div className="mt-3 rounded-xl bg-red-50 text-red-700 text-sm p-3">{errSearch}</div>
+        )}
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {searching
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-2xl border p-4 bg-gray-50 h-28" />
+              ))
+            : results.map((job) => <ResultCard key={job.id || `${job.title}-${job.company}`} job={job} />)}
+        </div>
+      </section>
+    </div>
   );
 }

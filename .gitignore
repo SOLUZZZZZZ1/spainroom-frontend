@@ -1,37 +1,39 @@
-# --- Node / Vite ---
+# --- Node ---
 node_modules/
-dist/
-dist-ssr/
-.cache/
-.tmp/
-.eslintcache
-coverage/
-
-# --- Logs ---
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-*.log
-*.log.*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# --- OS / Editor ---
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-.vscode/
-.idea/
-*.iml
+# --- Build / dist ---
+dist/
+dist-ssr/
+build/
+*.local
 
-# --- Env files ---
+# --- Vite ---
+.vite/
+vite.config.local.*
+
+# --- Env ---
 .env
 .env.*
 !.env.example
-!.env.production   # dejamos este porque no lleva secretos en tu caso (VITE_API_BASE=/api)
 
-# --- Vercel ---
-.vercel
+# --- Editor / OS ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# --- Seguridad por si alguien ignora CSS por error ---
-!src/**/*.css
+# --- Coverage / Testing ---
+coverage/
+*.lcov

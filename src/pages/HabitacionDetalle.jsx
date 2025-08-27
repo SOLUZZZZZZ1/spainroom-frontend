@@ -1,105 +1,84 @@
-﻿import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { ROOMS } from "../data/rooms.js";
-import MapPlaceholder from "../components/MapPlaceholder.jsx";
-import ModalReserve from "../components/ModalReserve.jsx";
-import { submitReservationHybrid } from "../state/reservations.js";
-import "./habitacionDetalle.css";
+﻿import { useParams, Link } from "react-router-dom";
 
 export default function HabitacionDetalle() {
   const { id } = useParams();
-  const navigate = useNavigate();
 
-  const room = useMemo(() => ROOMS.find((r) => r.id === id) || null, [id]);
-  const [reserveOpen, setReserveOpen] = useState(false);
+  // Habitaciones ficticias con imágenes de /public/images
+  const habitaciones = Array.from({ length: 12 }, (_, i) => ({
+    id: (i + 1).toString(),
+    titulo: `Habitación ${i + 1}`,
+    descripcion:
+      "Habitación luminosa, amueblada y lista para entrar a vivir. Incluye servicios básicos y se encuentra en una ubicación excelente.",
+    precio: 350 + (i % 4) * 50,
+    imagen: `/images/habitacion${i + 1}.jpg`,
+    direccion: `Calle Ejemplo nº${10 + i}, Ciudad`,
+    metros: 12 + (i % 5) * 2,
+  }));
 
-  const submitReservation = async (payload) => {
-    const { storage, saved, error } = await submitReservationHybrid(payload);
-    const via = storage === "api" ? "🟦 Servidor" : "🟨 Local";
-    alert(
-      [
-        `✅ Solicitud enviada (${via})`,
-        `ID: ${saved.id}`,
-        `Habitación: ${payload.roomTitle} (${payload.roomId})`,
-        `Ciudad/Zona: ${payload.roomLocation}`,
-        `Precio: ${payload.price} €/mes`,
-        `Nombre: ${payload.name}`,
-        `Email: ${payload.email}`,
-        `Teléfono: ${payload.phone}`,
-        `Entrada: ${payload.date}`,
-        storage === "local" ? `\nAviso: no se pudo conectar con el servidor.\n(${error})\nGuardado en este navegador.` : "",
-        storage === "local" ? "Más tarde podrás reenviar desde la pestaña Reservas." : "",
-      ].join("\n")
-    );
-  };
+  const habitacion = habitaciones.find((h) => h.id === id);
 
-  if (!room) {
+  if (!habitacion) {
     return (
-      <main className="sr-room">
-        <div className="sr-room__wrap">
-          <p>No se encontró la habitación solicitada.</p>
-          <button className="sr-btn sr-btn--ghost" onClick={() => navigate("/listado")}>
-            Volver al listado
-          </button>
-        </div>
-      </main>
+      <div className="p-6 text-center">
+        <h2 className="text-xl font-bold text-red-600 mb-4">
+          ❌ Habitación no encontrada
+        </h2>
+        <Link
+          to="/listado"
+          className="text-blue-700 underline hover:text-blue-900"
+        >
+          Volver al listado
+        </Link>
+      </div>
     );
   }
 
   return (
-    <main className="sr-room">
-      <div className="sr-room__hero">
-        <img src={room.image} alt={room.title} className="sr-room__img" />
-        {room.badge ? <span className="sr-room__badge">{room.badge}</span> : null}
-      </div>
+    <div className="bg-gray-100 min-h-[calc(100vh-4rem)]">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <img
+            src={habitacion.imagen}
+            alt={habitacion.titulo}
+            className="w-full h-72 object-cover bg-gray-200"
+            loading="lazy"
+            onError={(e) => (e.currentTarget.src = "/casa-diseno.jpg")}
+          />
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              {habitacion.titulo}
+            </h2>
+            <p className="text-gray-600 mb-4">{habitacion.descripcion}</p>
 
-      <div className="sr-room__wrap">
-        <header className="sr-room__header">
-          <h2 className="sr-room__title">{room.title}</h2>
-          <div className="sr-room__price">
-            {new Intl.NumberFormat("es-ES", {
-              style: "currency",
-              currency: "EUR",
-              maximumFractionDigits: 0,
-            }).format(room.price)}
-            <span className="sr-room__period">/mes</span>
+            <ul className="text-gray-700 mb-4 space-y-1">
+              <li>
+                <strong>📍 Dirección:</strong> {habitacion.direccion}
+              </li>
+              <li>
+                <strong>📐 Metros cuadrados:</strong> {habitacion.metros} m²
+              </li>
+              <li>
+                <strong>💶 Precio:</strong>{" "}
+                <span className="text-blue-700 font-bold">
+                  {habitacion.precio} €/mes
+                </span>
+              </li>
+            </ul>
+
+            <div className="flex justify-between mt-6">
+              <Link
+                to="/listado"
+                className="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 transition"
+              >
+                Volver
+              </Link>
+              <button className="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition">
+                Reservar
+              </button>
+            </div>
           </div>
-        </header>
-
-        <p className="sr-room__location">{room.location}</p>
-
-        <ul className="sr-room__features">
-          {room.features?.map((f, i) => (
-            <li key={i} className="sr-chip">{f}</li>
-          ))}
-        </ul>
-
-        {room.description ? <p className="sr-room__desc">{room.description}</p> : null}
-
-        <div className="sr-room__actions">
-          <button className="sr-btn sr-btn--primary" onClick={() => setReserveOpen(true)}>
-            Reservar ahora
-          </button>
-          <button className="sr-btn sr-btn--ghost" onClick={() => navigate(-1)}>
-            Volver
-          </button>
         </div>
       </div>
-
-      <div style={{ marginTop: 16 }}>
-        <MapPlaceholder
-          lat={room.coords?.lat}
-          lng={room.coords?.lng}
-          label={room.mapLabel || room.location}
-        />
-      </div>
-
-      <ModalReserve
-        open={reserveOpen}
-        room={room}
-        onClose={() => setReserveOpen(false)}
-        onSubmit={submitReservation}
-      />
-    </main>
+    </div>
   );
 }

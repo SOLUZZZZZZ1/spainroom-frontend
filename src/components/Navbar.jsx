@@ -1,54 +1,30 @@
-import { NavLink, Link } from "react-router-dom";
-import { useState } from "react";
-import "./navbar.css";
-import LogoSpainRoom from "./LogoSpainRoom.jsx";
+import { NavLink } from "react-router-dom";
+
+const linkStyle = ({ isActive }) => ({
+  padding: "8px 12px",
+  borderRadius: 8,
+  color: "#fff",
+  textDecoration: "none",
+  background: isActive ? "rgba(255,255,255,0.22)" : "transparent",
+});
 
 export default function Navbar() {
-  const [useFallbackLogo, setUseFallbackLogo] = useState(false);
-  const linkClass = ({ isActive }) => `sr-link${isActive ? " active" : ""}`;
-
   return (
-    <header className="sr-navbar">
-      <div className="sr-navbar__container">
-        <Link to="/" className="sr-navbar__brand" aria-label="SpainRoom - Inicio">
-          {!useFallbackLogo ? (
-            <img
-              src="/logo.png"
-              alt="SpainRoom"
-              className="sr-navbar__logo"
-              width="100"
-              height="auto"
-              onError={() => setUseFallbackLogo(true)}
-            />
-          ) : (
-            <LogoSpainRoom className="sr-navbar__logo" size={88} />
-          )}
-        </Link>
-
-        <nav className="sr-navbar__nav" aria-label="Navegación principal">
-          <NavLink to="/" end className={linkClass}>
-            Inicio
-          </NavLink>
-          <NavLink to="/listado" className={linkClass}>
-            Listado
-          </NavLink>
-          <NavLink to="/jobs" className={linkClass}>
-            Jobs
-          </NavLink>
-          <NavLink to="/reservas" className={linkClass}>
-            Reservas
-          </NavLink>
-          <NavLink to="/propietarios" className={linkClass}>
-            Propietarios
-          </NavLink>
-          <NavLink to="/admin" className={linkClass}>
-            Admin
-          </NavLink>
-          <NavLink to="/oportunidades" className={linkClass}>
-            Oportunidades
-          </NavLink>
-        </nav>
+    <header style={{
+      position: "sticky", top: 0, zIndex: 40,
+      background: "#0ea5e9", color: "#fff",
+      padding: "10px 14px", display: "flex",
+      alignItems: "center", justifyContent: "space-between"
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <img src="/logo.png" alt="SpainRoom" style={{ width: 32, height: 32 }} />
+        <b>SPAINROOM</b>
       </div>
+      <nav style={{ display: "flex", gap: 8 }}>
+        <NavLink to="/" style={linkStyle} end>Inicio</NavLink>
+        <NavLink to="/listado" style={linkStyle}>Listado</NavLink>
+        <NavLink to="/propietarios" style={linkStyle}>Propietarios</NavLink>
+      </nav>
     </header>
   );
 }

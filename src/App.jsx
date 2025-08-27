@@ -1,33 +1,23 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
-import SOSButton from "./components/SOSButton.jsx";
-
 import Inicio from "./pages/Inicio.jsx";
 import Listado from "./pages/Listado.jsx";
-import Jobs from "./pages/Jobs.jsx";
-import Reservas from "./pages/Reservas.jsx";
 import Propietarios from "./pages/Propietarios.jsx";
-import Admin from "./pages/Admin.jsx";
-import Oportunidades from "./pages/Oportunidades.jsx";
-import HabitacionDetalle from "./pages/HabitacionDetalle.jsx";
 
 export default function App() {
   return (
-    <>
+    <div style={{ fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }}>
       <Navbar />
       <Routes>
         <Route path="/" element={<Inicio />} />
         <Route path="/listado" element={<Listado />} />
-        <Route path="/jobs" element={<Jobs />} />
-        <Route path="/reservas" element={<Reservas />} />
         <Route path="/propietarios" element={<Propietarios />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/oportunidades" element={<Oportunidades />} />
-        <Route path="/habitaciones/:id" element={<HabitacionDetalle />} />
-        <Route path="/home" element={<Navigate to="/" replace />} />
+        {/* Cualquier ruta desconocida redirige a Inicio */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <SOSButton />
-    </>
+      <footer style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, padding: 16 }}>
+        © {new Date().getFullYear()} SpainRoom
+      </footer>
+    </div>
   );
 }

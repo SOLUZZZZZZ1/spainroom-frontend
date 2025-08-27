@@ -1,0 +1,23 @@
+2025-08-23T11:43:10.301Z vite:resolve [32m2.27ms[39m [36m./styles/spainroom.css[39m -> [2mC:/spainroom/frontend/src/styles/spainroom.css[22m
+[31m✗[39m Build failed in 688ms
+[31merror during build:
+[31msrc/App.jsx (9:7): "default" is not exported by "src/pages/HabitacionDetalle.jsx", imported by "src/App.jsx".[31m
+file: [36mC:/spainroom/frontend/src/App.jsx:9:7[31m
+[33m
+ 7: import Admin from "./pages/Admin.jsx"; // wrapper estable (case-safe)
+ 8: import Oportunidades from "./pages/Oportunidades.jsx";
+ 9: import HabitacionDetalle from "./pages/HabitacionDetalle.jsx";
+           ^
+10: 
+11: export default function App() {
+[31m
+    at getRollupError (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at Module.error (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/node-entry.js:16893:16)
+    at Module.traceVariable (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/node-entry.js:17345:29)
+    at ModuleScope.findVariable (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/node-entry.js:15015:39)
+    at FunctionScope.findVariable (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/node-entry.js:5626:38)
+    at FunctionBodyScope.findVariable (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/node-entry.js:5626:38)
+    at Identifier.bind (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/node-entry.js:5400:40)
+    at CallExpression.bind (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/node-entry.js:2787:28)
+    at CallExpression.bind (file:///C:/spainroom/frontend/node_modules/rollup/dist/es/shared/node-entry.js:12066:15)[39m

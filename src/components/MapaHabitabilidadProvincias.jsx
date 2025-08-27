@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import REQUISITOS_CCAA from "../data/requisitosCCAA";
 import PROV_A_CCAA from "../data/provinciaToCCAA";
 
-// Normaliza ids: quita tildes/ñ y pasa a minúsculas
+// Normaliza ids: quita tildes/ñ y pasa a minúsculas con guiones
 function norm(s) {
   return s.normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -12,9 +12,10 @@ function norm(s) {
 }
 
 function colorForCCAA(ccaa) {
-  if (ccaa === "Cataluña" || ccaa === "Illes Balears") return "#1e3a8a"; // cédula obligatoria
-  if (ccaa === "Comunidad Valenciana") return "#2563eb";                 // equivalente
-  return "#9ca3af";                                                      // LPO resto
+  if (ccaa === "Cataluña" || ccaa === "Illes Balears") return "#2563eb"; // azul cédula
+  if (ccaa === "Comunitat Valenciana" || ccaa === "Región de Murcia") return "#f59e0b"; // naranja 2ª ocupación
+  if (ccaa === "Comunidad de Madrid" || ccaa === "Andalucía") return "#10b981"; // verde LPO
+  return "#9ca3af"; // gris sin dato
 }
 
 export default function MapaHabitabilidadProvincias() {
@@ -22,7 +23,7 @@ export default function MapaHabitabilidadProvincias() {
   const [hover, setHover] = useState(null); // {prov, ccaa}
   const boxRef = useRef(null);
 
-  // Carga del SVG de provincias (colócalo en /public/maps/espana-provincias.svg)
+  // Carga del SVG de provincias
   useEffect(() => {
     (async () => {
       try {
@@ -36,17 +37,16 @@ export default function MapaHabitabilidadProvincias() {
     })();
   }, []);
 
-  // Inyecta colores y eventos cuando el SVG esté insertado en el DOM
+  // Inyecta colores y eventos cuando el SVG esté en el DOM
   useEffect(() => {
     if (!svgText || !boxRef.current) return;
 
     const root = boxRef.current.querySelector("svg");
     if (!root) return;
 
-    // Por cada provincia conocida, intenta localizar la capa por id o data-prov
     Object.keys(PROV_A_CCAA).forEach((prov) => {
       const ccaa = PROV_A_CCAA[prov];
-      const id = norm(prov); // ej: "la rioja" -> "la-rioja"
+      const id = norm(prov);
       let el = root.querySelector(`#${id}`) ||
                root.querySelector(`[data-prov="${prov}"]`) ||
                root.querySelector(`[data-name="${prov}"]`);
@@ -57,13 +57,12 @@ export default function MapaHabitabilidadProvincias() {
         el.style.strokeWidth = "0.8";
         el.style.cursor = "pointer";
 
-        el.addEventListener("mouseenter", () => setHover({prov, ccaa}));
+        el.addEventListener("mouseenter", () => setHover({ prov, ccaa }));
         el.addEventListener("mouseleave", () => setHover(null));
-        el.addEventListener("touchstart", () => setHover({prov, ccaa}), {passive: true});
+        el.addEventListener("touchstart", () => setHover({ prov, ccaa }), { passive: true });
       }
     });
 
-    // Cleanup listeners si se re-renderiza
     return () => {
       if (!root) return;
       Object.keys(PROV_A_CCAA).forEach((prov) => {
@@ -89,14 +88,12 @@ export default function MapaHabitabilidadProvincias() {
 
   return (
     <div style={{ position: "relative", textAlign: "center" }}>
-      {/* Contenedor que inyecta el SVG */}
       <div
         ref={boxRef}
         dangerouslySetInnerHTML={{ __html: svgText || "" }}
         style={{ maxWidth: 900, margin: "0 auto" }}
       />
 
-      {/* Tooltip */}
       {tooltip && (
         <div style={{
           position: "absolute",

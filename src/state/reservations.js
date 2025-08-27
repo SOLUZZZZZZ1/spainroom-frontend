@@ -1,4 +1,6 @@
 // src/state/reservations.js
+import { sendReservationToApi } from "../services/api.js";
+
 const STORAGE_KEY = "sr_reservations_v1";
 
 function readAll() {
@@ -9,7 +11,6 @@ function readAll() {
     return [];
   }
 }
-
 function writeAll(list) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
@@ -36,9 +37,7 @@ export function clearReservations() {
   writeAll([]);
 }
 
-// Envío híbrido: primero API; si falla, guarda local
-import { sendReservationToApi } from "../services/api.js";
-
+// Envío híbrido: API → si falla, localStorage
 export async function submitReservationHybrid(payload) {
   try {
     const { ok, item } = await sendReservationToApi(payload);

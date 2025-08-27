@@ -1,69 +1,49 @@
-import { Link } from "react-router-dom";
-import "./cardSpainRoom.css";
+import RoomImage from "./RoomImage";
 
 /**
+ * Tarjeta reutilizable SpainRoom
  * Props:
- * - id (string)  -> para el enlace de detalles
- * - title, location, price, features[], image, badge
- * - onReserve()  -> callback al pulsar Reservar
+ * - title, subtitle, price, extra
+ * - imageSrc: ruta de imagen (p.ej. "/fotos/hab1.jpg" o URL)
+ * - children: contenido libre (lista de features, etc.)
+ * - footer: zona inferior (botones, links)
  */
 export default function CardSpainRoom({
-  id,
   title,
-  location,
+  subtitle,
   price,
-  features = [],
-  image = "/casa-diseno.jpg",
-  badge,
-  onReserve,
+  extra,
+  imageSrc,
+  children,
+  footer,
 }) {
   return (
-    <article className="sr-card">
-      <figure className="sr-card__figure">
-        <img src={image} alt={title} className="sr-card__img" loading="lazy" />
-        {badge ? <figcaption className="sr-card__badge">{badge}</figcaption> : null}
-      </figure>
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition">
+      {/* Imagen (opcional). Si no pasas imageSrc, usa fallback */}
+      <div className="p-4 pb-0">
+        <RoomImage src={imageSrc} alt={title || "Habitación SpainRoom"} />
+      </div>
 
-      <div className="sr-card__body">
-        <header className="sr-card__header">
-          <h3 className="sr-card__title" title={title}>{title}</h3>
-          <div className="sr-card__price">
-            {new Intl.NumberFormat("es-ES", {
-              style: "currency",
-              currency: "EUR",
-              maximumFractionDigits: 0,
-            }).format(price)}
-            <span className="sr-card__period">/mes</span>
+      {/* Contenido */}
+      <div className="p-5">
+        {(title || subtitle) && (
+          <div className="mb-3">
+            {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
+            {subtitle && <p className="text-sm text-gray-600 mt-1">{subtitle}</p>}
           </div>
-        </header>
-
-        <p className="sr-card__location">{location}</p>
-
-        {features?.length > 0 && (
-          <ul className="sr-card__features">
-            {features.slice(0, 4).map((f, i) => (
-              <li key={i} className="sr-chip">{f}</li>
-            ))}
-          </ul>
         )}
 
-        <footer className="sr-card__footer">
-          <button
-            type="button"
-            className="sr-btn-brand"
-            onClick={onReserve}
-          >
-            Reservar
-          </button>
+        {price && <div className="text-blue-600 font-semibold">{price}</div>}
+        {extra && <div className="text-sm text-gray-700 mt-1">{extra}</div>}
 
-          <Link
-            to={`/habitaciones/${encodeURIComponent(id)}`}
-            className="sr-btn-ghost"
-          >
-            Ver detalles
-          </Link>
-        </footer>
+        {children && <div className="mt-3 text-gray-800">{children}</div>}
+
+        {footer && (
+          <div className="mt-4 pt-3 border-t border-gray-100 text-sm text-gray-600">
+            {footer}
+          </div>
+        )}
       </div>
-    </article>
+    </div>
   );
 }

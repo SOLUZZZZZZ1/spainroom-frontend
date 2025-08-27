@@ -1,8 +1,9 @@
 {
   "version": 2,
-  "builds": [{ "src": "package.json", "use": "@vercel/static-build" }],
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "https://TU_BACKEND_RENDER.onrender.com/api/:path*" },
-    { "source": "/(.*)", "destination": "/" }
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

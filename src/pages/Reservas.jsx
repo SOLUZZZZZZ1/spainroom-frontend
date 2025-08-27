@@ -1,126 +1,116 @@
-import { useEffect, useMemo, useState } from "react";
-import { getReservations, clearReservations } from "../state/reservations.js";
-import { downloadCSV } from "../utils/csv.js";
+import { useState } from "react";
+import { FormCard, Field, Input, Textarea, Button, Alert } from "../components/SRForm";
 
 export default function Reservas() {
-  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState(null);
 
-  useEffect(() => {
-    setItems(getReservations());
-  }, []);
-
-  const total = useMemo(() => items.length, [items]);
-
-  const exportCSV = () => {
-    if (!items.length) return alert("No hay reservas para exportar.");
-    downloadCSV("reservas_spainroom.csv", items);
-  };
-
-  const sendWebhook = async () => {
-    const url = prompt("Pega la URL del webhook (ej: https://hooks.zapier.com/...)");
-    if (!url) return;
+  async function onSubmit(e) {
+    e.preventDefault();
+    setStatus(null);
+    setLoading(true);
+    const form = new FormData(e.currentTarget);
+    const payload = Object.fromEntries(form.entries());
     try {
-      const res = await fetch(url, {
+      const r = await fetch("/api/reservas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reservations: items }),
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      alert("✅ Enviado correctamente al webhook.");
-    } catch (e) {
-      alert("❌ Error enviando al webhook:\n" + e.message);
+      if (!r.ok) throw new Error("backend");
+      setStatus({ ok: true, msg: "Reserva enviada correctamente. Te contactaremos en breve." });
+      e.currentTarget.reset();
+    } catch (err) {
+      // DEMO: si no hay backend, confirmamos simulando éxito
+      setStatus({
+        ok: true,
+        msg: "Reserva registrada (demo). Backend no conectado. Pronto te contactaremos.",
+      });
+      e.currentTarget.reset();
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const mailtoCSV = () => {
-    if (!items.length) return alert("No hay reservas para enviar.");
-    // En mailto no se puede adjuntar archivo; incluimos un resumen en el cuerpo:
-    const resumen = items
-      .slice(0, 10)
-      .map(
-        (r) =>
-          `• ${r.createdAt} | ${r.roomTitle} (${r.roomId}) | ${r.name} | ${r.email} | ${r.phone} | ${r.date}`
-      )
-      .join("%0D%0A");
-    const subject = encodeURIComponent("Reservas SpainRoom");
-    const body = encodeURIComponent(
-      "Adjunto resumen de las últimas reservas (recomendado exportar CSV desde la web para archivo):\n\n"
-    );
-    window.location.href = `mailto:?subject=${subject}&body=${body}${resumen}`;
-  };
-
-  const clearAll = () => {
-    if (!items.length) return;
-    if (!confirm("¿Borrar TODAS las reservas guardadas en este navegador?")) return;
-    clearReservations();
-    setItems([]);
-  };
+  }
 
   return (
-    <main style={{ maxWidth: 1200, margin: "24px auto", padding: "0 16px" }}>
-      <div className="sr-heading">
-        <span className="sr-heading__dot" />
-        <h2 className="sr-heading__title">Reservas</h2>
+    <div className="pt-24 px-4 md:px-6 max-w-5xl mx-auto space-y-6">
+      <header>
+        <h1 className="text-3xl font-bold">Solicitar Reserva</h1>
+        <p className="text-gray-700 mt-2">
+          Cuéntanos cuándo quieres entrar y en qué ciudad. Te ayudamos a encontrar tu habitación SpainRoom.
+        </p>
+      </header>
+
+      {status && (
+        <Alert
+          kind={status.ok ? "success" : "error"}
+          onClose={() => setStatus(null)}
+          autoHideMs={6000}
+        >
+          {status.msg}
+        </Alert>
+      )}
+
+      <FormCard title="Datos de la solicitud" subtitle="Rellena los campos y enviamos tu solicitud a nuestro equipo.">
+        <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Nombre y apellidos" required>
+            <Input name="nombre" required placeholder="Tu nombre completo" />
+          </Field>
+          <Field label="Email" required>
+            <Input name="email" type="email" required placeholder="tu@email.com" />
+          </Field>
+          <Field label="Teléfono" required>
+            <Input name="telefono" required placeholder="+34 6XX XXX XXX" />
+          </Field>
+          <Field label="Ciudad de interés">
+            <Input name="ciudad" placeholder="Madrid, Barcelona, Valencia…" />
+          </Field>
+          <Field label="Fecha de entrada" required>
+            <Input name="entrada" type="date" required />
+          </Field>
+          <Field label="Fecha de salida (opcional)">
+            <Input name="salida" type="date" />
+          </Field>
+          <Field label="ID habitación (si ya la tienes)">
+            <Input name="habitacion_id" placeholder="Ej. 1023" />
+          </Field>
+          <div className="md:col-span-2">
+            <Field label="Mensaje adicional">
+              <Textarea name="mensaje" rows={4} placeholder="Cuéntanos necesidades, zona ideal, presupuesto, etc." />
+            </Field>
+          </div>
+          <div className="md:col-span-2 flex items-center justify-between gap-4 pt-2">
+            <p className="text-xs text-gray-500">
+              Al enviar aceptas ser contactad@ por SpainRoom para gestionar tu reserva.
+            </p>
+            <Button type="submit" loading={loading}>Enviar solicitud</Button>
+          </div>
+        </form>
+      </FormCard>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <FormCard title="Transparencia" subtitle="Sin letra pequeña">
+          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+            <li>Precios claros y sin sorpresas.</li>
+            <li>Habitaciones listas para entrar a vivir.</li>
+            <li>Atención cercana durante toda tu estancia.</li>
+          </ul>
+        </FormCard>
+        <FormCard title="Seguridad" subtitle="Selección responsable">
+          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+            <li>Inquilinos verificados.</li>
+            <li>Propietarios informados y comprometidos.</li>
+            <li>Soporte para incidencias.</li>
+          </ul>
+        </FormCard>
+        <FormCard title="Flexibilidad" subtitle="Nos adaptamos a ti">
+          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+            <li>Estancias medias y largas.</li>
+            <li>Opciones por zona y presupuesto.</li>
+            <li>Cambios sin complicaciones.</li>
+          </ul>
+        </FormCard>
       </div>
-      <p style={{ marginTop: -4, color: "#6b7280" }}>
-        Gestiona las solicitudes guardadas localmente. (Más tarde conectaremos backend/email).
-      </p>
-
-      <section className="sr-section" style={{ marginTop: 12 }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <button className="sr-btn-brand" onClick={exportCSV}>Exportar CSV</button>
-          <button className="sr-btn-ghost" onClick={sendWebhook}>Enviar a webhook</button>
-          <button className="sr-btn-ghost" onClick={mailtoCSV}>Enviar por email</button>
-          <div style={{ marginLeft: "auto", color: "#6b7280", fontWeight: 800 }}>
-            Total reservas: {total}
-          </div>
-          <button className="sr-btn-ghost" onClick={clearAll} title="Borrar todo">Borrar todo</button>
-        </div>
-      </section>
-
-      <section className="sr-section" style={{ marginTop: 12 }}>
-        {!items.length ? (
-          <p style={{ color: "#6b7280" }}>Aún no hay reservas registradas.</p>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "separate",
-                borderSpacing: 0,
-                minWidth: 800,
-              }}
-            >
-              <thead>
-                <tr style={{ textAlign: "left", fontWeight: 900 }}>
-                  <th style={{ padding: "10px 8px" }}>Fecha</th>
-                  <th style={{ padding: "10px 8px" }}>Habitación</th>
-                  <th style={{ padding: "10px 8px" }}>Ubicación</th>
-                  <th style={{ padding: "10px 8px" }}>Precio</th>
-                  <th style={{ padding: "10px 8px" }}>Nombre</th>
-                  <th style={{ padding: "10px 8px" }}>Email</th>
-                  <th style={{ padding: "10px 8px" }}>Teléfono</th>
-                  <th style={{ padding: "10px 8px" }}>Entrada</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((r) => (
-                  <tr key={r.id} style={{ borderTop: "1px solid #e5e7eb" }}>
-                    <td style={{ padding: "8px" }}>{new Date(r.createdAt).toLocaleString()}</td>
-                    <td style={{ padding: "8px" }}>{r.roomTitle} <span style={{ color: "#6b7280" }}>({r.roomId})</span></td>
-                    <td style={{ padding: "8px" }}>{r.roomLocation}</td>
-                    <td style={{ padding: "8px", fontWeight: 900, color: "#0b65d8" }}>{r.price} €</td>
-                    <td style={{ padding: "8px" }}>{r.name}</td>
-                    <td style={{ padding: "8px" }}>{r.email}</td>
-                    <td style={{ padding: "8px" }}>{r.phone}</td>
-                    <td style={{ padding: "8px" }}>{r.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </main>
+    </div>
   );
 }
