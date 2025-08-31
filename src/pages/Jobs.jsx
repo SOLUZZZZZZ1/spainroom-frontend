@@ -1,241 +1,143 @@
-import { useEffect, useMemo, useState } from "react";
-import { getJobsNearby, searchJobs } from "../lib/api";
+import React, { useEffect, useState } from 'react'
+import SEO from '../components/SEO.jsx'
 
-function ResultCard({ job }) {
-  return (
-    <div className="rounded-2xl border p-4 bg-white shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="font-semibold text-gray-900">{job.title}</h3>
-        {job.distance_km != null && (
-          <span className="text-xs rounded-lg bg-blue-50 text-blue-700 px-2 py-1">
-            {job.distance_km.toFixed(1)} km
-          </span>
-        )}
-      </div>
-      <p className="text-sm text-gray-600 mt-1">
-        {job.company || "Empresa no indicada"} · {job.location || "Ubicación"}
-      </p>
-      {job.salary && <p className="text-sm text-gray-700 mt-1">{job.salary}</p>}
-      <div className="mt-3 flex items-center gap-2">
-        {job.url && (
-          <a
-            href={job.url}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-xl bg-blue-600 text-white text-sm px-3 py-2 hover:bg-blue-700"
-          >
-            Ver oferta
-          </a>
-        )}
-        {job.source && <span className="text-xs text-gray-500">Fuente: {job.source}</span>}
-      </div>
-    </div>
-  );
+function useGeo(){
+  const [pos, setPos] = useState(null)
+  const [error, setError] = useState(null)
+  useEffect(()=>{
+    if(!('geolocation' in navigator)) { setError('Geolocalización no soportada'); return }
+    navigator.geolocation.getCurrentPosition(
+      (p)=> setPos({lat:p.coords.latitude, lng:p.coords.longitude}),
+      (e)=> setError(e.message),
+      { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
+    )
+  },[])
+  return { pos, error }
 }
 
-const demoNearby = (lat, lng) => ([
-  {
-    id: "demo-1",
-    title: "Dependiente/a tienda barrio",
-    company: "Comercio Local",
-    location: "Cerca de tu ubicación",
-    distance_km: 0.7,
-    salary: "1.100–1.300 € / mes",
-    url: "#",
-    source: "Demo",
-    lat, lng,
-  },
-  {
-    id: "demo-2",
-    title: "Camarero/a fin de semana",
-    company: "Bar La Plaza",
-    location: "Zona centro",
-    distance_km: 1.8,
-    salary: "8–10 € / hora",
-    url: "#",
-    source: "Demo",
-    lat, lng,
-  },
-]);
+function JobCard({job}){
+  return (
+    <a href={job.url || '#'} target={job.url ? '_blank' : '_self'} rel="noopener noreferrer"
+       style={{display:'block',border:'1px solid #e2e8f0',borderRadius:12,padding:12,background:'#fff'}}>
+      <div style={{display:'flex',justifyContent:'space-between',gap:12}}>
+        <div>
+          <div style={{fontWeight:800}}>{job.title}</div>
+          <div style={{color:'#475569'}}>{job.company} · {job.location}</div>
+          <div style={{fontSize:12,color:'#64748b'}}>Publicado: {job.posted_at}</div>
+        </div>
+        <div style={{textAlign:'right'}}>
+          <div style={{fontSize:12,color:'#64748b'}}>Distancia</div>
+          <div style={{fontWeight:800}}>{job.distance_km?.toFixed(1)} km</div>
+        </div>
+      </div>
+    </a>
+  )
+}
 
-const demoSearch = (q) => ([
-  {
-    id: "demo-s1",
-    title: `(${q || "General"}) Reponedor/a supermercado`,
-    company: "SuperMax",
-    location: "Distrito norte",
-    distance_km: 4.2,
-    salary: "1.200–1.400 € / mes",
-    url: "#",
-    source: "Demo",
-  },
-  {
-    id: "demo-s2",
-    title: `(${q || "General"}) Recepcionista hotel`,
-    company: "Hotel Centro",
-    location: "Centro ciudad",
-    distance_km: 6.9,
-    salary: "1.300–1.600 € / mes",
-    url: "#",
-    source: "Demo",
-  },
-]);
+export default function Jobs(){
+  const { pos, error: geoError } = useGeo()
+  const [nearby, setNearby] = useState([])
+  const [searchRes, setSearchRes] = useState([])
+  const [loadingN, setLoadingN] = useState(false)
+  const [loadingS, setLoadingS] = useState(false)
+  const [errN, setErrN] = useState('')
+  const [errS, setErrS] = useState('')
+  const [query, setQuery] = useState('')
+  const [radius, setRadius] = useState(20) // DEFAULT 20 KM
 
-export default function Jobs() {
-  // Geolocalización
-  const [coords, setCoords] = useState(null);
-  const [geoError, setGeoError] = useState(null);
+  const lat = pos?.lat ?? null, lng = pos?.lng ?? null
+  const disabled = lat===null || lng===null
 
-  // General (2 km)
-  const [nearby, setNearby] = useState([]);
-  const [loadingNearby, setLoadingNearby] = useState(false);
-  const [errNearby, setErrNearby] = useState(null);
+  async function fetchJSON(url){
+    const r = await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status); return r.json()
+  }
 
-  // Búsqueda (10 km)
-  const [q, setQ] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [results, setResults] = useState([]);
-  const [errSearch, setErrSearch] = useState(null);
-
-  // Pedir geolocalización al cargar
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setGeoError("Geolocalización no disponible en este navegador.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setGeoError(null);
-      },
-      (err) => {
-        setGeoError("No se pudo obtener tu ubicación (permiso denegado o error).");
-        // Aun así seguimos con demo en fallback
-        setCoords(null);
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 120000 }
-    );
-  }, []);
-
-  // Cargar “cerca de mí” (2 km) cuando hay coords
-  useEffect(() => {
-    async function run() {
-      setLoadingNearby(true);
-      setErrNearby(null);
-      try {
-        if (coords) {
-          const data = await getJobsNearby({ lat: coords.lat, lng: coords.lng, radius_km: 2 });
-          setNearby(Array.isArray(data) ? data : data.items || []);
-        } else {
-          // Fallback demo si no hay coords
-          setNearby(demoNearby());
-        }
-      } catch (e) {
-        setErrNearby(e.message || "Error cargando ofertas cercanas");
-        setNearby(demoNearby(coords?.lat, coords?.lng));
-      } finally {
-        setLoadingNearby(false);
+  const handleNearby = async()=>{
+    setLoadingN(true); setErrN('')
+    try{
+      if(disabled) throw new Error('Ubicación no disponible aún.')
+      const url = `/api/jobs/nearby?lat=${lat}&lng=${lng}&radius_km=2`
+      let data
+      try{ data = await fetchJSON(url) }catch{
+        data = Array.from({length:6}).map((_,i)=>({ id:'nearby-'+(i+1),
+          title:['Camarero/a','Dependiente/a','Recepcionista','Repartidor/a','Auxiliar administrativo/a','Conserje'][i%6],
+          company:['SuperBar','Mercasuper','Hotel Sol','LogisExpress','OfiPlus','LimpioYa'][i%6],
+          location:'Cerca de ti', distance_km: Number((Math.random()*2+0.2).toFixed(1)), posted_at:'hoy', url:'#'}))
       }
-    }
-    run();
-  }, [coords]);
+      setNearby(data)
+    }catch(e){ setErrN(e.message) } finally{ setLoadingN(false) }
+  }
 
-  const canSearch = useMemo(() => coords != null, [coords]);
-
-  // Ejecutar búsqueda específica (10 km)
-  async function onSearch(e) {
-    e?.preventDefault();
-    setSearching(true);
-    setErrSearch(null);
-    try {
-      if (coords) {
-        const data = await searchJobs({ q, lat: coords.lat, lng: coords.lng, radius_km: 10 });
-        setResults(Array.isArray(data) ? data : data.items || []);
-      } else {
-        setResults(demoSearch(q));
+  const handleSearch = async(e)=>{
+    e.preventDefault()
+    setLoadingS(true); setErrS('')
+    try{
+      if(disabled) throw new Error('Ubicación no disponible aún.')
+      const q = encodeURIComponent(query.trim())
+      const url = `/api/jobs/search?query=${q}&lat=${lat}&lng=${lng}&radius_km=${radius||20}`
+      let data
+      try{ data = await fetchJSON(url) }catch{
+        data = Array.from({length:6}).map((_,i)=>({ id:'search-'+(i+1),
+          title:(q?decodeURIComponent(q)+' · ':'')+['Recepcionista','Camarero/a','Dependiente/a','Conserje','Repartidor/a','Aux. administrativo/a'][i%6],
+          company:['SuperBar','Mercasuper','Hotel Sol','LogisExpress','OfiPlus','LimpioYa'][i%6],
+          location:'Zona ampliada', distance_km: Number((Math.random()*(radius||20)+0.2).toFixed(1)), posted_at:'hoy', url:'#'}))
       }
-    } catch (e) {
-      setErrSearch(e.message || "Error buscando ofertas");
-      setResults(demoSearch(q));
-    } finally {
-      setSearching(false);
-    }
+      setSearchRes(data)
+    }catch(e){ setErrS(e.message) } finally{ setLoadingS(false) }
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Ofertas de empleo cerca de ti</h1>
-      {geoError && (
-        <div className="mb-4 rounded-xl bg-yellow-50 text-yellow-800 text-sm p-3">
-          {geoError} — Mostrando resultados de demostración.
+    <div className="container" style={{padding:'24px 0'}}>
+      <SEO title="SpainRoom Jobs — Empleo cerca de ti"
+           description="Ofertas cerca (2 km) y búsqueda específica (20 km por defecto)."/>
+      <h2 style={{margin:'0 0 6px'}}>Jobs: cerca (2 km) y búsqueda específica (20 km)</h2>
+      <p className="note">Usamos tu ubicación del navegador para calcular distancias. Si la niegas, puedes buscar igualmente.</p>
+
+      {/* Cercanas */}
+      <section style={{marginTop:18,padding:16,border:'1px solid #e2e8f0',borderRadius:12,background:'#fff'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+          <div>
+            <h3 style={{margin:'0 0 4px'}}>Ofertas cerca (2 km)</h3>
+            <div style={{fontSize:13,color:'#64748b'}}>
+              {lat && lng ? <>Coordenadas: {lat.toFixed(5)}, {lng.toFixed(5)}</> :
+               geoError ? 'Ubicación no disponible (puede estar denegada).'
+                        : 'Obteniendo ubicación...'}
+            </div>
+          </div>
+          <div>
+            <button onClick={handleNearby} disabled={disabled || loadingN}
+              style={{background:'#0A58CA',color:'#fff',border:'none',padding:'10px 14px',borderRadius:10,fontWeight:800}}>
+              {loadingN ? 'Cargando...' : 'Ver ofertas cerca'}
+            </button>
+          </div>
         </div>
-      )}
-
-      {/* Buscador general (2 km) */}
-      <section className="rounded-2xl border bg-white p-4 mb-6">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="font-semibold">General (radio 2 km)</h2>
-          <button
-            className="rounded-xl bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200"
-            onClick={() => {
-              // Forzar recarga
-              setCoords((c) => (c ? { ...c } : c));
-            }}
-            disabled={loadingNearby}
-          >
-            {loadingNearby ? "Actualizando..." : "Actualizar"}
-          </button>
-        </div>
-
-        {errNearby && (
-          <div className="mt-3 rounded-xl bg-red-50 text-red-700 text-sm p-3">{errNearby}</div>
-        )}
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {loadingNearby
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="animate-pulse rounded-2xl border p-4 bg-gray-50 h-28" />
-              ))
-            : nearby.map((job) => <ResultCard key={job.id || job.title} job={job} />)}
+        {errN && <div style={{color:'#b91c1c',marginTop:8}}>{errN}</div>}
+        <div style={{marginTop:12,display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:12}}>
+          {nearby.map(j => <JobCard key={j.id} job={j} />)}
         </div>
       </section>
 
-      {/* Buscador específico (10 km) */}
-      <section className="rounded-2xl border bg-white p-4">
-        <h2 className="font-semibold">Búsqueda específica (radio 10 km)</h2>
-        <form onSubmit={onSearch} className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-          <input
-            className="rounded-xl border px-3 py-2 text-sm"
-            placeholder="Ej. camarero, dependiente, recepcionista…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          <button
-            className="rounded-xl bg-blue-600 text-white text-sm px-4 py-2 hover:bg-blue-700 disabled:opacity-50"
-            disabled={searching || !canSearch}
-          >
-            {searching ? "Buscando..." : "Buscar"}
+      {/* Búsqueda */}
+      <section style={{marginTop:18,padding:16,border:'1px solid #e2e8f0',borderRadius:12,background:'#fff'}}>
+        <h3 style={{margin:'0 0 8px'}}>Buscar un trabajo concreto</h3>
+        <form onSubmit={handleSearch} style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}}>
+          <input required value={query} onChange={e=>setQuery(e.target.value)}
+            placeholder="Ej: recepcionista, camarero, dependiente..."
+            style={{flex:'1 1 280px',padding:'10px 12px',border:'1px solid #cbd5e1',borderRadius:10}} />
+          <label style={{fontSize:13,color:'#475569'}}>Radio (km)</label>
+          <input type="number" min="1" max="30" value={radius}
+            onChange={e=>setRadius(parseInt(e.target.value||'20'))}
+            style={{width:100,padding:'10px 12px',border:'1px solid #cbd5e1',borderRadius:10}} />
+          <button type="submit" disabled={disabled || loadingS}
+            style={{background:'#0A58CA',color:'#fff',border:'none',padding:'10px 14px',borderRadius:10,fontWeight:800}}>
+            {loadingS ? 'Buscando...' : 'Buscar'}
           </button>
         </form>
-
-        {!canSearch && (
-          <p className="text-xs text-gray-500 mt-2">
-            Activa la geolocalización para resultados reales. De momento verás ejemplos.
-          </p>
-        )}
-
-        {errSearch && (
-          <div className="mt-3 rounded-xl bg-red-50 text-red-700 text-sm p-3">{errSearch}</div>
-        )}
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {searching
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="animate-pulse rounded-2xl border p-4 bg-gray-50 h-28" />
-              ))
-            : results.map((job) => <ResultCard key={job.id || `${job.title}-${job.company}`} job={job} />)}
+        {errS && <div style={{color:'#b91c1c',marginTop:8}}>{errS}</div>}
+        <div style={{marginTop:12,display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:12}}>
+          {searchRes.map(j => <JobCard key={j.id} job={j} />)}
         </div>
       </section>
     </div>
-  );
+  )
 }

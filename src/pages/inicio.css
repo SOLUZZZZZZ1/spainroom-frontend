@@ -1,71 +1,81 @@
-﻿:root{
-  --sr-hero-min: 84vh;
-  --sr-hero-pad: clamp(16px, 2vw, 28px);
-  --sr-hero-text: #ffffff;
-  --sr-hero-shadow: rgba(0, 0, 0, 0.65);
-  --sr-hero-panel: rgba(30, 30, 30, 0.18); /* <-- más transparente (antes ~0.35) */
+﻿export default function Inicio() {
+  return (
+    <main style={{ padding: 0 }}>
+      {/* HERO principal */}
+      <section style={heroWrap}>
+        <div style={heroOverlay} />
+        <div style={heroBox}>
+          <img src="/logo.png" alt="SpainRoom" style={{ width: 120, height: "auto", marginBottom: 12 }} />
+          <h1 style={h1}>Bienvenido a SpainRoom</h1>
+          <p style={p}>
+            Encuentra habitaciones listas para entrar a vivir. Conectamos personas, viviendas y oportunidades.
+          </p>
+
+          {/* CTA principales */}
+          <div style={ctaRow}>
+            <a href="/propietarios" style={btnPrimary}>Propietarios</a>
+            <a href="/listado" style={btnGhost}>Listado</a>
+          </div>
+
+          {/* tira de logos (si tienes /logo.svg u otros, se ven aquí) */}
+          <div style={logosRow}>
+            <img src="/logo.png" alt="Logo SpainRoom" style={{ height: 34 }} />
+            {/* <img src="/logo2.svg" alt="Logo 2" style={{ height: 34 }} /> */}
+          </div>
+        </div>
+      </section>
+
+      {/* Bloque informativo corto */}
+      <section style={infoWrap}>
+        <div style={card}>
+          <h3 style={{ margin: "0 0 6px 0" }}>Cómo te ayudamos</h3>
+          <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8, color: "#334155" }}>
+            <li>Verificación con ID y requisitos por provincia</li>
+            <li>Atención rápida por WhatsApp y teléfono</li>
+            <li>Publicación y acompañamiento seguro</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  );
 }
 
-.sr-hero{
-  position: relative;
-  min-height: var(--sr-hero-min);
-  display: grid;
-  place-items: center;
-  isolation: isolate;
-}
-.sr-hero__bg{
-  position: absolute; inset: 0;
-  background-image: url("/casa-diseno.jpg");
-  background-size: cover; background-position: center;
-  filter: contrast(1.05) brightness(0.9);
-  z-index: -2;
-}
-.sr-hero__overlay{
-  position: absolute; inset: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.24), rgba(0,0,0,0.46));
-  z-index: -1;
-}
+/* estilos inline */
+const heroWrap = {
+  position: "relative",
+  minHeight: "70vh",
+  display: "grid",
+  placeItems: "center",
+  background: "url('/casa-diseno.jpg?v=3') center/cover no-repeat fixed",
+};
+const heroOverlay = { position: "absolute", inset: 0, background: "rgba(15,23,42,0.35)" };
+const heroBox = {
+  position: "relative",
+  width: "min(980px, 92vw)",
+  margin: "32px auto",
+  background: "rgba(100,116,139,0.22)",
+  border: "1px solid rgba(226,232,240,0.35)",
+  borderRadius: 18,
+  padding: "22px 24px",
+  color: "#fff",
+  textAlign: "center",
+  boxShadow: "0 12px 40px rgba(0,0,0,0.28)",
+};
+const h1 = { margin: "0 0 6px 0", fontSize: 32, lineHeight: 1.2, textShadow: "0 1px 16px rgba(0,0,0,0.35)" };
+const p  = { margin: "6px 0 0 0", fontSize: 16, lineHeight: 1.6, color: "#e2e8f0" };
+const ctaRow = { display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 14 };
+const btnPrimary = {
+  display: "inline-block", padding: "10px 14px", borderRadius: 10,
+  background: "#2563eb", color: "#fff", textDecoration: "none", fontWeight: 800,
+  boxShadow: "0 8px 22px rgba(37,99,235,0.35)",
+};
+const btnGhost = {
+  ...btnPrimary, background: "#f1f5f9", color: "#1f2937", boxShadow: "none", border: "1px solid #e5e7eb"
+};
+const logosRow = {
+  display: "flex", gap: 16, justifyContent: "center", alignItems: "center", marginTop: 14, opacity: 0.95
+};
 
-/* Panel translúcido */
-.sr-hero__content{
-  width: min(960px, 92vw);
-  padding: calc(var(--sr-hero-pad) * 1.25);
-  text-align: center;
-  color: var(--sr-hero-text);
-  background: var(--sr-hero-panel);
-  box-shadow: 0 12px 40px var(--sr-hero-shadow);
-  border-radius: 16px;
-  backdrop-filter: blur(2px);
-}
-
-/* Logo grande */
-.sr-hero__logo{
-  display: block;
-  margin: 0 auto 14px;
-  width: clamp(200px, 30vw, 280px);
-  height: auto;
-}
-
-/* TITULAR: más contundente y blanco real */
-.sr-hero__title{
-  color: #fff;                    /* blanco explícito */
-  font-size: clamp(32px, 5vw, 48px);
-  line-height: 1.05;
-  font-weight: 900;               /* letra más marcada */
-  letter-spacing: .3px;
-  margin: 4px 0 10px 0;
-  text-shadow: 0 1px 3px rgba(0,0,0,.35);
-}
-
-/* Subtítulo en blanco y legible */
-.sr-hero__subtitle{
-  color: #fff;                    /* blanco explícito */
-  font-size: clamp(16px, 2.2vw, 20px);
-  line-height: 1.65;
-  margin: 0;
-  text-shadow: 0 1px 2px rgba(0,0,0,.25);
-}
-
-@media (max-width: 640px){
-  .sr-hero__content{ padding: calc(var(--sr-hero-pad) * 1.1); border-radius: 14px; }
-}
+const infoWrap = { padding: 20, display: "grid", placeItems: "center" };
+const card = { maxWidth: 980, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 16,
+  boxShadow: "0 6px 24px rgba(0,0,0,0.06)" };

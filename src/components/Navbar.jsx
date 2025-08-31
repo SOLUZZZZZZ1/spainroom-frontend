@@ -1,30 +1,33 @@
-import { NavLink } from "react-router-dom";
+import React from 'react'
+import { Link, NavLink } from 'react-router-dom'
 
-const linkStyle = ({ isActive }) => ({
-  padding: "8px 12px",
-  borderRadius: 8,
-  color: "#fff",
-  textDecoration: "none",
-  background: isActive ? "rgba(255,255,255,0.22)" : "transparent",
-});
+export default function Navbar(){
+  const linkClass = ({ isActive }) => 'sr-link' + (isActive ? ' active' : '')
 
-export default function Navbar() {
   return (
-    <header style={{
-      position: "sticky", top: 0, zIndex: 40,
-      background: "#0ea5e9", color: "#fff",
-      padding: "10px 14px", display: "flex",
-      alignItems: "center", justifyContent: "space-between"
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <img src="/logo.png" alt="SpainRoom" style={{ width: 32, height: 32 }} />
-        <b>SPAINROOM</b>
-      </div>
-      <nav style={{ display: "flex", gap: 8 }}>
-        <NavLink to="/" style={linkStyle} end>Inicio</NavLink>
-        <NavLink to="/listado" style={linkStyle}>Listado</NavLink>
-        <NavLink to="/propietarios" style={linkStyle}>Propietarios</NavLink>
-      </nav>
-    </header>
-  );
+    <>
+      <header className="sr-navbar">
+        <div className="sr-container sr-navbar-inner">
+          <Link to="/" className="sr-brand">
+            <img src="/cabecera.png" alt="SpainRoom" className="sr-logo" />
+            <span className="sr-brand-title">SpainRoom</span>
+          </Link>
+
+          <nav className="sr-links">
+            <NavLink to="/" end className={linkClass}>Inicio</NavLink>
+            <NavLink to="/jobs" className={linkClass} end>Jobs</NavLink>
+            <NavLink to="/reservas" className={linkClass} end>Reservas</NavLink>
+            <NavLink to="/oportunidades" className={linkClass} end>Oportunidades</NavLink>
+            <NavLink to="/propietarios" className={linkClass} end>Propietarios</NavLink>
+            <NavLink to="/franquiciados" className={linkClass} end>Franquiciados</NavLink>
+            <NavLink to="/pagos" className={linkClass} end>Pagos</NavLink>
+            <NavLink to="/admin" className={linkClass} end>Admin</NavLink>
+          </nav>
+        </div>
+      </header>
+
+      {/* SOS flotante global */}
+      <a className="sos-btn" href="tel:+34616232306" aria-label="Llamada SOS SpainRoom">SOS</a>
+    </>
+  )
 }

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SpainRoom</string>
+    <string name="title_activity_main">SpainRoom</string>
+    <string name="package_name">com.spainroom.app</string>
+    <string name="custom_url_scheme">com.spainroom.app</string>
+</resources>

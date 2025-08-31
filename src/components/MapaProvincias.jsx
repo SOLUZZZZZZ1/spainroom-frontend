@@ -1,350 +1,202 @@
-import { useEffect, useMemo, useState } from "react";
-import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
+import React, { useEffect, useRef, useState } from 'react'
 
-// GeoJSON local (src/assets/maps/spain-provinces.geojson)
-const PROVINCES_URL = new URL("../assets/maps/spain-provinces.geojson", import.meta.url).href;
+/**
+ * Mapa de provincias robusto (embebido + fallback a /public)
+ * Colorea por "¿Obligatorio para alquilar? (Sí/No/Depende)"
+ * Acepta datos como tu CSV real (52 filas con columnas: Provincia, ¿Obligatorio...?, Documento..., etc.)
+ */
 
-// Colores por tipo
-const COLORS = {
-  "Cédula de habitabilidad": "#2563eb",
-  "LPO / 1ª ocupación": "#10b981",
-  "2ª ocupación / DR municipal": "#f59e0b",
-  "Otro": "#a78bfa",
-  "Sin dato / Depende": "#9ca3af",
-};
+export default function MapaProvincias(){
+  const wrapRef = useRef(null)
+  const [status, setStatus] = useState('cargando')   // cargando | ok | error
+  const [hover, setHover]   = useState({prov:'', obligatorio:'', doc:''})
+  const [debug, setDebug]   = useState({source:'', csv:'', svg:'', nodes:0, matched:0})
 
-// Columnas (cabeceras exactas en tu CSV)
-const COL_LABELS = {
-  provincia: "Provincia",
-  doc: "Documento requerido (Cédula / LPO / 2ª Ocupación / Otro)",
-  reqAlq: "¿Obligatorio para alquilar? (Sí/No/Depende)",
-  oblig: "Obligaciones del propietario (qué debe aportar)",
-  org: "Organismo emisor",
-  vig: "Vigencia / Renovación",
-  notas: "Excepciones / Notas",
-  base: "Base legal (norma)",
-  url: "Enlace oficial",
-  verif: "Estado verificado (Sí/No)",
-  fecha: "Fecha de verificación (AAAA-MM-DD)"
-};
-
-// Normalizador
-function norm(s) {
-  return (s || "")
-    .toString()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/ñ/gi, "n").replace(/\s+/g, " ")
-    .trim().toLowerCase();
-}
-
-// Alias mínimos (ajusta si usas Bizkaia/Gipuzkoa/Araba)
-const NAME_ALIASES = {
-  gerona: "girona", lerida: "lleida",
-  "la coruna": "a coruna", coruna: "a coruna", orense: "ourense",
-  vizcaya: "vizcaya", guipuzcoa: "guipuzcoa", alava: "alava",
-  navarre: "navarra",
-  "islas baleares": "illes balears", "balearic islands": "illes balears", "illes balears": "illes balears",
-  "las palmas": "las palmas", "santa cruz de tenerife": "santa cruz de tenerife",
-  ceuta: "ceuta", melilla: "melilla"
-};
-
-function resolveCsvKey(rawName, csvSet) {
-  const base = norm(rawName);
-  if (NAME_ALIASES[base] && csvSet.has(NAME_ALIASES[base])) return NAME_ALIASES[base];
-  if (base.includes("/")) {
-    const [a, b] = base.split("/").map(s => s.trim());
-    if (csvSet.has(a)) return a;
-    if (csvSet.has(b)) return b;
-  }
-  if (csvSet.has(base)) return base;
-  return null;
-}
-
-function normalizeDoc(doc) {
-  let d = doc || "Sin dato / Depende";
-  if (/cedul/i.test(d)) d = "Cédula de habitabilidad";
-  else if (/lpo|1|primera/i.test(d)) d = "LPO / 1ª ocupación";
-  else if (/2|segunda|ocupaci|declar/i.test(d)) d = "2ª ocupación / DR municipal";
-  else if (!COLORS[d]) d = "Sin dato / Depende";
-  return d;
-}
-
-// CSV parser simple
-async function loadCsv(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`CSV no encontrado: ${url}`);
-  const txt = await res.text();
-  const lines = txt.split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const cols = []; let cur = "", inQ = false;
-    for (const ch of line) {
-      if (ch === '"') inQ = !inQ;
-      else if (ch === "," && !inQ) { cols.push(cur); cur = ""; }
-      else cur += ch;
-    }
-    cols.push(cur);
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = (cols[i] || "").trim());
-    return obj;
-  });
-}
-
-function detectCols(sample) {
-  const keys = Object.keys(sample || {});
-  const pick = (needle, fallback) => keys.find(k => norm(k).includes(needle)) || fallback;
-  return {
-    provincia: keys.find(k => norm(k) === "provincia") || COL_LABELS.provincia,
-    doc: pick("documento", COL_LABELS.doc),
-    reqAlq: pick("obligatorio para alquilar", COL_LABELS.reqAlq),
-    oblig: pick("obligacion", COL_LABELS.oblig),
-    org: pick("organismo", COL_LABELS.org),
-    vig: pick("vigencia", COL_LABELS.vig),
-    notas: pick("excepcion", COL_LABELS.notas),
-    base: pick("base legal", COL_LABELS.base),
-    url: pick("enlace", COL_LABELS.url),
-    verif: pick("estado verificado", COL_LABELS.verif),
-    fecha: pick("fecha de verificacion", COL_LABELS.fecha)
-  };
-}
-
-export default function MapaProvincias({ csvUrl = "/data/mapa_cedula_provincias.csv" }) {
-  const [rows, setRows] = useState([]);
-  const [cols, setCols] = useState(COL_LABELS);
-  const [hover, setHover] = useState(null);   // { x, y, nombre, data, doc }
-  const [active, setActive] = useState(null); // objeto para panel
-  const [csvKeys, setCsvKeys] = useState([]);
-
-  useEffect(() => { (async () => {
+  // 1) Intento embebido (src/assets) usando glob (no rompe el build si no existen)
+  //    Si pones los ficheros en src/assets/espana-provincias.svg y src/assets/mapa_cedula_provincias.csv
+  const embedded = (() => {
     try {
-      const list = await loadCsv(csvUrl);
-      setRows(list);
-      const c = detectCols(list[0] || {});
-      setCols(c);
-      setCsvKeys(list.map(r => norm(r[c.provincia])));
+      const files = import.meta.glob('../assets/*', { as: 'raw', eager: true })
+      return {
+        svg: files['../assets/espana-provincias.svg'],
+        csv: files['../assets/mapa_cedula_provincias.csv']
+      }
     } catch {
-      setRows([]); setCols(COL_LABELS); setCsvKeys([]);
+      return { svg: undefined, csv: undefined }
     }
-  })(); }, [csvUrl]);
+  })()
 
-  const byProv = useMemo(() => {
-    const m = new Map();
-    rows.forEach(r => m.set(norm(r[cols.provincia]), r));
-    return m;
-  }, [rows, cols]);
+  // util: normaliza nombre de provincia
+  const normalize = (s='')=>{
+    let x = String(s||'').trim().toLowerCase()
+    x = x.normalize('NFD').replace(/\p{Diacritic}/gu,'')
+    x = x.replace(/-/g,' ').replace(/\s+/g,' ')
+    const map = {
+      'la coruna':'a coruna','coruna':'a coruna','a coruna':'a coruna',
+      'araba':'alava','araba alava':'alava','alava':'alava',
+      'alacant':'alicante','castello':'castellon','castello castellon':'castellon',
+      'gerona':'girona','lerida':'lleida','orense':'ourense',
+      'islas baleares':'baleares','illes balears':'baleares',
+      'gipuzkoa':'guipuzcoa','bizkaia':'vizcaya'
+    }
+    return map[x] || x
+  }
 
-  const csvSet = useMemo(() => new Set(csvKeys), [csvKeys]);
+  // lee CSV flexible y categoriza
+  const parseCSV = (text)=>{
+    const raw = (text||'').replace(/\r/g,'').trim()
+    const headLine = raw.split('\n')[0] || ''
+    const delim = headLine.includes(';') ? ';' : headLine.includes('\t') ? '\t' : ','
+    const lines = raw.split('\n').filter(Boolean)
+    const head  = lines[0].split(delim)
+    const idx   = (fn)=> head.findIndex(h => fn(String(h)))
 
-  const getDataForRawName = (raw) => {
-    const key = resolveCsvKey(raw, csvSet);
-    const data = key ? byProv.get(key) : null;
-    const doc = normalizeDoc(data ? data[cols.doc] : "Sin dato / Depende");
-    return { data, doc };
-  };
+    const iProv = idx(h=>normalize(h).includes('prov'))
+    const iObl  = idx(h=>normalize(h).includes('obligatorio'))
+    const iDoc  = idx(h=>/(documento|cedula|c[eé]dula|lpo|ocupacion|ocupaci[oó]n)/.test(normalize(h)))
 
-  const isCanary = (raw) => {
-    const k = resolveCsvKey(raw, csvSet);
-    return k === "las palmas" || k === "santa cruz de tenerife";
-  };
+    const mapa = new Map()
+    for (let i=1;i<lines.length;i++){
+      const cols = lines[i].split(delim)
+      const prov = normalize(cols[iProv] || '')
+      const oblRaw = String(cols[iObl]||'').trim().toLowerCase()
+      const doc = String(cols[iDoc]||'').trim()
+      let cat = 'no'
+      if (/^si|sí$/.test(oblRaw) || oblRaw.startsWith('si')) cat='si'
+      else if (oblRaw.startsWith('dep')) cat='depende'
+      if (prov) mapa.set(prov, {cat, doc})
+    }
+    return mapa
+  }
 
-  // Layout con panel derecho
-  const wrap = {
-    width: "min(1500px, 98vw)",
-    margin: "0 auto",
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 2fr) minmax(380px, 1fr)",
-    gap: 18,
-    alignItems: "start"
-  };
-  const card = { border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff" };
-  const left  = { ...card, padding: 12 };
-  const right = { ...card, padding: 16, position: "sticky", top: 84, maxHeight: "calc(100vh - 100px)", overflow: "auto" };
+  const colorByCat = (cat)=>{
+    switch(cat){
+      case 'si':      return '#ef4444'   // rojo
+      case 'depende': return '#f59e0b'   // ámbar
+      case 'no':      return '#16a34a'   // verde
+      default:        return '#eef5ff'   // neutro
+    }
+  }
 
-  // Render de provincias
-  const renderGeo = (geo) => {
-    const p = geo.properties || {};
-    const raw = p.name || p.NAME_1 || p.NAME || p.provincia || p.PROVINCIA || "Desconocido";
-    const info = getDataForRawName(raw);
-    return (
-      <Geography
-        key={geo.rsmKey}
-        geography={geo}
-        onMouseEnter={(e) => setHover({ x: e.clientX, y: e.clientY, nombre: raw, ...info })}
-        onMouseMove={(e) => setHover(h => h ? { ...h, x: e.clientX, y: e.clientY } : null)}
-        onMouseLeave={() => setHover(null)}
-        onClick={() => setActive({ nombre: raw, ...info })}
-        fill={COLORS[info.doc]}
-        stroke="#ffffff"
-        strokeWidth={0.6}
-        style={{ default: { outline: "none" }, hover: { outline: "none", filter: "brightness(0.96)" }, pressed: { outline: "none" } }}
-      />
-    );
-  };
+  const pickName = (el)=>{
+    const cand = [el.getAttribute('data-name'), el.getAttribute('data-prov'), el.getAttribute('title'), el.id].filter(Boolean)
+    if (cand.length) return cand[0]
+    const t = el.querySelector && el.querySelector('title')
+    return t ? t.textContent : ''
+  }
+
+  const paintNode = (node, fill)=>{
+    if (!node) return
+    const tag = node.tagName.toLowerCase()
+    if (tag === 'g'){
+      node.querySelectorAll('path,polygon,rect').forEach(c=>{
+        c.style.fill = fill
+        c.style.stroke = 'rgba(0,0,0,.15)'
+        c.style.strokeWidth = '0.6'
+      })
+    } else {
+      node.style.fill = fill
+      node.style.stroke = 'rgba(0,0,0,.15)'
+      node.style.strokeWidth = '0.6'
+    }
+  }
+
+  // fetch con fallback
+  const fetchText = async (url)=> {
+    const r = await fetch(url, {cache:'no-cache'})
+    if(!r.ok) throw new Error(`HTTP ${r.status} al cargar ${url}`)
+    return await r.text()
+  }
+
+  useEffect(()=>{
+    let cancelled = false
+
+    const run = async ()=>{
+      try{
+        setStatus('cargando')
+
+        let svgText = embedded.svg
+        let csvText = embedded.csv
+        let source  = ''
+
+        if (svgText && csvText) {
+          source = 'assets (embebido)'
+        } else {
+          // fallback a /public (cache-buster minuto)
+          const bust = '?v=' + Math.floor(Date.now()/60000)
+          if (!svgText) svgText = await fetchText('/maps/espana-provincias.svg' + bust)
+          if (!csvText) csvText = await fetchText('/data/mapa_cedula_provincias.csv' + bust)
+          source = 'public (fetch)'
+        }
+
+        if (cancelled) return
+        setDebug(d=>({...d, source, svg: svgText ? 'ok' : 'fail', csv: csvText ? 'ok' : 'fail'}))
+
+        // Inserta SVG
+        if (!wrapRef.current) return
+        wrapRef.current.innerHTML = svgText
+        const svgRoot = wrapRef.current.querySelector('svg')
+        if (!svgRoot) throw new Error('SVG no válido (sin <svg>)')
+
+        // Dados
+        const mapa = parseCSV(csvText)
+
+        // Colorea y eventos
+        const nodes = Array.from(svgRoot.querySelectorAll('g, path, polygon, rect'))
+        let matched = 0
+        nodes.forEach(el=>{
+          const nmRaw = pickName(el)
+          const nm    = normalize(nmRaw)
+          const item  = mapa.get(nm)
+          paintNode(el, colorByCat(item?.cat))
+          el.style.cursor = 'pointer'
+          el.addEventListener('mouseenter', ()=> setHover({
+            prov: nmRaw || 'Provincia',
+            obligatorio: item ? (item.cat==='si'?'Sí':item.cat==='depende'?'Depende':'No') : 's/d',
+            doc: item?.doc || ''
+          }))
+          el.addEventListener('mouseleave', ()=> setHover({prov:'', obligatorio:'', doc:''}))
+          if (item) matched++
+        })
+
+        setDebug(d=>({...d, nodes: nodes.length, matched }))
+        setStatus('ok')
+      }catch(e){
+        console.error(e)
+        setStatus('error')
+      }
+    }
+
+    run()
+    return ()=>{ cancelled = true; if (wrapRef.current) wrapRef.current.innerHTML = '' }
+  },[])
 
   return (
-    <div style={wrap}>
-      {/* IZQUIERDA: Mapa + mini-mapas */}
-      <div style={left}>
-        {/* Leyenda */}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-          {Object.entries(COLORS).map(([label, color]) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 14, height: 14, background: color, display: "inline-block", borderRadius: 3 }} />
-              <small>{label}</small>
-            </div>
-          ))}
-        </div>
-
-        {/* 1) Mapa principal (Península + Baleares + Ceuta/Melilla) */}
-        <ComposableMap projection="geoMercator" projectionConfig={{ scale: 2200, center: [-4, 40.5] }} style={{ width: "100%", height: "58vh" }}>
-          <Geographies geography={PROVINCES_URL}>
-            {({ geographies }) => {
-              const mainland = geographies.filter(g => {
-                const raw = g.properties?.name || g.properties?.NAME || "";
-                return !isCanary(raw);
-              });
-              return <g>{mainland.map(renderGeo)}</g>;
-            }}
-          </Geographies>
-        </ComposableMap>
-
-        {/* 2) Mini-mapas en fila: Canarias | Ceuta | Melilla */}
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 12, marginTop: 12 }}>
-          {/* Canarias (MUY grande) */}
-          <div style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 8 }}>
-            <div style={{ fontSize: 12, color: "#334155", marginBottom: 6 }}>Islas Canarias</div>
-            <ComposableMap projection="geoMercator" projectionConfig={{ scale: 3200, center: [-15.5, 28.5] }} style={{ width: "100%", height: 320 }}>
-              <Geographies geography={PROVINCES_URL}>
-                {({ geographies }) => {
-                  const canary = geographies.filter(g => {
-                    const raw = g.properties?.name || g.properties?.NAME || "";
-                    return isCanary(raw);
-                  });
-                  return (
-                    <g>
-                      {canary.map(renderGeo)}
-                      {/* Marcadores grandes y clicables */}
-                      <Marker coordinates={[-15.5, 27.9]}
-                        onMouseEnter={(e)=>setHover({ x:e.clientX, y:e.clientY, nombre:"Las Palmas", ...getDataForRawName("Las Palmas") })}
-                        onClick={()=>setActive({ nombre:"Las Palmas", ...getDataForRawName("Las Palmas") })}
-                      >
-                        <circle r={10} fill="#111" stroke="#fff" strokeWidth={2} style={{cursor:"pointer"}} />
-                        <text y={-14} textAnchor="middle" fontSize={12} fill="#111" style={{paintOrder:"stroke", stroke:"#fff", strokeWidth:3}}>Las Palmas</text>
-                      </Marker>
-                      <Marker coordinates={[-16.25, 28.45]}
-                        onMouseEnter={(e)=>setHover({ x:e.clientX, y:e.clientY, nombre:"Santa Cruz de Tenerife", ...getDataForRawName("Santa Cruz de Tenerife") })}
-                        onClick={()=>setActive({ nombre:"Santa Cruz de Tenerife", ...getDataForRawName("Santa Cruz de Tenerife") })}
-                      >
-                        <circle r={10} fill="#111" stroke="#fff" strokeWidth={2} style={{cursor:"pointer"}} />
-                        <text y={-14} textAnchor="middle" fontSize={12} fill="#111" style={{paintOrder:"stroke", stroke:"#fff", strokeWidth:3}}>Santa Cruz</text>
-                      </Marker>
-                    </g>
-                  );
-                }}
-              </Geographies>
-            </ComposableMap>
-          </div>
-
-          {/* Ceuta (zoom muy alto) */}
-          <div style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 8 }}>
-            <div style={{ fontSize: 12, color: "#334155", marginBottom: 6 }}>Ceuta</div>
-            <ComposableMap projection="geoMercator" projectionConfig={{ scale: 9500, center: [-5.316, 35.889] }} style={{ width: "100%", height: 240 }}>
-              <Geographies geography={PROVINCES_URL}>
-                {({ geographies }) => {
-                  const ceuta = geographies.filter(g => norm(g.properties?.name || g.properties?.NAME || "") === "ceuta");
-                  return (
-                    <g>
-                      {ceuta.map(renderGeo)}
-                      <Marker coordinates={[-5.316, 35.889]}
-                        onMouseEnter={(e)=>setHover({ x:e.clientX, y:e.clientY, nombre:"Ceuta", ...getDataForRawName("Ceuta") })}
-                        onClick={()=>setActive({ nombre:"Ceuta", ...getDataForRawName("Ceuta") })}
-                      >
-                        <circle r={12} fill="#111" stroke="#fff" strokeWidth={2.5} style={{cursor:"pointer"}} />
-                        <text y={-16} textAnchor="middle" fontSize={12} fill="#111" style={{paintOrder:"stroke", stroke:"#fff", strokeWidth:3}}>Ceuta</text>
-                      </Marker>
-                    </g>
-                  );
-                }}
-              </Geographies>
-            </ComposableMap>
-          </div>
-
-          {/* Melilla (zoom muy alto) */}
-          <div style={{ border: "1px solid #cbd5e1", borderRadius: 10, padding: 8 }}>
-            <div style={{ fontSize: 12, color: "#334155", marginBottom: 6 }}>Melilla</div>
-            <ComposableMap projection="geoMercator" projectionConfig={{ scale: 9500, center: [-2.938, 35.292] }} style={{ width: "100%", height: 240 }}>
-              <Geographies geography={PROVINCES_URL}>
-                {({ geographies }) => {
-                  const melilla = geographies.filter(g => norm(g.properties?.name || g.properties?.NAME || "") === "melilla");
-                  return (
-                    <g>
-                      {melilla.map(renderGeo)}
-                      <Marker coordinates={[-2.938, 35.292]}
-                        onMouseEnter={(e)=>setHover({ x:e.clientX, y:e.clientY, nombre:"Melilla", ...getDataForRawName("Melilla") })}
-                        onClick={()=>setActive({ nombre:"Melilla", ...getDataForRawName("Melilla") })}
-                      >
-                        <circle r={12} fill="#111" stroke="#fff" strokeWidth={2.5} style={{cursor:"pointer"}} />
-                        <text y={-16} textAnchor="middle" fontSize={12} fill="#111" style={{paintOrder:"stroke", stroke:"#fff", strokeWidth:3}}>Melilla</text>
-                      </Marker>
-                    </g>
-                  );
-                }}
-              </Geographies>
-            </ComposableMap>
-          </div>
-        </div>
-
-        {/* Tooltip global */}
-        {hover && (
-          <div
-            style={{
-              position: "fixed",
-              left: Math.min(hover.x + 14, window.innerWidth - 360),
-              top: Math.min(hover.y + 14, window.innerHeight - 180),
-              zIndex: 50,
-              background: "rgba(0,0,0,0.85)",
-              color: "#fff",
-              padding: "10px 12px",
-              borderRadius: 10,
-              maxWidth: 340,
-              fontSize: 13,
-              boxShadow: "0 8px 20px rgba(0,0,0,0.25)"
-            }}
-            onMouseLeave={()=>setHover(null)}
-          >
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>{hover.nombre}</div>
-            <div style={{ marginBottom: 4 }}><b>Documento:</b> {hover.doc}</div>
-            {hover.data && hover.data[cols.reqAlq] && <div style={{ marginBottom: 4 }}><b>¿Obligatorio?</b> {hover.data[cols.reqAlq]}</div>}
-            {hover.data && hover.data[cols.org] && <div style={{ marginBottom: 4 }}><b>Organismo:</b> {hover.data[cols.org]}</div>}
-            {hover.data && hover.data[cols.vig] && <div style={{ marginBottom: 4 }}><b>Vigencia:</b> {hover.data[cols.vig]}</div>}
-            {hover.data && hover.data[cols.url] && (
-              <div style={{ marginTop: 4 }}><a href={hover.data[cols.url]} target="_blank" rel="noreferrer" style={{ color: "#93c5fd" }}>Enlace oficial</a></div>
-            )}
+    <div style={{background:'#fff', border:'1px solid #e2e8f0', borderRadius:16, padding:16}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap'}}>
+        <h3 style={{margin:0}}>Mapa de cédulas por provincia</h3>
+        {hover.prov && (
+          <div style={{fontSize:14, color:'#0b1220'}}>
+            <strong>{hover.prov}</strong> — {hover.obligatorio}{hover.doc ? ` · ${hover.doc}` : ''}
           </div>
         )}
       </div>
 
-      {/* DERECHA: Panel explicativo */}
-      <aside style={right}>
-        <h3 style={{ marginTop: 0 }}>Detalle provincia</h3>
-        {!active ? (
-          <p style={{ color: "#666" }}>Haz clic en una provincia o marcador para ver su detalle.</p>
-        ) : (
-          <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-            <p><b>Provincia:</b> {active.nombre || active[COL_LABELS.provincia]}</p>
-            <p><b>Documento:</b> {active[COL_LABELS.doc] || "—"}</p>
-            <p><b>¿Obligatorio para alquilar?</b> {active[COL_LABELS.reqAlq] || "—"}</p>
-            <p><b>Obligaciones del propietario:</b><br/>{active[COL_LABELS.oblig] || "—"}</p>
-            <p><b>Organismo emisor:</b> {active[COL_LABELS.org] || "—"}</p>
-            <p><b>Vigencia / Renovación:</b> {active[COL_LABELS.vig] || "—"}</p>
-            <p><b>Excepciones / Notas:</b><br/>{active[COL_LABELS.notas] || "—"}</p>
-            <p><b>Base legal:</b> {active[COL_LABELS.base] || "—"}</p>
-            <p><b>Enlace oficial:</b> {active[COL_LABELS.url] ? <a href={active[COL_LABELS.url]} target="_blank" rel="noreferrer">Abrir</a> : "—"}</p>
-            <p><b>Verificado:</b> {active[COL_LABELS.verif] || "—"} ({active[COL_LABELS.fecha] || "—"})</p>
-          </div>
-        )}
-      </aside>
+      {status==='cargando' && <div style={{padding:'12px 0', color:'#64748b'}}>Cargando datos…</div>}
+      {status==='error' && (
+        <div style={{padding:'12px 0', color:'#b91c1c'}}>
+          No se pudo cargar el mapa o el CSV (embebido ni /public).<br/>
+          <small style={{color:'#475569'}}>Revisa que existan <code>src/assets/espana-provincias.svg</code> y <code>src/assets/mapa_cedula_provincias.csv</code> o sus pares en <code>/public/maps</code> y <code>/public/data</code>.</small>
+        </div>
+      )}
+
+      <div ref={wrapRef} style={{width:'100%', height:'auto', marginTop:8}} />
+
+      {/* Depuración corta */}
+      <div style={{marginTop:10, fontSize:12, color:'#64748b'}}>
+        <div>Origen: {debug.source} · SVG: {debug.svg} · CSV: {debug.csv}</div>
+        <div>Nodos SVG: {debug.nodes||0} · Provincias casadas: {debug.matched||0}</div>
+      </div>
     </div>
-  );
+  )
 }

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="espana" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <style>
+    .prov { fill:#e5e7eb; stroke:#9ca3af; stroke-width:1; }
+    text { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; font-size:10px; fill:#374151; }
+  </style>
+
+  <!-- Fila 1: Cataluña -->
+  <rect id="barcelona" class="prov" data-name="Barcelona" x="40"  y="40"  width="90" height="60"/>
+  <text x="45" y="75">Barcelona</text>
+
+  <rect id="girona" class="prov" data-name="Girona" x="140" y="40"  width="90" height="60"/>
+  <text x="145" y="75">Girona</text>
+
+  <rect id="lleida" class="prov" data-name="Lleida" x="240" y="40"  width="90" height="60"/>
+  <text x="245" y="75">Lleida</text>
+
+  <rect id="tarragona" class="prov" data-name="Tarragona" x="340" y="40"  width="110" height="60"/>
+  <text x="345" y="75">Tarragona</text>
+
+  <!-- Fila 2: C. Valenciana + Murcia + Madrid -->
+  <rect id="castellon" class="prov" data-name="Castellón" x="40"  y="120" width="90" height="60"/>
+  <text x="45" y="155">Castellón</text>
+
+  <rect id="valencia" class="prov" data-name="Valencia" x="140" y="120" width="110" height="60"/>
+  <text x="145" y="155">Valencia</text>
+
+  <rect id="alicante-alacant" class="prov" data-name="Alicante" x="260" y="120" width="110" height="60"/>
+  <text x="265" y="155">Alicante</text>
+
+  <rect id="murcia" class="prov" data-name="Murcia" x="380" y="120" width="100" height="60"/>
+  <text x="385" y="155">Murcia</text>
+
+  <rect id="madrid" class="prov" data-name="Madrid" x="500" y="120" width="90" height="60"/>
+  <text x="505" y="155">Madrid</text>
+
+  <!-- Fila 3: Andalucía (8 provincias) -->
+  <rect id="huelva" class="prov" data-name="Huelva" x="40"  y="200" width="80" height="60"/>
+  <text x="45" y="235">Huelva</text>
+
+  <rect id="sevilla" class="prov" data-name="Sevilla" x="130" y="200" width="90" height="60"/>
+  <text x="135" y="235">Sevilla</text>
+
+  <rect id="cadiz" class="prov" data-name="Cádiz" x="230" y="200" width="80" height="60"/>
+  <text x="235" y="235">Cádiz</text>
+
+  <rect id="cordoba" class="prov" data-name="Córdoba" x="320" y="200" width="90" height="60"/>
+  <text x="325" y="235">Córdoba</text>
+
+  <rect id="malaga" class="prov" data-name="Málaga" x="420" y="200" width="90" height="60"/>
+  <text x="425" y="235">Málaga</text>
+
+  <rect id="jaen" class="prov" data-name="Jaén" x="520" y="200" width="80" height="60"/>
+  <text x="525" y="235">Jaén</text>
+
+  <rect id="granada" class="prov" data-name="Granada" x="610" y="200" width="90" height="60"/>
+  <text x="615" y="235">Granada</text>
+
+  <rect id="almeria" class="prov" data-name="Almería" x="710" y="200" width="90" height="60"/>
+  <text x="715" y="235">Almería</text>
+
+  <!-- Fila 4: Illes Balears (bloque único) -->
+  <rect id="illes-balears" class="prov" data-name="Illes Balears" x="40" y="280" width="150" height="60"/>
+  <text x="45" y="315">Illes Balears</text>
+
+  <!-- Nota: añade más provincias aquí cuando quieras -->
+</svg>

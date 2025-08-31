@@ -1,49 +1,44 @@
-import { useEffect, useState } from "react";
-import MapaProvincias from "../components/MapaProvincias";
+import React from 'react'
+import SEO from '../components/SEO.jsx'
+import MapaProvincias from '../components/MapaProvincias.jsx'
 
-export default function Propietarios() {
-  const [csvOk, setCsvOk] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/data/mapa_cedula_provincias.csv", { cache: "no-store" });
-        setCsvOk(res.ok);
-      } catch {
-        setCsvOk(false);
-      }
-    })();
-  }, []);
-
+export default function Propietarios(){
   return (
-    <main style={{ padding: 16 }}>
-      <header style={{ marginBottom: 12 }}>
-        <h2 style={{ margin: 0 }}>Propietarios</h2>
-        <p style={{ margin: "6px 0 0", color: "#4b5563" }}>
-          Mapa político por provincias con los requisitos para poder alquilar una vivienda:
-          <b> Cédula de habitabilidad</b>, <b>Licencia de 1ª ocupación (LPO)</b> o
-          <b> 2ª ocupación / declaración responsable</b>, según corresponda.
-          Haz clic en una provincia para ver el detalle con obligaciones del propietario,
-          organismo emisor, vigencia y enlace oficial.
-        </p>
-      </header>
+    <div className="container" style={{padding:'24px 0', color:'#0b1220'}}>
+      <SEO title="Propietarios — SpainRoom"
+           description="Publica tu habitación con SpainRoom: gestión completa, filtrado de inquilinos y soporte integral."/>
+      <h2 style={{margin:'0 0 10px'}}>Propietarios</h2>
+      <p className="note">Publica tu habitación con gestión integral de SpainRoom.</p>
 
-      {!csvOk && (
-        <div style={{
-          border: "1px dashed #cbd5e1",
-          background: "#f8fafc",
-          color: "#64748b",
-          padding: 12,
-          borderRadius: 12,
-          marginBottom: 16
-        }}>
-          <b>Nota:</b> No se encontró <code>/data/mapa_cedula_provincias.csv</code>.
-          Asegúrate de tenerlo en <code>frontend/public/data/</code> con la cabecera indicada.
-          El mapa se mostrará igualmente con valores por defecto si existen.
+      {/* Tarjetas resumen */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16, marginTop:12}}>
+        <div style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:16,padding:16}}>
+          <h3 style={{margin:'0 0 6px'}}>Gestión completa</h3>
+          <div style={{color:'#475569'}}>Publicación, filtrado, visitas y seguimiento. Tú decides la última palabra.</div>
         </div>
-      )}
+        <div style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:16,padding:16}}>
+          <h3 style={{margin:'0 0 6px'}}>Inquilinos validados</h3>
+          <div style={{color:'#475569'}}>Verificación de identidad y solvencia. Contrato y firma electrónica.</div>
+        </div>
+        <div style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:16,padding:16}}>
+          <h3 style={{margin:'0 0 6px'}}>Soporte SpainRoom</h3>
+          <div style={{color:'#475569'}}>Equipo cercano y moderno. Modelo claro y transparente.</div>
+        </div>
+      </div>
 
-      <MapaProvincias csvUrl="/data/mapa_cedula_provincias.csv" />
-    </main>
-  );
+      {/* Mapa de cédulas */}
+      <div style={{marginTop:18}}>
+        <MapaProvincias />
+      </div>
+
+      {/* CTA */}
+      <div style={{marginTop:18}}>
+        <h3 style={{margin:'0 0 8px'}}>¿Quieres publicar tu habitación?</h3>
+        <a href="mailto:propietarios@spainroom.es?subject=Quiero%20publicar%20mi%20habitaci%C3%B3n%20en%20SpainRoom"
+           style={{display:'inline-block',background:'#0A58CA',color:'#fff',padding:'12px 16px',borderRadius:12,fontWeight:800,textDecoration:'none'}}>
+          Contactar con SpainRoom
+        </a>
+      </div>
+    </div>
+  )
 }

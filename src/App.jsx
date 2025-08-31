@@ -1,23 +1,34 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import Navbar from "./components/Navbar.jsx";
-import Inicio from "./pages/Inicio.jsx";
-import Listado from "./pages/Listado.jsx";
-import Propietarios from "./pages/Propietarios.jsx";
+import React from 'react'
+import { Routes, Route } from 'react-router-dom'
+import Navbar from './components/Navbar.jsx'
 
-export default function App() {
+import InicioElegante from './pages/InicioElegante.jsx'
+import Jobs from './pages/Jobs.jsx'
+import Reservas from './pages/Reservas.jsx'
+import Oportunidades from './pages/Oportunidades.jsx'
+import Propietarios from './pages/Propietarios.jsx'
+import FranquiciadosEmbed from './pages/FranquiciadosEmbed.jsx'
+import PagosEmbed from './pages/PagosEmbed.jsx'
+import AdminEmbed from './pages/AdminEmbed.jsx'
+
+export default function App(){
   return (
-    <div style={{ fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }}>
+    <>
       <Navbar />
       <Routes>
-        <Route path="/" element={<Inicio />} />
-        <Route path="/listado" element={<Listado />} />
-        <Route path="/propietarios" element={<Propietarios />} />
-        {/* Cualquier ruta desconocida redirige a Inicio */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<InicioElegante/>} />
+        <Route path="/jobs" element={<Jobs/>} />
+        <Route path="/reservas" element={<Reservas/>} />
+        <Route path="/oportunidades" element={<Oportunidades/>} />
+        <Route path="/propietarios" element={<Propietarios/>} />
+        <Route path="/franquiciados" element={<FranquiciadosEmbed/>} />
+        <Route path="/pagos" element={<PagosEmbed/>} />
+        <Route path="/admin" element={<AdminEmbed/>} />
+        <Route path="*" element={<InicioElegante/>} />
       </Routes>
-      <footer style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, padding: 16 }}>
-        © {new Date().getFullYear()} SpainRoom
-      </footer>
-    </div>
-  );
+
+      {/* SOS global */}
+      <a className="sos-btn" href="tel:+34616232306" aria-label="Llamada SOS SpainRoom">SOS</a>
+    </>
+  )
 }

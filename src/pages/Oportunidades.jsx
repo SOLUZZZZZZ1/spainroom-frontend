@@ -1,105 +1,55 @@
-import { useState } from "react";
-import { FormCard, Field, Input, Select, Textarea, Button, Alert } from "../components/SRForm";
+import React, { useState } from 'react'
+import SEO from '../components/SEO.jsx'
 
-export default function Oportunidades() {
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState(null);
+function Card({title, children}){
+  return (
+    <div style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:16,padding:16}}>
+      <h3 style={{margin:'0 0 6px'}}>{title}</h3>
+      <div style={{color:'#475569'}}>{children}</div>
+    </div>
+  )
+}
 
-  async function onSubmit(e) {
-    e.preventDefault();
-    setStatus(null);
-    setLoading(true);
-    const form = new FormData(e.currentTarget);
-    const payload = Object.fromEntries(form.entries());
-    try {
-      const r = await fetch("/api/contacto", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ ...payload, origen: "oportunidades" }),
-      });
-      if (!r.ok) throw new Error("backend");
-      setStatus({ ok: true, msg: "Mensaje enviado. Te contactaremos muy pronto." });
-      e.currentTarget.reset();
-    } catch {
-      setStatus({ ok: true, msg: "Mensaje enviado (demo). Backend no conectado." });
-      e.currentTarget.reset();
-    } finally {
-      setLoading(false);
-    }
+export default function Oportunidades(){
+  const [empresa,setEmpresa]=useState(''),[contacto,setContacto]=useState('')
+  const [email,setEmail]=useState(''),[mensaje,setMensaje]=useState('')
+
+  const enviar=(e)=>{
+    e.preventDefault()
+    const subject=encodeURIComponent('Oportunidades — Propuesta de colaboración')
+    const body=encodeURIComponent(`Empresa: ${empresa}\nContacto: ${contacto}\nEmail: ${email}\n\nMensaje:\n${mensaje}`)
+    window.location.href=`mailto:oportunidades@spainroom.es?subject=${subject}&body=${body}`
   }
 
   return (
-    <div className="pt-24 px-4 md:px-6 max-w-6xl mx-auto space-y-6">
-      <header>
-        <h1 className="text-3xl font-bold">Oportunidades</h1>
-        <p className="text-gray-700 mt-2">
-          Colabora con nosotros como inmobiliaria, descubre promociones o consulta opciones de inversión.
-        </p>
-      </header>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <FormCard title="Inmobiliarias" subtitle="Conecta tu cartera con demanda real">
-          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-            <li>Publicación de habitaciones gestionada por SpainRoom.</li>
-            <li>Selección y soporte a inquilinos.</li>
-            <li>Proceso claro de reservas y seguimiento.</li>
-          </ul>
-        </FormCard>
-        <FormCard title="Promociones" subtitle="Accesos y beneficios para usuarios SpainRoom">
-          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-            <li>Visibilidad a tu oferta.</li>
-            <li>Segmentación por zonas y perfiles.</li>
-            <li>Colaboraciones win-win.</li>
-          </ul>
-        </FormCard>
-        <FormCard title="Inversión" subtitle="Modelo escalable con ingresos recurrentes">
-          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-            <li>Zonas prioritarias y roadmap.</li>
-            <li>Soporte de la central y marca registrada.</li>
-            <li>Datos y previsiones realistas.</li>
-          </ul>
-        </FormCard>
+    <div className="container" style={{padding:'24px 0'}}>
+      <SEO title="Oportunidades — SpainRoom" description="Ofertas para inmobiliarias, promociones e inversión en SpainRoom."/>
+      <h2 style={{margin:'0 0 10px'}}>Oportunidades</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
+        <Card title="Para inmobiliarias">• Integración como colaborador SpainRoom.<br/>• Captación y gestión de habitaciones.<br/>• Soporte central y material.</Card>
+        <Card title="Habitaciones en promoción">• Publicaciones destacadas.<br/>• Validación de calidad SpainRoom.<br/>• Métricas de conversión.</Card>
+        <Card title="Opciones de inversión">• Participación zonal.<br/>• Pipeline de habitaciones.<br/>• Modelo económico transparente.</Card>
       </div>
-
-      <FormCard title="Contacto" subtitle="Cuéntanos en qué te interesa colaborar con SpainRoom">
-        {status && (
-          <div className="mb-4">
-            <Alert kind={status.ok ? "success" : "error"} onClose={() => setStatus(null)} autoHideMs={6000}>
-              {status.msg}
-            </Alert>
-          </div>
-        )}
-        <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Nombre y apellidos" required>
-            <Input name="nombre" required placeholder="Tu nombre completo" />
-          </Field>
-          <Field label="Email" required>
-            <Input name="email" type="email" required placeholder="empresa@email.com" />
-          </Field>
-          <Field label="Teléfono">
-            <Input name="telefono" placeholder="+34 6XX XXX XXX" />
-          </Field>
-          <Field label="Interés" required>
-            <Select name="interes" required defaultValue="">
-              <option value="" disabled>Selecciona…</option>
-              <option value="inmobiliaria">Inmobiliaria</option>
-              <option value="promocion">Promoción</option>
-              <option value="inversion">Inversión</option>
-            </Select>
-          </Field>
-          <div className="md:col-span-2">
-            <Field label="Mensaje">
-              <Textarea name="mensaje" rows={4} placeholder="Cuéntanos cómo podemos colaborar contigo" />
-            </Field>
-          </div>
-          <div className="md:col-span-2 flex items-center justify-between gap-4 pt-2">
-            <p className="text-xs text-gray-500">
-              Al enviar aceptas ser contactad@ por SpainRoom para esta colaboración.
-            </p>
-            <Button type="submit" loading={loading}>Enviar</Button>
-          </div>
+      <div style={{marginTop:18}}>
+        <h3 style={{margin:'0 0 8px'}}>¿Te interesa? Escríbenos</h3>
+        <form onSubmit={enviar} className="form" style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:16,padding:16,maxWidth:720}}>
+          <label>Empresa</label>
+          <input required value={empresa} onChange={e=>setEmpresa(e.target.value)}
+            style={{width:'100%',padding:'10px 12px',border:'1px solid #cbd5e1',borderRadius:10}}/>
+          <label style={{marginTop:8}}>Persona de contacto</label>
+          <input required value={contacto} onChange={e=>setContacto(e.target.value)}
+            style={{width:'100%',padding:'10px 12px',border:'1px solid #cbd5e1',borderRadius:10}}/>
+          <label style={{marginTop:8}}>Email</label>
+          <input required type="email" value={email} onChange={e=>setEmail(e.target.value)}
+            style={{width:'100%',padding:'10px 12px',border:'1px solid #cbd5e1',borderRadius:10}}/>
+          <label style={{marginTop:8}}>Mensaje</label>
+          <textarea rows="4" value={mensaje} onChange={e=>setMensaje(e.target.value)}
+            style={{width:'100%',padding:'10px 12px',border:'1px solid #cbd5e1',borderRadius:10}}/>
+          <button type="submit" style={{marginTop:10,background:'#0A58CA',color:'#fff',border:'none',padding:'10px 14px',borderRadius:10,fontWeight:800}}>
+            Enviar
+          </button>
         </form>
-      </FormCard>
+      </div>
     </div>
-  );
+  )
 }

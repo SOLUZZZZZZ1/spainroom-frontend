@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <style>
+      .w { fill:#FFFFFF; }
+      .s { fill:none; stroke:#FFFFFF; stroke-width:36; stroke-linecap:round; stroke-linejoin:round; }
+    </style>
+  </defs>
+  <!-- House outline (rounded, open on lower-right) -->
+  <path class="s" d="M80 248 L256 108 L432 248" />
+  <path class="s" d="M128 232 L128 404 Q128 432 156 432 L292 432" />
+  <path class="s" d="M384 216 L384 304 Q384 356 348 392" />
+  <!-- Key (heart bow + stem + teeth) -->
+  <!-- Heart -->
+  <path class="w" d="M256 288c-22-28-64-18-64 16c0 36 52 58 64 76c12-18 64-40 64-76c0-34-42-44-64-16z"/>
+  <!-- Stem -->
+  <rect class="w" x="244" y="304" width="24" height="84" rx="8"/>
+  <!-- Teeth -->
+  <rect class="w" x="268" y="360" width="28" height="18" rx="4"/>
+  <rect class="w" x="268" y="384" width="18" height="18" rx="4"/>
+</svg>
