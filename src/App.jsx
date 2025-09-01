@@ -1,12 +1,17 @@
+// ==============================
+// FILE: src/App.jsx  (COMPLETO)
+// ==============================
 import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar.jsx'
 
 import InicioElegante from './pages/InicioElegante.jsx'
+import Propietarios from './pages/Propietarios.jsx'
 import Jobs from './pages/Jobs.jsx'
 import Reservas from './pages/Reservas.jsx'
+import ReservaOk from './pages/ReservaOk.jsx'
+import ReservaError from './pages/ReservaError.jsx'
 import Oportunidades from './pages/Oportunidades.jsx'
-import Propietarios from './pages/Propietarios.jsx'
 import FranquiciadosEmbed from './pages/FranquiciadosEmbed.jsx'
 import PagosEmbed from './pages/PagosEmbed.jsx'
 import AdminEmbed from './pages/AdminEmbed.jsx'
@@ -17,17 +22,19 @@ export default function App(){
       <Navbar />
       <Routes>
         <Route path="/" element={<InicioElegante/>} />
+        <Route path="/propietarios" element={<Propietarios/>} />
         <Route path="/jobs" element={<Jobs/>} />
         <Route path="/reservas" element={<Reservas/>} />
+        <Route path="/reservas/ok" element={<ReservaOk/>} />
+        <Route path="/reservas/error" element={<ReservaError/>} />
         <Route path="/oportunidades" element={<Oportunidades/>} />
-        <Route path="/propietarios" element={<Propietarios/>} />
         <Route path="/franquiciados" element={<FranquiciadosEmbed/>} />
         <Route path="/pagos" element={<PagosEmbed/>} />
         <Route path="/admin" element={<AdminEmbed/>} />
         <Route path="*" element={<InicioElegante/>} />
       </Routes>
 
-      {/* SOS global */}
+      {/* SOS global (alarma) */}
       <a className="sos-btn" href="tel:+34616232306" aria-label="Llamada SOS SpainRoom">SOS</a>
     </>
   )
