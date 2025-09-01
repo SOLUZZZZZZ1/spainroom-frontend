@@ -1,0 +1,1 @@
+export default function Jobs() { return <div>Ofertas reales de empleo cercanas</div>; }

@@ -1,0 +1,1 @@
+export default function Reservas() { return <div>Sistema real de reservas de habitaciones</div>; }

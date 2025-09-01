@@ -1,7 +1,7 @@
 {
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)\\.(css|js|mjs|map|png|jpg|jpeg|gif|svg|ico|webp|json|txt)$", "dest": "/$1.$2" },
+    { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/" }
   ]
 }

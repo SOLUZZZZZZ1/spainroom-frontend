@@ -1,0 +1,1 @@
+export default function Listado() { return <div>Listado real de habitaciones disponibles</div>; }

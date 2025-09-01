@@ -1,0 +1,117 @@
+:root {
+  --sr-blue: #0b65d8;
+  --sr-ink: #0e1625;
+  --sr-muted: #6b7280;
+  --sr-border: #e5e7eb;
+  --sr-card: #ffffff;
+  --sr-chip: #eef4ff;
+  --sr-radius: 18px;
+  --sr-shadow: 0 10px 28px rgba(10, 23, 45, 0.10);
+}
+
+.sr-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--sr-card);
+  border: 1px solid var(--sr-border);
+  border-radius: var(--sr-radius);
+  overflow: hidden;
+  box-shadow: var(--sr-shadow);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.sr-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(10, 23, 45, 0.14);
+  border-color: #dbeafe;
+}
+
+.sr-card__figure {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #f3f4f6;
+  margin: 0;
+}
+
+.sr-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sr-card__badge {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  background: linear-gradient(90deg, #0b65d8, #1e90ff);
+  color: #fff;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(11, 101, 216, 0.35);
+}
+
+.sr-card__body {
+  padding: 14px 14px 16px 14px;
+}
+
+.sr-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sr-card__title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--sr-ink);
+  font-weight: 900;
+  line-height: 1.2;
+}
+.sr-card:hover .sr-card__title { color: var(--sr-blue); }
+
+.sr-card__price {
+  font-weight: 900;
+  color: var(--sr-blue);
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.sr-card__period {
+  color: var(--sr-muted);
+  font-weight: 600;
+  margin-left: 2px;
+  font-size: 12px;
+}
+
+.sr-card__location {
+  margin: 6px 0 10px 0;
+  color: var(--sr-muted);
+  font-size: 14px;
+}
+
+.sr-card__features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sr-chip {
+  background: var(--sr-chip);
+  color: #1f2937;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #e0e7ff;
+  font-weight: 700;
+}
+
+.sr-card__footer {
+  display: flex;
+  gap: 10px;
+}

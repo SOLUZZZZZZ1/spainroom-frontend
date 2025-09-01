@@ -1,0 +1,40 @@
+// Genera favicons PNG nítidos con fondo azul + cabecera centrado.
+// Requiere: npm i -D sharp
+const sharp = require("sharp");
+const path = require("path");
+
+const BLUE = "#2563eb";
+const base = path.join(__dirname, "..", "public", "cabecera.png");
+const out = (name) => path.join(__dirname, "..", "public", name);
+
+// Genera un badge cuadrado con logo centrado (75% del lado)
+async function make(size, filename) {
+  const logoSize = Math.round(size * 0.75);
+  const bg = await sharp({
+    create: { width: size, height: size, channels: 4, background: BLUE }
+  }).png().toBuffer();
+
+  const logo = await sharp(base)
+    .resize(logoSize, logoSize, { fit: "inside", withoutEnlargement: true })
+    .png()
+    .toBuffer();
+
+  await sharp(bg)
+    .composite([{ input: logo, gravity: "center" }])
+    .png({ compressionLevel: 9 })
+    .toFile(out(filename));
+  console.log("✅", filename);
+}
+
+(async () => {
+  try {
+    await make(16, "favicon-16.png");
+    await make(32, "favicon-32.png");
+    await make(48, "favicon-48.png");
+    await make(180, "apple-touch-icon-180.png");
+    console.log("🎉 Favicons generados en /public");
+  } catch (e) {
+    console.error("❌ Error generando favicons:", e.message);
+    process.exit(1);
+  }
+})();

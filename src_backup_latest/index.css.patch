@@ -1,0 +1,5 @@
+
+/* PATCH: hero logo principal más grande y con sombra sutil */
+.hero-logo-principal{ width: 420px; height: auto; filter: drop-shadow(0 10px 24px rgba(0,0,0,.25)); }
+@media (max-width: 960px){ .hero-logo-principal{ width: 320px; } }
+@media (max-width: 640px){ .hero-logo-principal{ width: 240px; } }

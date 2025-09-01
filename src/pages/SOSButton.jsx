@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 const SUPPORT_EMAIL = "soporte@spainroom.com";
-const WHATSAPP_LINK = "https://wa.me/34600000000?text=SOS%20SpainRoom%20Necesito%20ayuda";
 
 export default function SOSButton() {
   const [open, setOpen] = useState(false);
@@ -14,7 +13,7 @@ export default function SOSButton() {
 
   function sendEmail() {
     const subject = encodeURIComponent("SOS SpainRoom - Solicitud de ayuda");
-    const body = encodeURIComponent(`Hola SpainRoom, necesito ayuda urgente.\n\nPágina: ${window.location.href}\nFecha/Hora: ${new Date().toLocaleString()}\n`);
+    const body = encodeURIComponent(`Hola SpainRoom, necesito ayuda urgente.\n\nPÃ¡gina: ${window.location.href}\nFecha/Hora: ${new Date().toLocaleString()}\n`);
     window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
   }
   function openWhatsApp() { window.open(WHATSAPP_LINK, "_blank", "noopener,noreferrer"); }

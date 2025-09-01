@@ -1,0 +1,68 @@
+/* ==== FINAL OVERRIDES (cargar SIEMPRE al final) ==== */
+
+/* Navbar: tamaño y centrado correctos */
+.sr-navbar-inner{
+  height: 88px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+.sr-logo{
+  height: 64px !important;
+  max-height: 64px !important;
+  width: auto !important;
+  object-fit: contain !important;
+}
+.sr-brand-title{ color:#fff !important; font-weight:800 !important; letter-spacing:.4px !important; }
+
+/* Menú “pill” grande alineado a la derecha */
+.sr-links{
+  margin-left:auto !important;
+  display:flex !important; align-items:center !important; gap:14px !important; flex-wrap:wrap !important;
+}
+.sr-links a, .sr-links .sr-link{
+  display:inline-flex !important; align-items:center !important; justify-content:center !important;
+  padding:12px 16px !important; border-radius:999px !important; line-height:1 !important;
+  color:#fff !important; text-decoration:none !important; font-weight:800 !important; font-size:15px !important;
+  border:1px solid rgba(255,255,255,.2) !important; background:transparent !important;
+  transition: background .2s, box-shadow .2s, transform .05s, color .2s, border-color .2s !important;
+}
+.sr-links a:hover, .sr-links .sr-link:hover{ background:rgba(255,255,255,.16) !important; box-shadow:0 2px 8px rgba(0,0,0,.18) !important; transform:translateY(-1px) !important; }
+.sr-links a.active, .sr-links .sr-link.active{ background:#fff !important; color:#0A58CA !important; border-color:transparent !important; box-shadow:0 3px 10px rgba(0,0,0,.15) !important; }
+
+/* Hero centrado y card al centro */
+.sr-hero{
+  min-height: calc(100vh - 88px) !important;
+  display:flex !important; align-items:center !important;
+  background-image: linear-gradient(180deg, rgba(10,88,202,0.16), rgba(10,88,202,0.04)), url('/casa-diseno.jpg') !important;
+  background-size:cover !important; background-position:center !important; color:#fff !important;
+}
+.sr-hero > .sr-container{
+  display:flex !important; justify-content:center !important;
+}
+.sr-hero-card{
+  text-align:center !important;
+  background:rgba(15,23,42,0.22) !important;
+  backdrop-filter:saturate(140%) blur(6px) !important;
+  border:1px solid rgba(255,255,255,0.20) !important;
+  border-radius:18px !important; padding:32px !important;
+  width:min(960px, calc(100% - 40px)) !important; margin:0 auto !important;
+  box-shadow:0 10px 22px rgba(0,0,0,.16) !important;
+}
+.sr-hero-logo{ display:block !important; margin:0 auto 12px !important; width:240px !important; height:auto !important; }
+.sr-hero-title{ font-size:46px !important; line-height:1.12 !important; margin:0 0 12px !important; text-align:center !important; }
+
+/* Texto del héroe: grande y centrado */
+.sr-hero-lines{ margin:12px auto 0 !important; max-width:50ch !important; }
+.sr-hero-lines .line{ display:block !important; font-size:22px !important; line-height:1.55 !important; color:#fff !important; text-align:center !important; }
+.sr-hero-lines .indent-1{ padding-left:0 !important; }
+.sr-hero-pre{ display:none !important; } /* por si quedara el <pre> antiguo */
+
+/* Responsive */
+@media (max-width:900px){
+  .sr-logo{ height:58px !important; }
+  .sr-navbar-inner{ height:84px !important; }
+  .sr-hero{ min-height:calc(100vh - 84px) !important; }
+  .sr-hero-title{ font-size:36px !important; }
+  .sr-hero-lines .line{ font-size:19px !important; }
+}

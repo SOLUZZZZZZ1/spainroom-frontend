@@ -1,0 +1,50 @@
+:root {
+  --sr-blue: #0b65d8;
+  --sr-border: #e5e7eb;
+  --sr-bg: #ffffff;
+  --sr-muted: #6b7280;
+  --sr-radius: 16px;
+}
+
+.sr-filter {
+  border-radius: var(--sr-radius);
+}
+
+.sr-filter__row {
+  gap: 12px;
+}
+
+.sr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sr-field--checkbox {
+  display: flex;
+  justify-content: end;
+  align-items: end;
+}
+
+.sr-label {
+  font-size: 12px;
+  color: var(--sr-muted);
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.sr-input {
+  border: 1px solid var(--sr-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+}
+
+.sr-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}

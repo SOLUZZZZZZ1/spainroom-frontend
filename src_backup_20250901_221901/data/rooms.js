@@ -1,0 +1,77 @@
+export const ROOMS = [
+  {
+    id: "MAD-CHUECA-1",
+    title: "Habitación Premium en Chueca",
+    location: "Madrid — Chueca (Centro)",
+    price: 400,
+    features: ["Cama 135x200", "Llave propia", "Gastos incluidos", "Wi-Fi 600Mb"],
+    image: "/casa-diseno.jpg",
+    badge: "Nueva",
+    description:
+      "Habitación reformada con luz natural, escritorio y armario. Finca tranquila y bien comunicada.",
+    coords: { lat: 40.4219, lng: -3.6993 },
+    mapLabel: "Chueca (Centro)",
+  },
+  {
+    id: "MAD-LAVAPIES-2",
+    title: "Habitación luminosa en Lavapiés",
+    location: "Madrid — Lavapiés",
+    price: 395,
+    features: ["Cama 135x200", "Armario", "Balcón", "Metro a 3 min"],
+    image: "/casa-diseno.jpg",
+    badge: "Oportunidad",
+    description:
+      "Espacio alegre con balcón y excelente ubicación. Comunidad joven y servicios próximos.",
+    coords: { lat: 40.4087, lng: -3.7004 },
+    mapLabel: "Lavapiés",
+  },
+  {
+    id: "BCN-GRACIA-3",
+    title: "Gràcia — Centro, lista para entrar",
+    location: "Barcelona — Gràcia",
+    price: 410,
+    features: ["Cama 135x200", "Llave propia", "Escritorio", "Exterior"],
+    image: "/casa-diseno.jpg",
+    description:
+      "Exterior y muy agradable para estudio/teletrabajo. Zona con encanto y todos los servicios.",
+    coords: { lat: 41.4036, lng: 2.1526 },
+    mapLabel: "Gràcia",
+  },
+  {
+    id: "VAL-RUZ-4",
+    title: "Ruzafa con ambiente joven",
+    location: "València — Ruzafa",
+    price: 380,
+    features: ["Cama 135x200", "Wi-Fi", "Luz natural", "Zona top"],
+    image: "/casa-diseno.jpg",
+    description:
+      "Ambiente creativo, bares y restaurantes cercanos. Piso cuidado y compañeros tranquilos.",
+    coords: { lat: 39.4622, lng: -0.3729 },
+    mapLabel: "Ruzafa",
+  },
+  {
+    id: "SEV-TRIANA-5",
+    title: "Triana — Piso reformado",
+    location: "Sevilla — Triana",
+    price: 365,
+    features: ["Cama 135x200", "Gastos incluidos", "A/C", "Metro cercano"],
+    image: "/casa-diseno.jpg",
+    description:
+      "Piso reformado con aire acondicionado. Bien comunicado, a un paso del centro.",
+    coords: { lat: 37.3823, lng: -6.0072 },
+    mapLabel: "Triana",
+  },
+  {
+    id: "MAL-SOHO-6",
+    title: "Soho — Centro cultural",
+    location: "Málaga — Soho",
+    price: 390,
+    features: ["Cama 135x200", "Exterior", "Armario", "Llave propia"],
+    image: "/casa-diseno.jpg",
+    badge: "Promoción",
+    description:
+      "Exterior, luminosa y lista para entrar. Barrio con mucha vida cultural y ocio.",
+    coords: { lat: 36.7154, lng: -4.4274 },
+    mapLabel: "Soho",
+  },
+];
