@@ -1,241 +1,136 @@
-import { useEffect, useMemo, useState } from "react";
-import { getJobsNearby, searchJobs } from "../lib/api";
+import React, { useEffect, useState } from 'react'
+import SEO from '../components/SEO.jsx'
 
-function ResultCard({ job }) {
-  return (
-    <div className="rounded-2xl border p-4 bg-white shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="font-semibold text-gray-900">{job.title}</h3>
-        {job.distance_km != null && (
-          <span className="text-xs rounded-lg bg-blue-50 text-blue-700 px-2 py-1">
-            {job.distance_km.toFixed(1)} km
-          </span>
-        )}
-      </div>
-      <p className="text-sm text-gray-600 mt-1">
-        {job.company || "Empresa no indicada"} · {job.location || "Ubicación"}
-      </p>
-      {job.salary && <p className="text-sm text-gray-700 mt-1">{job.salary}</p>}
-      <div className="mt-3 flex items-center gap-2">
-        {job.url && (
-          <a
-            href={job.url}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-xl bg-blue-600 text-white text-sm px-3 py-2 hover:bg-blue-700"
-          >
-            Ver oferta
-          </a>
-        )}
-        {job.source && <span className="text-xs text-gray-500">Fuente: {job.source}</span>}
-      </div>
-    </div>
-  );
-}
+/**
+ * Empleo para Inquilinos
+ * - Fuentes “Particulares”: abre búsqueda directa (Google) en Milanuncios con la query y la ciudad → va al anuncio original
+ * - Fuentes “Portales”: abre InfoJobs / Indeed / LinkedIn con la query y ciudad → listado del portal (también original)
+ * - Todo se abre en nueva pestaña (target _blank) para que no “encierre” al usuario
+ */
 
-const demoNearby = (lat, lng) => ([
-  {
-    id: "demo-1",
-    title: "Dependiente/a tienda barrio",
-    company: "Comercio Local",
-    location: "Cerca de tu ubicación",
-    distance_km: 0.7,
-    salary: "1.100–1.300 € / mes",
-    url: "#",
-    source: "Demo",
-    lat, lng,
-  },
-  {
-    id: "demo-2",
-    title: "Camarero/a fin de semana",
-    company: "Bar La Plaza",
-    location: "Zona centro",
-    distance_km: 1.8,
-    salary: "8–10 € / hora",
-    url: "#",
-    source: "Demo",
-    lat, lng,
-  },
-]);
+export default function Jobs(){
+  const [query, setQuery] = useState('')
+  const [city, setCity]   = useState('')
+  const [radius, setRadius] = useState(20)
 
-const demoSearch = (q) => ([
-  {
-    id: "demo-s1",
-    title: `(${q || "General"}) Reponedor/a supermercado`,
-    company: "SuperMax",
-    location: "Distrito norte",
-    distance_km: 4.2,
-    salary: "1.200–1.400 € / mes",
-    url: "#",
-    source: "Demo",
-  },
-  {
-    id: "demo-s2",
-    title: `(${q || "General"}) Recepcionista hotel`,
-    company: "Hotel Centro",
-    location: "Centro ciudad",
-    distance_km: 6.9,
-    salary: "1.300–1.600 € / mes",
-    url: "#",
-    source: "Demo",
-  },
-]);
-
-export default function Jobs() {
-  // Geolocalización
-  const [coords, setCoords] = useState(null);
-  const [geoError, setGeoError] = useState(null);
-
-  // General (2 km)
-  const [nearby, setNearby] = useState([]);
-  const [loadingNearby, setLoadingNearby] = useState(false);
-  const [errNearby, setErrNearby] = useState(null);
-
-  // Búsqueda (10 km)
-  const [q, setQ] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [results, setResults] = useState([]);
-  const [errSearch, setErrSearch] = useState(null);
-
-  // Pedir geolocalización al cargar
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setGeoError("Geolocalización no disponible en este navegador.");
-      return;
-    }
+  // Geolocalización opcional (solo para mostrar coordenadas o city hint)
+  const [pos, setPos] = useState(null)
+  useEffect(()=>{
+    if(!('geolocation' in navigator)) return
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setGeoError(null);
-      },
-      (err) => {
-        setGeoError("No se pudo obtener tu ubicación (permiso denegado o error).");
-        // Aun así seguimos con demo en fallback
-        setCoords(null);
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 120000 }
-    );
-  }, []);
+      (p)=> setPos({lat:p.coords.latitude, lng:p.coords.longitude}),
+      ()=>{}, { enableHighAccuracy:true, timeout:6000 }
+    )
+  },[])
 
-  // Cargar “cerca de mí” (2 km) cuando hay coords
-  useEffect(() => {
-    async function run() {
-      setLoadingNearby(true);
-      setErrNearby(null);
-      try {
-        if (coords) {
-          const data = await getJobsNearby({ lat: coords.lat, lng: coords.lng, radius_km: 2 });
-          setNearby(Array.isArray(data) ? data : data.items || []);
-        } else {
-          // Fallback demo si no hay coords
-          setNearby(demoNearby());
-        }
-      } catch (e) {
-        setErrNearby(e.message || "Error cargando ofertas cercanas");
-        setNearby(demoNearby(coords?.lat, coords?.lng));
-      } finally {
-        setLoadingNearby(false);
-      }
-    }
-    run();
-  }, [coords]);
+  const enc = (s)=> encodeURIComponent(s || '')
+  const quoted = (s)=> s ? `%22${enc(s)}%22` : ''
 
-  const canSearch = useMemo(() => coords != null, [coords]);
+  // --------- constructores de URL (siempre _blank) ----------
+  const urlMilanuncios = () =>
+    `https://www.google.com/search?q=site:milanuncios.com+${enc(query)}+${quoted(city)}+empleo+oferta`
 
-  // Ejecutar búsqueda específica (10 km)
-  async function onSearch(e) {
-    e?.preventDefault();
-    setSearching(true);
-    setErrSearch(null);
-    try {
-      if (coords) {
-        const data = await searchJobs({ q, lat: coords.lat, lng: coords.lng, radius_km: 10 });
-        setResults(Array.isArray(data) ? data : data.items || []);
-      } else {
-        setResults(demoSearch(q));
-      }
-    } catch (e) {
-      setErrSearch(e.message || "Error buscando ofertas");
-      setResults(demoSearch(q));
-    } finally {
-      setSearching(false);
-    }
+  const urlInfoJobs = () =>
+    // si la estructura del portal cambia, el fallback Google asegura resultados
+    `https://www.google.com/search?q=site:infojobs.net+${enc(query)}+${quoted(city)}`
+
+  const urlIndeed = () =>
+    `https://es.indeed.com/jobs?q=${enc(query)}&l=${enc(city)}`
+
+  const urlLinkedIn = () =>
+    `https://www.linkedin.com/jobs/search/?keywords=${enc(query)}&location=${enc(city)}`
+
+  const urlWallapop = () =>
+    `https://www.google.com/search?q=site:wallapop.com+${enc(query)}+${quoted(city)}+empleo`
+
+  const open = (href)=>{
+    try { window.open(href, '_blank', 'noopener') } catch { location.href = href }
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Ofertas de empleo cerca de ti</h1>
-      {geoError && (
-        <div className="mb-4 rounded-xl bg-yellow-50 text-yellow-800 text-sm p-3">
-          {geoError} — Mostrando resultados de demostración.
-        </div>
-      )}
+    <div className="container" style={{padding:'24px 0'}}>
+      <SEO title="Inquilinos — Empleo cerca de ti" description="Busca trabajo en portales y anuncios de particulares; abrimos siempre el anuncio original en una pestaña nueva."/>
+      <h2 style={{margin:'0 0 6px'}}>Empleo para inquilinos</h2>
+      <p className="note">Las búsquedas se abren en una pestaña nueva y te llevan al <strong>anuncio original</strong>.</p>
 
-      {/* Buscador general (2 km) */}
-      <section className="rounded-2xl border bg-white p-4 mb-6">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="font-semibold">General (radio 2 km)</h2>
-          <button
-            className="rounded-xl bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200"
-            onClick={() => {
-              // Forzar recarga
-              setCoords((c) => (c ? { ...c } : c));
-            }}
-            disabled={loadingNearby}
-          >
-            {loadingNearby ? "Actualizando..." : "Actualizar"}
-          </button>
-        </div>
-
-        {errNearby && (
-          <div className="mt-3 rounded-xl bg-red-50 text-red-700 text-sm p-3">{errNearby}</div>
-        )}
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {loadingNearby
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="animate-pulse rounded-2xl border p-4 bg-gray-50 h-28" />
-              ))
-            : nearby.map((job) => <ResultCard key={job.id || job.title} job={job} />)}
-        </div>
-      </section>
-
-      {/* Buscador específico (10 km) */}
-      <section className="rounded-2xl border bg-white p-4">
-        <h2 className="font-semibold">Búsqueda específica (radio 10 km)</h2>
-        <form onSubmit={onSearch} className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+      {/* BÚSQUEDA */}
+      <section style={{marginTop:12, background:'#fff', border:'1px solid #e2e8f0', borderRadius:16, padding:16}}>
+        <form onSubmit={(e)=>{e.preventDefault(); open(urlMilanuncios())}} style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr auto', gap:10}}>
           <input
-            className="rounded-xl border px-3 py-2 text-sm"
-            placeholder="Ej. camarero, dependiente, recepcionista…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            value={query} onChange={e=>setQuery(e.target.value)}
+            placeholder="Ej: recepcionista, dependiente, camarero…"
+            aria-label="Puesto a buscar"
+            required
+            style={{padding:'10px 12px', border:'1px solid #cbd5e1', borderRadius:10}}
           />
-          <button
-            className="rounded-xl bg-blue-600 text-white text-sm px-4 py-2 hover:bg-blue-700 disabled:opacity-50"
-            disabled={searching || !canSearch}
-          >
-            {searching ? "Buscando..." : "Buscar"}
+          <input
+            value={city} onChange={e=>setCity(e.target.value)}
+            placeholder="Ciudad (opcional)"
+            aria-label="Ciudad"
+            style={{padding:'10px 12px', border:'1px solid #cbd5e1', borderRadius:10}}
+          />
+          <div style={{display:'flex', alignItems:'center', gap:8}}>
+            <label style={{fontSize:13, color:'#475569'}}>Radio (km)</label>
+            <input
+              type="number" min="1" max="50"
+              value={radius} onChange={e=>setRadius(parseInt(e.target.value||'20'))}
+              style={{width:80, padding:'10px 12px', border:'1px solid #cbd5e1', borderRadius:10}}
+            />
+          </div>
+          <button type="submit" style={{background:'#0A58CA', color:'#fff', border:'none', padding:'10px 16px', borderRadius:10, fontWeight:800}}>
+            Buscar
           </button>
         </form>
 
-        {!canSearch && (
-          <p className="text-xs text-gray-500 mt-2">
-            Activa la geolocalización para resultados reales. De momento verás ejemplos.
-          </p>
-        )}
-
-        {errSearch && (
-          <div className="mt-3 rounded-xl bg-red-50 text-red-700 text-sm p-3">{errSearch}</div>
-        )}
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {searching
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="animate-pulse rounded-2xl border p-4 bg-gray-50 h-28" />
-              ))
-            : results.map((job) => <ResultCard key={job.id || `${job.title}-${job.company}`} job={job} />)}
+        {/* PISTA GEO */}
+        <div className="note" style={{marginTop:8}}>
+          {pos ? <>Tu posición aproximada: {pos.lat.toFixed(3)},{pos.lng.toFixed(3)} · puedes ajustar “Ciudad”.</> : 'Si autorizas la ubicación, afinamos los resultados.'}
         </div>
       </section>
+
+      {/* FUENTES: PARTICULARES / PORTALES */}
+      <section style={{marginTop:16, display:'grid', gridTemplateColumns:'1fr 1fr', gap:16}}>
+        {/* PARTICULARES */}
+        <div style={{background:'#fff', border:'1px solid #e2e8f0', borderRadius:16, padding:16}}>
+          <h3 style={{margin:'0 0 8px'}}>Particulares</h3>
+          <p className="note" style={{margin:'0 0 10px'}}>Abrimos búsqueda directa en su web para ver <strong>anuncios de particulares</strong>.</p>
+          <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+            <button onClick={()=>open(urlMilanuncios())}
+                    style={{background:'#0A58CA', color:'#fff', border:'none', padding:'10px 14px', borderRadius:10, fontWeight:800}}>
+              Milanuncios
+            </button>
+            <button onClick={()=>open(urlWallapop())}
+                    style={{background:'#0A58CA', color:'#fff', border:'none', padding:'10px 14px', borderRadius:10, fontWeight:800}}>
+              Wallapop (búsqueda)
+            </button>
+          </div>
+        </div>
+
+        {/* PORTALES */}
+        <div style={{background:'#fff', border:'1px solid #e2e8f0', borderRadius:16, padding:16}}>
+          <h3 style={{margin:'0 0 8px'}}>Portales</h3>
+          <p className="note" style={{margin:'0 0 10px'}}>Listados en cada portal con tu búsqueda.</p>
+          <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+            <button onClick={()=>open(urlInfoJobs())}
+                    style={{background:'#fff', color:'#0A58CA', border:'1px solid #0A58CA', padding:'10px 14px', borderRadius:10, fontWeight:800}}>
+              InfoJobs
+            </button>
+            <button onClick={()=>open(urlIndeed())}
+                    style={{background:'#fff', color:'#0A58CA', border:'1px solid #0A58CA', padding:'10px 14px', borderRadius:10, fontWeight:800}}>
+              Indeed
+            </button>
+            <button onClick={()=>open(urlLinkedIn())}
+                    style={{background:'#fff', color:'#0A58CA', border:'1px solid #0A58CA', padding:'10px 14px', borderRadius:10, fontWeight:800}}>
+              LinkedIn
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* NOTA FINAL */}
+      <div className="note" style={{marginTop:12}}>
+        Tip: combina “{query || 'recepcionista'}” + “{city || 'Madrid'}” con palabras como “jornada parcial”, “fines de semana”, “sin experiencia” para afinar aún más.
+      </div>
     </div>
-  );
+  )
 }

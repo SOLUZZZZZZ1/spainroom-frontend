@@ -1,105 +1,76 @@
-import { useState } from "react";
-import { FormCard, Field, Input, Select, Textarea, Button, Alert } from "../components/SRForm";
+import React from 'react'
+import SEO from '../components/SEO.jsx'
 
-export default function Oportunidades() {
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState(null);
-
-  async function onSubmit(e) {
-    e.preventDefault();
-    setStatus(null);
-    setLoading(true);
-    const form = new FormData(e.currentTarget);
-    const payload = Object.fromEntries(form.entries());
-    try {
-      const r = await fetch("/api/contacto", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ ...payload, origen: "oportunidades" }),
-      });
-      if (!r.ok) throw new Error("backend");
-      setStatus({ ok: true, msg: "Mensaje enviado. Te contactaremos muy pronto." });
-      e.currentTarget.reset();
-    } catch {
-      setStatus({ ok: true, msg: "Mensaje enviado (demo). Backend no conectado." });
-      e.currentTarget.reset();
-    } finally {
-      setLoading(false);
-    }
-  }
-
+function Card({ title, children }){
   return (
-    <div className="pt-24 px-4 md:px-6 max-w-6xl mx-auto space-y-6">
-      <header>
-        <h1 className="text-3xl font-bold">Oportunidades</h1>
-        <p className="text-gray-700 mt-2">
-          Colabora con nosotros como inmobiliaria, descubre promociones o consulta opciones de inversión.
-        </p>
-      </header>
+    <div style={{
+      background:'#fff', border:'1px solid #e2e8f0', borderRadius:16, padding:16,
+      display:'flex', flexDirection:'column', gap:8, height:'100%'
+    }}>
+      <h3 style={{margin:0}}>{title}</h3>
+      <div style={{color:'#475569'}}>{children}</div>
+    </div>
+  )
+}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <FormCard title="Inmobiliarias" subtitle="Conecta tu cartera con demanda real">
-          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-            <li>Publicación de habitaciones gestionada por SpainRoom.</li>
-            <li>Selección y soporte a inquilinos.</li>
-            <li>Proceso claro de reservas y seguimiento.</li>
+export default function Oportunidades(){
+  return (
+    <div className="container" style={{padding:'24px 0'}}>
+      <SEO title="Oportunidades — SpainRoom" description="Colaboraciones, promociones destacadas e inversión en SpainRoom."/>
+      <h2 style={{margin:'0 0 10px', textAlign:'center'}}>Oportunidades</h2>
+      <p className="note" style={{textAlign:'center', margin:'0 0 16px'}}>
+        Colabora con SpainRoom: inmobiliarias, promociones e inversión por zonas.
+      </p>
+
+      {/* GRID 3 columnas (responsive a 1 columna en móvil) */}
+      <div style={{
+        display:'grid',
+        gridTemplateColumns:'repeat(3, 1fr)',
+        gap:16
+      }}>
+        <Card title="Inmobiliarias">
+          <ul style={{margin:'0 0 0 18px'}}>
+            <li>Integración como colaborador SpainRoom.</li>
+            <li>Captación y gestión de habitaciones.</li>
+            <li>Soporte central, material comercial y trazabilidad.</li>
           </ul>
-        </FormCard>
-        <FormCard title="Promociones" subtitle="Accesos y beneficios para usuarios SpainRoom">
-          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-            <li>Visibilidad a tu oferta.</li>
-            <li>Segmentación por zonas y perfiles.</li>
-            <li>Colaboraciones win-win.</li>
+        </Card>
+
+        <Card title="Promociones destacadas">
+          <ul style={{margin:'0 0 0 18px'}}>
+            <li>Publicaciones premium en zonas objetivo.</li>
+            <li>Validación de calidad SpainRoom.</li>
+            <li>Métricas de conversión y seguimiento.</li>
           </ul>
-        </FormCard>
-        <FormCard title="Inversión" subtitle="Modelo escalable con ingresos recurrentes">
-          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-            <li>Zonas prioritarias y roadmap.</li>
-            <li>Soporte de la central y marca registrada.</li>
-            <li>Datos y previsiones realistas.</li>
+        </Card>
+
+        <Card title="Inversión por zonas">
+          <ul style={{margin:'0 0 0 18px'}}>
+            <li>Participación por territorio.</li>
+            <li>Pipeline de habitaciones.</li>
+            <li>Modelo económico claro y reportes.</li>
           </ul>
-        </FormCard>
+        </Card>
       </div>
 
-      <FormCard title="Contacto" subtitle="Cuéntanos en qué te interesa colaborar con SpainRoom">
-        {status && (
-          <div className="mb-4">
-            <Alert kind={status.ok ? "success" : "error"} onClose={() => setStatus(null)} autoHideMs={6000}>
-              {status.msg}
-            </Alert>
-          </div>
-        )}
-        <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Nombre y apellidos" required>
-            <Input name="nombre" required placeholder="Tu nombre completo" />
-          </Field>
-          <Field label="Email" required>
-            <Input name="email" type="email" required placeholder="empresa@email.com" />
-          </Field>
-          <Field label="Teléfono">
-            <Input name="telefono" placeholder="+34 6XX XXX XXX" />
-          </Field>
-          <Field label="Interés" required>
-            <Select name="interes" required defaultValue="">
-              <option value="" disabled>Selecciona…</option>
-              <option value="inmobiliaria">Inmobiliaria</option>
-              <option value="promocion">Promoción</option>
-              <option value="inversion">Inversión</option>
-            </Select>
-          </Field>
-          <div className="md:col-span-2">
-            <Field label="Mensaje">
-              <Textarea name="mensaje" rows={4} placeholder="Cuéntanos cómo podemos colaborar contigo" />
-            </Field>
-          </div>
-          <div className="md:col-span-2 flex items-center justify-between gap-4 pt-2">
-            <p className="text-xs text-gray-500">
-              Al enviar aceptas ser contactad@ por SpainRoom para esta colaboración.
-            </p>
-            <Button type="submit" loading={loading}>Enviar</Button>
-          </div>
-        </form>
-      </FormCard>
+      {/* CTA centrada */}
+      <div style={{marginTop:18, textAlign:'center'}}>
+        <a
+          href="mailto:oportunidades@spainroom.es?subject=Oportunidades%20de%20colaboraci%C3%B3n"
+          style={{display:'inline-block',background:'#0A58CA',color:'#fff',padding:'12px 16px',borderRadius:12,fontWeight:800,textDecoration:'none'}}
+        >
+          Escribir a SpainRoom
+        </a>
+      </div>
+
+      {/* Responsive helper */}
+      <style>{`
+        @media (max-width: 900px){
+          .container > div[style*="grid"]{
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
-  );
+  )
 }

@@ -1,0 +1,98 @@
+NORA-HANDOFF v1
+
+Proyecto:
+- Frontend Vite en Windows: C:\spainroom\frontend
+- Producción: https://spainroom.vercel.app
+- Último preview conocido: (pegar último)
+- vercel.json con "handle":"filesystem" (assets /maps y /data OK)
+
+Repos:
+- Frontend: https://github.com/SOLUZZZZZZ1/spainroom-frontend
+- Superproject: https://github.com/SOLUZZZZZZ1/spainroom-superproject (submódulos)
+
+Estado actual (OK):
+- Home: logo controlado + texto centrado + topbar (Tel · WA · Nora) + SOS alarma
+- Propietarios: banner “SpainRoom te ayuda”, verificación con ID, mapa GeoJSON+CSV con panel derecho (Ceuta/Melilla incluidos), tabla filtrable
+- Inquilinos: página propia; Jobs se cargará dentro (dinámico)
+- NoraChatLite: responde por intención; /reset reinicia
+- WhatsApp se abre en nueva pestaña (no “encierra”)
+
+Pendiente / próximas tareas:
+1) Stripe en Reservas (Checkout test → live) + /reservas/ok|error
+2) SEO/GA4 + Search Console
+3) Cron/refresco de datos (scheduled function) y avisos
+4) Ajustes fino de mapa si alguna provincia no casa CSV↔Geo (normalizador)
+5) Micro-copy final y QA móvil
+
+Datos:
+- CSV: /public/data/mapa_cedula_provincias.csv
+- GeoJSON: /public/assets/spain-provinces.geojson
+
+Comandos rápidos:
+- build+preview: cd C:\spainroom\frontend && npm run build && npx vercel --yes
+- alias a prod: npx vercel alias set https://<preview>.vercel.app spainroom.vercel.ap
+
+
+
+
+
+# NORA-HANDOFF v1
+
+## Proyecto
+- **Frontend Vite (Windows)**: `C:\spainroom\frontend`
+- **Producción**: https://spainroom.vercel.app
+- **Último preview conocido**: https://frontend-ol50qdbdh-soluzzzs-projects.vercel.app
+- `vercel.json` con `"handle": "filesystem"` (assets `/maps` y `/data` OK)
+
+## Repos
+- **Frontend**: https://github.com/SOLUZZZZZZ1/spainroom-frontend
+- **Superproject**: https://github.com/SOLUZZZZZZ1/spainroom-superproject  (con submódulos)
+
+## Estado actual (OK)
+- **Home**: logo controlado, texto centrado, topbar (Tel · WA · Nora), botón SOS con alarma
+- **Propietarios**:
+  - Banner “SpainRoom te ayuda” (Nora/WA/Tel)
+  - Verificación con ID (localStorage) + endpoint opcional `/api/verificacion/create`
+  - **Mapa** GeoJSON + CSV con panel derecho (incluye **Ceuta/Melilla** con marcadores)
+  - Tabla filtrable + descarga CSV
+- **Inquilinos**: página propia; **Jobs** se carga dentro (import dinámico tolerante)
+- **NoraChatLite**: responde por intención (propietarios, inquilinos, pagos, admin, soporte); comando **/reset**
+- **WhatsApp**: abre en **nueva pestaña** (no “encierra” la web)
+
+## Datos del mapa
+- **CSV**: `/public/data/mapa_cedula_provincias.csv`
+- **GeoJSON**: `/public/assets/spain-provinces.geojson`
+
+## API (Vercel Functions)
+- `api/verificacion/create.js`  → POST eco/registro (opcional ampliar a BBDD/Sheets)
+- `api/payments/create-checkout-session.js`  → Stripe Checkout (pendiente activar)
+
+## Variables de entorno (Vercel)
+- `STRIPE_SECRET_KEY` (preview/prod) — para Checkout
+- `SITE_URL` (opcional; por defecto usa host del request)
+- `VITE_SUPPORT_PHONE` (teléfono visible en topbar/Nora)
+- `VITE_SUPPORT_EMAIL` (correo soporte para Nora)
+
+## Pendiente / próximas tareas
+1) **Stripe en Reservas** (Checkout test → live) + rutas `/reservas/ok|error`
+2) **SEO / GA4** + **Search Console** (titles/meta por ruta, sitemap, robots)
+3) **Cron** de refresco (scheduled function) para datos del mapa + avisos (email/Slack)
+4) Ajuste fino del mapa si alguna provincia no casa CSV↔Geo (**normalizador**)
+5) Micro-copy final y **QA móvil**
+
+## Comandos rápidos
+- **Build + Preview**  
+  `cd C:\spainroom\frontend && npm run build && npx vercel --yes`
+- **Alias a producción**  
+  `npx vercel alias set https://<preview>.vercel.app spainroom.vercel.app`
+
+## Rutas clave
+- `/`  → Home  
+- `/propietarios`  → Banner + Verificación + Mapa (GeoJSON/CSV) + Panel + Tabla  
+- `/inquilinos`  → Banner + (Jobs importado dinámicamente)  
+- `/franquiciados`  → Banner + embed configurable (`VITE_URL_FRANQUICIADOS`)  
+- `/pagos` | `/admin`  → embed + fallback botón abrir en pestaña  
+- `/reservas`  → (pendiente activar Stripe live)
+
+---
+

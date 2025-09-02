@@ -1,0 +1,49 @@
+{
+  "greeting": [
+    "¡Hola! Soy Nora 💙 ¿En qué te ayudo?",
+    "Puedo guiarte con Propietarios, Inquilinos, Franquiciados, Pagos o Soporte."
+  ],
+  "propietarios": [
+    "Propietarios:",
+    "• Ver mapa y requisitos: /propietarios",
+    "• Si no tienes cédula/LPO, SpainRoom te la gestiona.",
+    "• Email: propietarios@spainroom.es",
+    "• Tel/WhatsApp: {{PHONE}}"
+  ],
+  "inquilinos": [
+    "Inquilinos:",
+    "• Recursos y empleo cerca: /inquilinos",
+    "• Consejos sobre contrato, fianza y convivencia.",
+    "• Tel/WhatsApp: {{PHONE}}"
+  ],
+  "franquiciados": [
+    "Franquiciados:",
+    "• Área: /franquiciados",
+    "• Modelo probado y soporte central.",
+    "• Escríbeme y te llamo hoy mismo."
+  ],
+  "pagos": [
+    "Pagos:",
+    "• /pagos",
+    "• Soporte pagos: {{MAIL}}"
+  ],
+  "admin": [
+    "Admin:",
+    "• /admin"
+  ],
+  "soporte": [
+    "Contacto directo:",
+    "• Tel: {{PHONE}}",
+    "• WhatsApp: {{WA}}",
+    "• Email: {{MAIL}}"
+  ],
+  "generic": [
+    "Puedo ayudarte con:",
+    "• Propietarios: /propietarios",
+    "• Inquilinos: /inquilinos",
+    "• Reservas: /reservas",
+    "• Pagos: /pagos",
+    "• Tel/WhatsApp: {{PHONE}}"
+  ],
+  "autoOpenPaths": ["/propietarios", "/inquilinos", "/franquiciados"]
+}

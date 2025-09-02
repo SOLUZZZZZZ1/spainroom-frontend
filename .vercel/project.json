@@ -1,9 +1,9 @@
 {
-  "projectId": "prj_Ei62EKa0jqIlvLkC1t5Wms2r6oBY",
+  "projectId": "prj_FMovN0wITRMmEhtnVkjsxRaRdqmE",
   "orgId": "team_gmnmy2GHMJOmo07xI8ErnsmP",
-  "projectName": "spainroom-web2-consolidada",
+  "projectName": "frontend",
   "settings": {
-    "createdAt": 1755082500385,
+    "createdAt": 1756639551772,
     "framework": "vite",
     "devCommand": null,
     "installCommand": null,
@@ -11,6 +11,6 @@
     "outputDirectory": null,
     "rootDirectory": null,
     "directoryListing": false,
-    "nodeVersion": "20.x"
+    "nodeVersion": "22.x"
   }
 }
