@@ -1,26 +1,90 @@
-import { useState, useEffect } from "react";
-import UploadRoomForm from "../components/UploadRoomForm";
-import { endpoints } from "../lib/api";
+// src/pages/Admin.jsx
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { API_BASE, ADMIN_KEY } from "../lib/api";
 
 export default function Admin() {
-  const [health, setHealth] = useState(null);
+  const [kpis, setKpis] = useState({ total_plazas: 0, ocupadas: 0, libres: 0 });
+  const nav = useNavigate();
 
   useEffect(() => {
-    fetch(endpoints.health).then(r => r.json()).then(setHealth).catch(() => setHealth(null));
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/franquicia/summary`, {
+          headers: { "X-Admin-Key": ADMIN_KEY }
+        });
+        if (res.ok) setKpis(await res.json());
+      } catch {}
+    })();
   }, []);
 
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Panel Admin</h1>
-        <div className={`rounded-xl px-3 py-1 text-sm ${health ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>
-          Backend: {health ? "OK" : "Desconectado"}
-        </div>
-      </div>
+  const wrap = "min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white p-8";
+  const grid = "grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3";
 
-      <UploadRoomForm onCreated={() => {
-        // tras crear una habitación puedes redirigir o mostrar toast
-      }} />
+  const Card = ({title,desc,cta,to,onClick}) => (
+    <article className="bg-white/5 rounded-2xl p-6 shadow-lg">
+      <h3 className="text-2xl font-black mb-2">{title}</h3>
+      <p className="text-white/80">{desc}</p>
+      {to ? (
+        <Link to={to} className="mt-4 inline-block bg-blue-600 hover:bg-blue-700 px-5 py-3 font-bold rounded-lg">
+          Abrir dashboard →
+        </Link>
+      ) : (
+        <button onClick={onClick}
+          className="mt-4 inline-block bg-blue-600 hover:bg-blue-700 px-5 py-3 font-bold rounded-lg">
+          Abrir dashboard →
+        </button>
+      )}
+    </article>
+  );
+
+  const Kpi = ({label,value}) => (
+    <div className="bg-white/10 rounded-xl p-5">
+      <div className="text-4xl font-extrabold">{value}</div>
+      <div className="text-white/80">{label}</div>
     </div>
+  );
+
+  return (
+    <main className={wrap}>
+      <header className="mb-8">
+        <h1 className="text-4xl font-black">Centro de Administración</h1>
+        <p className="text-white/80">Atajos a módulos críticos · pensado para pantalla grande.</p>
+      </header>
+
+      <section className="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-8">
+        <Kpi label="Plazas totales" value={kpis.total_plazas} />
+        <Kpi label="Ocupadas" value={kpis.ocupadas} />
+        <Kpi label="Libres" value={kpis.libres} />
+      </section>
+
+      <section className={grid}>
+        <Card
+          title="Plazas Franquicia (Admin)"
+          desc="Resumen global, filtros, tabla de distritos y acciones ocupar/liberar."
+          onClick={() => nav("/admin/franquicia")}
+        />
+        <Card
+          title="Equipo (visión completa)"
+          desc="Vista transversal por provincias, comparativas y atajos a incidencias."
+          onClick={() => nav("/admin/equipo")}
+        />
+        <Card
+          title="Franquiciado (mi zona)"
+          desc="Operativa de mi franquicia: listados, pipeline, ocupación propia."
+          onClick={() => nav("/admin/franquiciado")}
+        />
+        <Card
+          title="Propietario"
+          desc="Cartera, documentación, pagos y contratos."
+          onClick={() => nav("/admin/propietario")}
+        />
+        <Card
+          title="Inquilino"
+          desc="Solicitudes, validaciones y firmas en curso."
+          onClick={() => nav("/admin/inquilino")}
+        />
+      </section>
+    </main>
   );
 }
