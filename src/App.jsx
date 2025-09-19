@@ -1,33 +1,44 @@
+// src/App.jsx
 import React, { Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
+// Layout / widgets
 import Navbar from "./components/Navbar.jsx";
 import SOSButton from "./components/SOSButton.jsx";
 import ContactWidget from "./components/ContactWidget.jsx";
 import CrashGate from "./components/CrashGate.jsx";
-import TramitarCedula from "./pages/TramitarCedula.jsx";
 
+// Páginas no-lazy (si quieres puedes volverlas lazy luego)
+import TramitarCedula from "./pages/TramitarCedula.jsx";
 
 // Auth + guardas
 import { AuthProvider } from "./auth/AuthContext.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
-// PAGES (lazy para que si falta un archivo, no tumbe toda la app)
-const Inicio          = React.lazy(() => import("./screens/Inicio.jsx"));
-const Inquilinos      = React.lazy(() => import("./screens/Inquilinos.jsx"));
-const Reservas        = React.lazy(() => import("./screens/Reservas.jsx"));
-const Oportunidades   = React.lazy(() => import("./screens/Oportunidades.jsx"));
-const Franquiciados   = React.lazy(() => import("./screens/Franquiciados.jsx"));
-const Propietarios = React.lazy(() => import("./pages/Propietarios.jsx"));
-const Login           = React.lazy(() => import("./pages/Login.jsx"));
-const Admin           = React.lazy(() => import("./pages/Admin.jsx"));
-const DashProp        = React.lazy(() => import("./pages/dashboards/DashboardPropietario.jsx"));
-const DashInq         = React.lazy(() => import("./pages/dashboards/DashboardInquilino.jsx"));
-const DashFranq       = React.lazy(() => import("./pages/dashboards/DashboardFranquiciado.jsx"));
-const DashEquipo      = React.lazy(() => import("./pages/dashboards/DashboardEquipo.jsx"));
+/* =========================
+   PAGES (lazy)  —  OJO: ahora todas en ./pages/*
+   Si alguna no existe aún, crea un stub en esa ruta o cambia aquí la ruta exacta.
+========================= */
+const Inicio        = React.lazy(() => import("./pages/Inicio.jsx"));
+const Inquilinos    = React.lazy(() => import("./pages/Inquilinos.jsx"));
+const Reservas      = React.lazy(() => import("./pages/Reservas.jsx"));
+const Oportunidades = React.lazy(() => import("./pages/Oportunidades.jsx"));
+const Franquiciados = React.lazy(() => import("./pages/Franquiciados.jsx"));
+const Propietarios  = React.lazy(() => import("./pages/Propietarios.jsx"));
+const Login         = React.lazy(() => import("./pages/Login.jsx"));
+const Admin         = React.lazy(() => import("./pages/Admin.jsx"));
 
+// Dashboards (por rol)
+const DashProp   = React.lazy(() => import("./pages/dashboards/DashboardPropietario.jsx"));
+const DashInq    = React.lazy(() => import("./pages/dashboards/DashboardInquilino.jsx"));
+const DashFranq  = React.lazy(() => import("./pages/dashboards/DashboardFranquiciado.jsx"));
+const DashEquipo = React.lazy(() => import("./pages/dashboards/DashboardEquipo.jsx"));
+
+/* =========================
+   Fallback de carga
+========================= */
 const Fallback = () => (
-  <div style={{padding:16, color:"#fff", opacity:.85}}>Cargando…</div>
+  <div style={{ padding: 16, color: "#fff", opacity: 0.85 }}>Cargando…</div>
 );
 
 export default function App() {
@@ -36,7 +47,7 @@ export default function App() {
       <div className="min-h-screen bg-black">
         <Navbar />
 
-        {/* Gate global para evitar pantallas en blanco */}
+        {/* Gate global para evitar pantallas en blanco por errores hijos */}
         <CrashGate>
           <Suspense fallback={<Fallback />}>
             <Routes>
@@ -49,17 +60,15 @@ export default function App() {
               <Route path="/franquiciados" element={<Franquiciados />} />
               <Route path="/tramitar-cedula" element={<TramitarCedula />} />
 
-
-
               {/* Hub + login */}
               <Route path="/admin" element={<Admin />} />
               <Route path="/login" element={<Login />} />
 
-              {/* Dashboards privados */}
+              {/* Dashboards privados (protección por rol) */}
               <Route
                 path="/dashboard/propietario"
                 element={
-                  <ProtectedRoute roles={["propietario"]}>
+                  <ProtectedRoute roles={["propietario","admin"]}>
                     <DashProp />
                   </ProtectedRoute>
                 }
@@ -67,7 +76,7 @@ export default function App() {
               <Route
                 path="/dashboard/inquilino"
                 element={
-                  <ProtectedRoute roles={["inquilino"]}>
+                  <ProtectedRoute roles={["inquilino","admin"]}>
                     <DashInq />
                   </ProtectedRoute>
                 }
@@ -75,7 +84,7 @@ export default function App() {
               <Route
                 path="/dashboard/franquiciado"
                 element={
-                  <ProtectedRoute roles={["franquiciado"]}>
+                  <ProtectedRoute roles={["franquiciado","admin"]}>
                     <DashFranq />
                   </ProtectedRoute>
                 }
@@ -83,7 +92,7 @@ export default function App() {
               <Route
                 path="/dashboard/admin"
                 element={
-                  <ProtectedRoute roles={["admin"]}>
+                  <ProtectedRoute roles={["admin","equipo"]}>
                     <DashEquipo />
                   </ProtectedRoute>
                 }
