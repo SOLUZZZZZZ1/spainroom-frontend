@@ -1,31 +1,50 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* =========================
+   SR NAV + HERO · FIX DURO
+   ========================= */
 
-:root{
-  /* h-20 = 5rem */
-  --sr-nav-h: 5rem;
+/* Navbar (barra azul fija) */
+.sr-navbar{
+  position: sticky; top: 0; z-index: 40;
+  background: #0A58CA; color:#fff;
+  border-bottom: 1px solid rgba(255,255,255,.15);
+}
+.sr-container{ max-width:1200px; margin:0 auto; padding:0 20px; }
+.sr-navbar-inner{
+  height: 92px;
+  display:flex; align-items:center; justify-content:space-between;
 }
 
-html, body, #root { height: 100%; }
-body{
-  margin: 0;
-  background: transparent;
-  color: #111827;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
-               Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-img, svg, video, canvas, audio, iframe, embed, object{
-  display: block;
-  max-width: 100%;
-}
-main{ background: transparent; }
+/* Marca: logo + texto blanco “SpainRoom” */
+.sr-brand{ display:flex; align-items:center; gap:12px; color:#fff; text-decoration:none; }
+.sr-brand-title{ color:#fff; font-weight:800; letter-spacing:.4px; }
 
-/* Hero a pantalla completa (descontando el navbar) */
-.sr-hero{ min-height: calc(100dvh - var(--sr-nav-h)); }
+/* LOGO de NAV: tamaño controlado SIEMPRE */
+.sr-logo-nav{
+  height:56px !important; width:auto !important; max-width:180px !important;
+  object-fit:contain !important; display:block !important;
+}
 
-/* Safe-area opcional para botones flotantes */
-.sr-safe-bottom{ bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); }
+/* Pestañas (pill) */
+.sr-links{ display:flex; gap:14px; flex-wrap:wrap; }
+.sr-link{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:10px 14px; border-radius:999px;
+  color:#fff; text-decoration:none; font-weight:700;
+  border:1px solid rgba(255,255,255,.18);
+  transition:.2s;
+}
+.sr-link:hover{ background: rgba(255,255,255,.16); transform: translateY(-1px); }
+.sr-link.active{ background:#fff; color:#0A58CA; border-color:transparent; }
+
+/* HERO (por si usas logo en el hero) */
+.sr-hero-logo{
+  height: clamp(80px, 14vw, 160px) !important;
+  width:auto !important; object-fit:contain !important;
+  display:block !important; margin:0 auto 18px !important;
+}
+
+/* Responsive */
+@media (max-width: 900px){
+  .sr-navbar-inner{ height: 88px; }
+  .sr-logo-nav{ height:48px !important; max-width:160px !important; }
+}
