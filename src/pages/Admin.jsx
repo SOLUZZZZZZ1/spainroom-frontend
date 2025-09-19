@@ -21,24 +21,20 @@ export default function Admin() {
   const wrap = "min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white p-8";
   const grid = "grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3";
 
-  const Card = ({title,desc,cta,to,onClick}) => (
+  const Card = ({ title, desc, to }) => (
     <article className="bg-white/5 rounded-2xl p-6 shadow-lg">
       <h3 className="text-2xl font-black mb-2">{title}</h3>
       <p className="text-white/80">{desc}</p>
-      {to ? (
-        <Link to={to} className="mt-4 inline-block bg-blue-600 hover:bg-blue-700 px-5 py-3 font-bold rounded-lg">
-          Abrir dashboard →
-        </Link>
-      ) : (
-        <button onClick={onClick}
-          className="mt-4 inline-block bg-blue-600 hover:bg-blue-700 px-5 py-3 font-bold rounded-lg">
-          Abrir dashboard →
-        </button>
-      )}
+      <button
+        className="mt-4 inline-block bg-blue-600 hover:bg-blue-700 px-5 py-3 font-bold rounded-lg"
+        onClick={() => nav(to)}
+      >
+        Abrir dashboard →
+      </button>
     </article>
   );
 
-  const Kpi = ({label,value}) => (
+  const Kpi = ({ label, value }) => (
     <div className="bg-white/10 rounded-xl p-5">
       <div className="text-4xl font-extrabold">{value}</div>
       <div className="text-white/80">{label}</div>
@@ -62,27 +58,27 @@ export default function Admin() {
         <Card
           title="Plazas Franquicia (Admin)"
           desc="Resumen global, filtros, tabla de distritos y acciones ocupar/liberar."
-          onClick={() => nav("/admin/franquicia")}
+          to="/dashboard/admin"
         />
         <Card
           title="Equipo (visión completa)"
           desc="Vista transversal por provincias, comparativas y atajos a incidencias."
-          onClick={() => nav("/admin/equipo")}
+          to="/dashboard/admin"
         />
         <Card
           title="Franquiciado (mi zona)"
           desc="Operativa de mi franquicia: listados, pipeline, ocupación propia."
-          onClick={() => nav("/admin/franquiciado")}
+          to="/dashboard/franquiciado"
         />
         <Card
           title="Propietario"
           desc="Cartera, documentación, pagos y contratos."
-          onClick={() => nav("/admin/propietario")}
+          to="/dashboard/propietario"
         />
         <Card
           title="Inquilino"
           desc="Solicitudes, validaciones y firmas en curso."
-          onClick={() => nav("/admin/inquilino")}
+          to="/dashboard/inquilino"
         />
       </section>
     </main>
