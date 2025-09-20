@@ -1,0 +1,135 @@
+﻿/* =========================
+   Base & Reset
+   ========================= */
+html, body, #root { height: 100%; }
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #000;          /* fondo general; el hero pone su imagen */
+  color: #fff;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: inherit; text-decoration: none; }
+::selection { background: rgba(11,105,199,0.35); }
+
+/* =========================
+   Tokens de color/medidas
+   ========================= */
+:root{
+  --sr-blue:       #0b69c7;
+  --sr-blue-dark:  #0a58a6;
+  --sr-white:      #ffffff;
+  --sr-muted:      #64748b;
+  --sr-pill:       rgba(255,255,255,.22);
+  --sr-pill-hover: rgba(255,255,255,.12);
+
+  --sr-navbar-h:   64px;     /* alto de la barra de navegación */
+}
+
+/* =========================
+   NAVBAR SpainRoom
+   ========================= */
+.sr-navbar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--sr-blue); color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,.20);
+}
+.sr-row {
+  max-width: 1200px; margin: 0 auto;
+  height: var(--sr-navbar-h);
+  padding: 0 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.sr-brand { display: inline-flex; align-items: center; gap: 10px; min-height: 56px; }
+.sr-logo  { width: 90px !important; height: auto !important; object-fit: contain !important; }
+.sr-brand-title { color: #fff; font-weight: 800; letter-spacing: .4px; display: none; }
+@media (min-width: 768px){ .sr-brand-title { display: inline; } }
+
+.sr-tabs { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sr-tab {
+  color: rgba(255,255,255,0.92);
+  font-weight: 600; letter-spacing: .2px;
+  padding: 8px 12px; border-radius: 8px;
+  transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+.sr-tab:hover  { background: var(--sr-pill-hover); color:#fff; transform: translateY(-1px); }
+.sr-tab.active { background: var(--sr-pill);       color:#fff; }
+
+.sr-navbar-underline { height: 4px; width: 100%; background: var(--sr-blue-dark); }
+
+/* =========================
+   PHONE BADGE (arriba-derecha)
+   ========================= */
+.sr-phone-badge {
+  position: fixed; right: 18px; top: calc(var(--sr-navbar-h) + 8px); z-index: 40;
+  background: rgba(10,88,166,.92); color:#fff;
+  padding: 6px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;
+  border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+}
+
+/* =========================
+   HERO de inicio
+   ========================= */
+.sr-hero{
+  min-height: calc(100vh - var(--sr-navbar-h));
+  display: grid; place-items: center; padding: 24px;
+  background-image:
+    linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.12)),
+    url("/casa-diseno.jpg");  /* C:\spainroom\frontend\public\casa-diseno.jpg */
+  background-size: cover; background-position: center;
+}
+.sr-card{
+  background: rgba(15,23,42,.12);
+  backdrop-filter: blur(6px) saturate(130%);
+  -webkit-backdrop-filter: blur(6px) saturate(130%);
+  color: #fff;
+  padding: 28px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.20);
+  text-align: center;
+  max-width: 980px;
+  width: clamp(320px, 92vw, 980px);
+  box-shadow: 0 10px 22px rgba(0,0,0,.16);
+}
+.sr-hero-logo{
+  height: clamp(120px, 19vw, 240px);
+  width: auto; margin: 0 auto 16px; object-fit: contain;
+}
+
+/* =========================
+   SOS BUTTON (envoltorio si lo quieres forzar por CSS)
+   ========================= */
+.sr-sos-wrap { position: fixed; right: 18px; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); z-index: 50; }
+
+/* =========================
+   Responsive
+   ========================= */
+@media (max-width: 640px){
+  :root { --sr-navbar-h: 60px; }
+  .sr-row{ height: var(--sr-navbar-h); }
+  .sr-logo{ width: 80px !important; }
+  .sr-tabs{ gap: 8px; }
+  .sr-tab{ padding: 6px 10px; }
+}
+
+/* =========================================================
+   KILL-SWITCH Topbar antiguo (oculta “Hablar con Nora / WhatsApp / Llamar …”)
+   ========================================================= */
+.sr-topbar .sr-topbar-right,
+.sr-topbar .sr-topbar-left a[href*="wa.me"],
+.sr-topbar .sr-topbar-left a[href^="tel:"],
+.sr-topbar .sr-topbar-left a,
+.sr-topbar .sr-topbar-right button {
+  display: none !important;
+}
+
+/* Por si aparecen sin clases y se montan como texto suelto */
+a, button, .btn, .link {
+  /* Si necesitas algo más agresivo, comenta el bloque superior y usa el hider React */
+}
