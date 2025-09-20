@@ -1,54 +1,28 @@
 // src/pages/Inquilinos.jsx
-import React, { useEffect, useState } from 'react'
-import SEO from '../components/SEO.jsx'
-import NoraHelp from '../components/NoraHelp.jsx'
+import React from "react";
+import SEO from "../components/SEO.jsx";
 
 export default function Inquilinos(){
-  const [JobsComp, setJobsComp] = useState(null)   // componente Jobs si existe
-  const [jobsReady, setJobsReady] = useState(false)
-
-  // Carga dinámica de Jobs.jsx (si no existe, no rompe)
-  useEffect(()=>{
-    let mounted = true
-    import('./Jobs.jsx')
-      .then(mod => { if(mounted) setJobsComp(()=>mod.default) })
-      .catch(()=> { /* sin Jobs.jsx: mostramos placeholder y no rompemos */ })
-      .finally(()=> { if(mounted) setJobsReady(true) })
-    return ()=>{ mounted = false }
-  },[])
-
   return (
-    <div className="container" style={{padding:'24px 0'}}>
-      <SEO title="Inquilinos — SpainRoom" description="Recursos para inquilinos y empleo cerca de ti." />
-      <h2 style={{margin:'0 0 8px'}}>Inquilinos</h2>
-      <p className="note">Recursos y oportunidades. Debajo tienes el buscador de empleos cerca de ti.</p>
+    <div className="container" style={{padding:"24px 0", color:"#0b1220"}}>
+      <SEO title="Inquilinos — SpainRoom" description="Solicitudes, documentación y habitaciones verificadas."/>
+      <header style={{display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap", marginBottom:12}}>
+        <div>
+          <h2 style={{margin:"0 0 6px"}}>Inquilinos</h2>
+          <p className="note">Encuentra habitaciones listas para entrar a vivir. Contratos digitales y soporte real.</p>
+        </div>
+        <a href="/login" className="sr-tab" style={{background:"#0A58CA", color:"#fff"}}>Mi habitación</a>
+      </header>
 
-      {/* Banner de ayuda con Nora / WhatsApp / Teléfono */}
-      <div style={{margin:'12px 0'}}>
-        <NoraHelp
-          title="¿Dudas sobre contratos, fianzas o convivencia? SpainRoom te ayuda"
-          bullets={[
-            'Revisión básica de contrato y fianzas',
-            'Consejos de convivencia y seguridad',
-            'Acompañamiento si surge una incidencia'
-          ]}
-        />
-      </div>
-
-      {/* Bloque de empleo (Jobs) — se carga si existe el archivo */}
-      <section style={{marginTop:16}}>
-        <h3 style={{margin:'0 0 8px'}}>Empleo cerca de ti</h3>
-        {JobsComp
-          ? <JobsComp />
-          : (
-            <div style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:12,padding:16}}>
-              {jobsReady
-                ? <span className="note">Añadiremos aquí el buscador de empleo. De momento, pregúntale a Nora y te orienta. 😊</span>
-                : <span className="note">Cargando…</span>}
-            </div>
-          )
-        }
+      <section style={{background:"#fff", border:"1px solid #e2e8f0", borderRadius:16, padding:16}}>
+        <h3 style={{margin:"0 0 6px"}}>¿Cómo funciona?</h3>
+        <ol style={{margin:"0 0 0 18px"}}>
+          <li>Solicitud y validación básica.</li>
+          <li>Visita o vídeo-visita.</li>
+          <li>Reserva con depósito (Stripe Checkout).</li>
+          <li>Contrato digital y entrada.</li>
+        </ol>
       </section>
     </div>
-  )
+  );
 }
