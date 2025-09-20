@@ -1,25 +1,51 @@
-.sr-sos{
+/* src/components/SOSButton.css */
+.sr-sos-wrap{
   position: fixed;
   right: 18px;
-  bottom: 18px;
-  z-index: 9999;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 58px;
-  height: 58px;
-  border-radius: 999px;
-  background: #ef4444; /* rojo */
-  color: #fff;
-  font-weight: 900;
-  letter-spacing: .5px;
-  text-decoration: none;
-  box-shadow: 0 12px 28px rgba(239,68,68,.35);
-  border: 2px solid rgba(255,255,255,.85);
-  transition: transform .08s ease, filter .15s ease;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  z-index: 50;
 }
-.sr-sos:hover{ filter: brightness(1.05); transform: translateY(-1px); }
-.sr-sos:active{ transform: translateY(0); }
-@media (max-width: 480px){
-  .sr-sos{ right: 12px; bottom: 12px; width: 54px; height: 54px; }
+
+.sr-sos-btn{
+  width: 72px; height: 72px; border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #ff3b6a, #e11d48 60%);
+  color: #fff; font-weight: 900; font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255,255,255,.55); cursor: pointer; position: relative;
+  box-shadow: 0 14px 30px rgba(225,29,72,.45), 0 2px 6px rgba(0,0,0,.2),
+              0 0 18px rgba(255,59,106,.45) inset;
+  overflow: visible;
+}
+
+/* Ondas ligeramente más suaves (menos opacidad y radio) */
+.sr-sos-btn::before,
+.sr-sos-btn::after{
+  content:""; position:absolute; inset:0; border-radius:999px;
+  box-shadow:0 0 0 0 rgba(255,59,106,.75);
+  animation: sr-sos-ring 1.6s infinite ease-out;
+}
+.sr-sos-btn::after{
+  animation-delay: .8s;
+  box-shadow:0 0 0 0 rgba(255,59,106,.45);
+}
+@keyframes sr-sos-ring{
+  0%   { transform:scale(1);   opacity:.85; box-shadow:0 0 0 0   rgba(255,59,106,.75) }
+  60%  { transform:scale(2.5); opacity:.22; box-shadow:0 0 0 32px rgba(255,59,106,0) }
+  100% { transform:scale(2.8); opacity:0;   box-shadow:0 0 0 38px rgba(255,59,106,0) }
+}
+
+/* Modal */
+.sr-sos-modal{ position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; }
+.sr-sos-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.55); }
+.sr-sos-card{ position:relative; z-index:1; width:92%; max-width:540px; background:#fff; color:#0b1220; border-radius:16px; padding:22px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.30); }
+.sr-sos-card h2{ margin:0 0 4px; font-size:20px; font-weight:800; }
+.sr-sos-note{ margin:0 0 10px; color:#475569; font-size:14px; }
+.sr-sos-actions{ display:grid; gap:10px; margin-top:12px; }
+.sr-sos-action{ width:100%; text-align:center; border-radius:12px; padding:12px 14px; font-weight:700; border:0; cursor:pointer; text-decoration:none; display:inline-block; }
+.sr-sos-red{   background:#e11d48; color:#fff; } .sr-sos-blue{  background:#0b65d8; color:#fff; } .sr-sos-green{ background:#16a34a; color:#fff; }
+.sr-sos-footer{ display:flex; justify-content:flex-end; margin-top:8px; }
+.sr-sos-close{ background:#f1f5f9; color:#0b1220; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; font-weight:600; cursor:pointer; }
+@media (prefers-reduced-motion: reduce){
+  .sr-sos-btn::before, .sr-sos-btn::after{ animation: none !important; }
 }
