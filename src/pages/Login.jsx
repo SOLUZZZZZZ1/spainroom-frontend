@@ -1,119 +1,68 @@
 ﻿// src/pages/Login.jsx
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 
-export default function Login() {
-  const { requestOtp, verifyOtp } = useAuth();
-  const [step, setStep] = useState("phone"); // phone | code
-  const [phone, setPhone] = useState("");
+const API_BASE = import.meta.env?.VITE_API_BASE || "https://backend-spainroom.onrender.com";
+
+export default function Login(){
+  const nav = useNavigate();
+  const { login } = useAuth();
+  const [phone, setPhone] = useState("+34616XXXXXX"); // preferencia teléfono
+  const [email, setEmail] = useState("");             // alternativo
   const [code, setCode]   = useState("");
-  const [err, setErr]     = useState("");
-  const [ok, setOk]       = useState("");
-  const [loading, setLoading] = useState(false);
-  const [cooldown, setCooldown] = useState(0); // segundos
+  const [step, setStep]   = useState(1);
+  const [msg, setMsg]     = useState("");
 
-  useEffect(() => {
-    let t;
-    if (cooldown > 0) t = setTimeout(()=>setCooldown(cooldown-1), 1000);
-    return () => t && clearTimeout(t);
-  }, [cooldown]);
-
-  const normalizePhone = (p="") => {
-    const d = String(p).replace(/[^\d+]/g,"").trim();
-    if (d.startsWith("+")) return d;
-    if (d.startsWith("34")) return "+"+d;
-    if (/^\d{9,15}$/.test(d)) return "+34"+d;
-    return d;
-  };
-
-  const onRequest = async (e) => {
-    e.preventDefault(); setErr(""); setOk("");
-    const ph = normalizePhone(phone);
-    if (!/^\+?\d{9,15}$/.test(ph)) { setErr("Introduce un teléfono válido (+34 6XX...)"); return; }
-    setLoading(true);
-    try {
-      const res = await requestOtp(ph);
-      setOk(`Código enviado. ${res?.hint ? "Número: "+res.hint : ""}`);
-      setStep("code");
-      setCooldown(30); // reenvío en 30s
-    } catch (e) {
-      setErr(String(e.message || e));
-    } finally { setLoading(false); }
-  };
-
-  const onVerify = async (e) => {
-    e.preventDefault(); setErr(""); setOk("");
-    if (!/^\d{4,8}$/.test(code.trim())) { setErr("Código inválido"); return; }
-    setLoading(true);
+  async function reqOtp(e){
+    e.preventDefault(); setMsg("");
     try{
-      await verifyOtp(phone, code);
-      setOk("¡Bienvenido!");
-      // redirige a donde quieras (ej. /admin)
-      setTimeout(()=> location.href = "/admin", 600);
-    }catch(e){ setErr(String(e.message || e)); }
-    finally{ setLoading(false); }
-  };
+      const r = await fetch(`${API_BASE}/api/auth/request_otp`, {
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ phone: phone || undefined, email: email || undefined })
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error || "No se pudo solicitar OTP");
+      setStep(2); setMsg("Código enviado (demo).");
+    }catch(e){ setMsg(String(e.message||e)); }
+  }
+  async function verify(e){
+    e.preventDefault(); setMsg("");
+    try{
+      const r = await fetch(`${API_BASE}/api/auth/verify_otp`, {
+        method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ phone: phone || undefined, email: email || undefined, code })
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error || "OTP no válido");
+      login({ token:j.token, user:j.user });
+      // Redirección por rol
+      if (j.user.role === "admin") nav("/admin", { replace:true });
+      else if (j.user.role === "franquiciado") nav("/dashboard/franquiciado", { replace:true });
+      else if (j.user.role === "propietario") nav("/dashboard/propietario", { replace:true });
+      else nav("/");
+    }catch(e){ setMsg(String(e.message||e)); }
+  }
 
   return (
-    <main style={{
-      minHeight:"calc(100vh - 64px)", display:"grid", placeItems:"center",
-      padding:24, background:"linear-gradient(#0b1320,#111827)"
-    }}>
-      <div style={{
-        width:"clamp(320px, 92vw, 520px)",
-        background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.18)",
-        borderRadius:16, padding:18, color:"#fff", boxShadow:"0 8px 24px rgba(0,0,0,.28)"
-      }}>
-        <h2 style={{margin:"0 0 8px"}}>Acceso a SpainRoom</h2>
-        <p style={{margin:"0 0 12px", opacity:.8}}>
-          Entra con tu <b>teléfono</b> — te enviamos un código de verificación por SMS.
-        </p>
+    <div className="container" style={{padding:"24px 0", color:"#0b1220"}}>
+      <h2 style={{margin:"0 0 8px"}}>Acceso</h2>
+      <p className="note">Introduce tu teléfono o email y te enviaremos un código (OTP).</p>
 
-        {step === "phone" && (
-          <form onSubmit={onRequest} style={{display:"grid", gap:12}}>
-            <div>
-              <label>Teléfono (con prefijo)</label>
-              <input value={phone} onChange={e=>setPhone(e.target.value)}
-                     placeholder="+34 6XX XXX XXX"
-                     style={{width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#fff"}} />
-            </div>
-            <div style={{display:"flex", gap:10, justifyContent:"flex-end", alignItems:"center"}}>
-              {err && <span style={{color:"#fca5a5"}}>{err}</span>}
-              {ok  && <span style={{color:"#86efac"}}>{ok}</span>}
-              <button disabled={loading}
-                      style={{background:"#0b69c7", color:"#fff", border:"none", padding:"10px 14px", borderRadius:10, fontWeight:800}}>
-                {loading ? "Enviando..." : "Enviar código"}
-              </button>
-            </div>
-          </form>
-        )}
+      {step===1 && (
+        <form onSubmit={reqOtp} className="sr-card" style={{maxWidth:520}}>
+          <label style={{display:"block", marginBottom:6, fontWeight:600}}>Teléfono</label>
+          <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+34 6XX XXX XXX"
+                 style={{width:"100%",padding:"10px 12px",border:"1px solid #cbd5e1",borderRadius:10}}/>
+          <div style={{margin:"8px 0", color:"#64748b"}}>o utiliza tu email:</div>
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@correo.com"
+                 style={{width:"100%",padding:"10px 12px",border:"1px solid #cbd5e1",borderRadius:10}}/>
+          <button className="sr-tab" style={{background:"#0A58CA", color:"#fff", border:"none", marginTop:12}}>Enviar código</button>
+          {msg && <div style={{marginTop:8}}>{msg}</div>}
+        </form>
+      )}
 
-        {step === "code" && (
-          <form onSubmit={onVerify} style={{display:"grid", gap:12}}>
-            <div>
-              <label>Código recibido</label>
-              <input value={code} onChange={e=>setCode(e.target.value)} inputMode="numeric"
-                     placeholder="123456"
-                     style={{width:"100%", padding:"10px 12px", borderRadius:10, border:"1px solid #334155", background:"#0f172a", color:"#fff"}} />
-            </div>
-            <div style={{display:"flex", gap:10, justifyContent:"space-between", alignItems:"center"}}>
-              <button type="button" disabled={cooldown>0 || loading}
-                      onClick={onRequest}
-                      style={{background:"#111827", color:"#fff", border:"1px solid #334155", padding:"10px 14px", borderRadius:10}}>
-                {cooldown>0 ? `Reenviar (${cooldown}s)` : "Reenviar código"}
-              </button>
-              <div style={{display:"flex", gap:10, alignItems:"center"}}>
-                {err && <span style={{color:"#fca5a5"}}>{err}</span>}
-                {ok  && <span style={{color:"#86efac"}}>{ok}</span>}
-                <button disabled={loading}
-                        style={{background:"#16a34a", color:"#fff", border:"none", padding:"10px 14px", borderRadius:10, fontWeight:800}}>
-                  {loading ? "Entrando..." : "Entrar"}
-                </button>
-              </div>
-            </div>
-          </form>
-        )}
-      </div>
-    </main>
-  );
-}
+      {step===2 && (
+        <form onSubmit={verify} className="sr-card" style={{maxWidth:520}}>
+          <label style={{display:"block", marginBottom:6, fontWeight:600}}>Código recibido</label>
+          <input value={code
