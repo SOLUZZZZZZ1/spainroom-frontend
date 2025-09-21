@@ -1,50 +1,154 @@
-/* =========================
-   SR NAV + HERO · FIX DURO
+﻿/* =========================
+   Base & Reset
    ========================= */
+html, body, #root { height: 100%; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #0b1320;   /* azul muy oscuro, evita “flash” negro */
+  color: #fff;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: inherit; text-decoration: none; }
+::selection { background: rgba(11,105,199,0.35); }
 
-/* Navbar (barra azul fija) */
+/* =========================
+   Tokens
+   ========================= */
+:root{
+  --sr-blue: #0b69c7;
+  --sr-blue-dark: #0a58a6;
+  --sr-pill: rgba(255,255,255,.22);
+  --sr-pill-hover: rgba(255,255,255,.12);
+  --sr-navbar-h: 64px;
+}
+
+/* =========================
+   NAVBAR + LOGO
+   ========================= */
 .sr-navbar{
-  position: sticky; top: 0; z-index: 40;
-  background: #0A58CA; color:#fff;
-  border-bottom: 1px solid rgba(255,255,255,.15);
+  position: sticky; top: 0; z-index: 50;
+  background: var(--sr-blue);
+  border-bottom: 1px solid rgba(255,255,255,.20);
 }
-.sr-container{ max-width:1200px; margin:0 auto; padding:0 20px; }
-.sr-navbar-inner{
-  height: 92px;
-  display:flex; align-items:center; justify-content:space-between;
+.sr-row{
+  max-width: 1200px; margin: 0 auto;
+  height: var(--sr-navbar-h);
+  padding: 0 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.sr-brand{ display:inline-flex; align-items:center; gap:10px; min-height:56px; }
+.sr-brand-title{ color:#fff; font-weight:800; letter-spacing:.4px; display:none; }
+@media (min-width:768px){ .sr-brand-title{ display:inline; } }
+
+/* Logo controlado por clase */
+.sr-logo{
+  width: 90px !important;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block !important;
 }
 
-/* Marca: logo + texto blanco “SpainRoom” */
-.sr-brand{ display:flex; align-items:center; gap:12px; color:#fff; text-decoration:none; }
-.sr-brand-title{ color:#fff; font-weight:800; letter-spacing:.4px; }
-
-/* LOGO de NAV: tamaño controlado SIEMPRE */
-.sr-logo-nav{
-  height:56px !important; width:auto !important; max-width:180px !important;
-  object-fit:contain !important; display:block !important;
+/* ⚒️ Martillo: cualquier cabecera.png dentro del navbar se queda a 90px */
+.sr-navbar img[src$="/cabecera.png"],
+.sr-navbar img[src$="cabecera.png"]{
+  width: 90px !important;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block !important;
 }
 
-/* Pestañas (pill) */
-.sr-links{ display:flex; gap:14px; flex-wrap:wrap; }
-.sr-link{
-  display:inline-flex; align-items:center; justify-content:center;
-  padding:10px 14px; border-radius:999px;
-  color:#fff; text-decoration:none; font-weight:700;
-  border:1px solid rgba(255,255,255,.18);
-  transition:.2s;
+/* Pestañas (pills) */
+.sr-tabs{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.sr-tab{
+  color: rgba(255,255,255,0.92);
+  font-weight: 600; letter-spacing:.2px;
+  padding: 8px 12px; border-radius: 8px;
+  transition: background .2s ease, color .2s ease, transform .2s ease;
 }
-.sr-link:hover{ background: rgba(255,255,255,.16); transform: translateY(-1px); }
-.sr-link.active{ background:#fff; color:#0A58CA; border-color:transparent; }
+.sr-tab:hover  { background: var(--sr-pill-hover); color:#fff; transform: translateY(-1px); }
+.sr-tab.active { background: var(--sr-pill);       color:#fff; }
 
-/* HERO (por si usas logo en el hero) */
+/* Si algún NavLink no trae clase, aplica pill por defecto */
+.sr-navbar nav a{
+  color: rgba(255,255,255,0.92);
+  font-weight: 600; letter-spacing:.2px;
+  padding: 8px 12px; border-radius: 8px;
+  transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+.sr-navbar nav a:hover{ background: var(--sr-pill-hover); color:#fff; transform: translateY(-1px); }
+.sr-navbar nav a.active{ background: var(--sr-pill); color:#fff; }
+
+.sr-navbar-underline { height: 4px; width: 100%; background: var(--sr-blue-dark); }
+
+/* =========================
+   PHONE (arriba dcha) + SOS (abajo dcha)
+   ========================= */
+.sr-phone-badge{
+  position: fixed; right: 18px; top: 72px; z-index: 40;
+  background: rgba(10,88,166,.92); color:#fff;
+  padding: 6px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;
+  border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+}
+.sr-sos-wrap{
+  position: fixed; right: 18px; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  z-index: 50;
+}
+
+/* =========================
+   WRAPPER de página (fondo base + fade-in)
+   ========================= */
+.sr-page{ position: relative; min-height: calc(100vh - var(--sr-navbar-h)); }
+.sr-page-base{ position: absolute; inset: 0; z-index: 0; background: linear-gradient(#0b1320,#111827); }
+.sr-page-content{ position: relative; z-index: 1; animation: sr-fade-in .15s ease-out; }
+@keyframes sr-fade-in{ from{opacity:0; transform: translateY(3px);} to{opacity:1; transform: none;} }
+
+/* =========================
+   HERO de Inicio
+   ========================= */
+.sr-hero{
+  min-height: calc(100vh - var(--sr-navbar-h));
+  display: grid; place-items: center; padding: 24px;
+  background-image: linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.12)), url("/casa-diseno.jpg");
+  background-size: cover; background-position: center;
+}
+.sr-card{
+  background: rgba(15,23,42,.12);
+  backdrop-filter: blur(6px) saturate(130%);
+  -webkit-backdrop-filter: blur(6px) saturate(130%);
+  color: #fff;
+  padding: 28px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.20);
+  text-align: center;
+  max-width: 980px;
+  width: clamp(320px, 92vw, 980px);
+  box-shadow: 0 10px 22px rgba(0,0,0,.16);
+}
+/* Logo central del hero (logo.png), NO cabecera.png */
 .sr-hero-logo{
-  height: clamp(80px, 14vw, 160px) !important;
-  width:auto !important; object-fit:contain !important;
-  display:block !important; margin:0 auto 18px !important;
+  height: clamp(120px, 19vw, 240px);
+  width: auto; margin: 0 auto 16px; object-fit: contain;
 }
 
-/* Responsive */
-@media (max-width: 900px){
-  .sr-navbar-inner{ height: 88px; }
-  .sr-logo-nav{ height:48px !important; max-width:160px !important; }
+/* =========================
+   Responsive
+   ========================= */
+@media (max-width: 640px){
+  :root{ --sr-navbar-h: 60px; }
+  .sr-row{ height: var(--sr-navbar-h); }
+  .sr-logo{ width: 80px !important; }
+  .sr-tabs{ gap: 8px; }
+  .sr-tab, .sr-navbar nav a{ padding: 6px 10px; }
 }
+
+/* =========================
+   Kill-switch topbar legacy
+   ========================= */
+.sr-topbar, .sr-topbar * { display: none !important; }
+/* TopbarHider.jsx también elimina esos textos si entran dinámicamente */
