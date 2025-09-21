@@ -1,51 +1,124 @@
-/* src/components/SOSButton.css */
+/* =============  POSICIÓN  ============= */
 .sr-sos-wrap{
   position: fixed;
   right: 18px;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
-  z-index: 50;
+  z-index: 50; /* por encima del contenido y PhoneBadge (40) */
 }
 
+/* =============  BOTÓN 3D  ============= */
 .sr-sos-btn{
-  width: 72px; height: 72px; border-radius: 999px;
-  background: radial-gradient(circle at 30% 30%, #ff3b6a, #e11d48 60%);
-  color: #fff; font-weight: 900; font-size: 17px;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid rgba(255,255,255,.55); cursor: pointer; position: relative;
-  box-shadow: 0 14px 30px rgba(225,29,72,.45), 0 2px 6px rgba(0,0,0,.2),
-              0 0 18px rgba(255,59,106,.45) inset;
-  overflow: visible;
+  -webkit-tap-highlight-color: transparent;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: .4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  /* Capa base y relieve */
+  background:
+    radial-gradient(120% 120% at 30% 28%, #ff7aa0 0%, #ff3b6a 20%, #e11d48 58%, #b50f36 100%);
+  border: 2px solid rgba(255,255,255,.65);
+  box-shadow:
+    inset 0 2px 8px rgba(255,255,255,.45),
+    inset 0 -10px 18px rgba(0,0,0,.35),
+    0 16px 30px rgba(177, 23, 55, .45),    /* sombra exterior */
+    0 0 24px rgba(255,59,106,.35);         /* glow suave */
+
+  /* Halo animado (luz de emergencia) */
+  position: relative;
+  isolation: isolate; /* para que el glow no recorte al modal */
+}
+.sr-sos-btn::before{
+  content:"";
+  position:absolute; inset:-6px;
+  border-radius:999px;
+  background: radial-gradient(circle, rgba(255,59,106,.45), rgba(255,59,106,0) 70%);
+  filter: blur(6px);
+  z-index:-1;
+  animation: sr-sos-glow 1.6s ease-in-out infinite;
 }
 
-/* Ondas ligeramente más suaves (menos opacidad y radio) */
-.sr-sos-btn::before,
+/* Ondas (dos anillos) */
 .sr-sos-btn::after{
-  content:""; position:absolute; inset:0; border-radius:999px;
-  box-shadow:0 0 0 0 rgba(255,59,106,.75);
+  content:"";
+  position:absolute; inset:0;
+  border-radius:999px;
+  box-shadow: 0 0 0 0 rgba(255,59,106,.55);
   animation: sr-sos-ring 1.6s infinite ease-out;
 }
-.sr-sos-btn::after{
-  animation-delay: .8s;
-  box-shadow:0 0 0 0 rgba(255,59,106,.45);
-}
-@keyframes sr-sos-ring{
-  0%   { transform:scale(1);   opacity:.85; box-shadow:0 0 0 0   rgba(255,59,106,.75) }
-  60%  { transform:scale(2.5); opacity:.22; box-shadow:0 0 0 32px rgba(255,59,106,0) }
-  100% { transform:scale(2.8); opacity:0;   box-shadow:0 0 0 38px rgba(255,59,106,0) }
+.sr-sos-btn .ring {
+  /* si quieres un tercer anillo, añade un <span class="ring"></span> en tu JSX */
+  position:absolute; inset:0; border-radius:999px;
+  box-shadow: 0 0 0 0 rgba(255,59,106,.35);
+  animation: sr-sos-ring 1.6s .8s infinite ease-out;
 }
 
-/* Modal */
+/* Hover/Active: más relieve */
+.sr-sos-btn:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 2px 10px rgba(255,255,255,.50),
+    inset 0 -10px 18px rgba(0,0,0,.38),
+    0 18px 36px rgba(177, 23, 55, .55),
+    0 0 28px rgba(255,59,106,.45);
+}
+.sr-sos-btn:active{
+  transform: translateY(0);
+  filter: brightness(1.05);
+}
+
+/* Focus accesible */
+.sr-sos-btn:focus-visible{
+  outline: none;
+  box-shadow:
+    0 0 0 4px rgba(255,255,255,.9),
+    0 0 0 8px rgba(225,29,72,.55),
+    inset 0 2px 8px rgba(255,255,255,.45),
+    inset 0 -10px 18px rgba(0,0,0,.35);
+}
+
+/* ==================  ANIMACIONES  ================== */
+@keyframes sr-sos-glow{
+  0%   { opacity: .55; transform: scale(1);   }
+  50%  { opacity: .85; transform: scale(1.05);}
+  100% { opacity: .55; transform: scale(1);   }
+}
+@keyframes sr-sos-ring{
+  0%   { transform:scale(1);   opacity:.78; box-shadow:0 0 0 0  rgba(255,59,106,.55) }
+  60%  { transform:scale(2.25);opacity:.20; box-shadow:0 0 0 30px rgba(255,59,106,0) }
+  100% { transform:scale(2.55);opacity:0;    box-shadow:0 0 0 38px rgba(255,59,106,0) }
+}
+
+/* Modo reduce motion: sin animaciones */
+@media (prefers-reduced-motion: reduce){
+  .sr-sos-btn,
+  .sr-sos-btn::before,
+  .sr-sos-btn::after,
+  .sr-sos-btn .ring{ animation: none !important; }
+}
+
+/* ==================  MODAL (igual que antes)  ================== */
 .sr-sos-modal{ position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; }
 .sr-sos-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.55); }
-.sr-sos-card{ position:relative; z-index:1; width:92%; max-width:540px; background:#fff; color:#0b1220; border-radius:16px; padding:22px;
-  box-shadow: 0 16px 40px rgba(0,0,0,.30); }
+.sr-sos-card{
+  position:relative; z-index:1; width:92%; max-width:540px;
+  background:#fff; color:#0b1220; border-radius:16px; padding:22px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.30);
+}
 .sr-sos-card h2{ margin:0 0 4px; font-size:20px; font-weight:800; }
 .sr-sos-note{ margin:0 0 10px; color:#475569; font-size:14px; }
 .sr-sos-actions{ display:grid; gap:10px; margin-top:12px; }
-.sr-sos-action{ width:100%; text-align:center; border-radius:12px; padding:12px 14px; font-weight:700; border:0; cursor:pointer; text-decoration:none; display:inline-block; }
-.sr-sos-red{   background:#e11d48; color:#fff; } .sr-sos-blue{  background:#0b65d8; color:#fff; } .sr-sos-green{ background:#16a34a; color:#fff; }
+.sr-sos-action{ width:100%; text-align:center; border-radius:12px; padding:12px 14px; font-weight:700;
+  border:0; cursor:pointer; text-decoration:none; display:inline-block; }
+.sr-sos-red{   background:#e11d48; color:#fff; }
+.sr-sos-blue{  background:#0b65d8; color:#fff; }
+.sr-sos-green{ background:#16a34a; color:#fff; }
 .sr-sos-footer{ display:flex; justify-content:flex-end; margin-top:8px; }
 .sr-sos-close{ background:#f1f5f9; color:#0b1220; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; font-weight:600; cursor:pointer; }
-@media (prefers-reduced-motion: reduce){
-  .sr-sos-btn::before, .sr-sos-btn::after{ animation: none !important; }
-}

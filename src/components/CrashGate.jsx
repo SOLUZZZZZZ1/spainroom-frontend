@@ -1,22 +1,32 @@
+// src/components/CrashGate.jsx
 import React from "react";
 
-/** ErrorBoundary global: si algo peta, se muestra un panel en vez de pantalla en blanco */
 export default class CrashGate extends React.Component {
-  constructor(p){ super(p); this.state = { err:null }; }
-  static getDerivedStateFromError(err){ return { err }; }
-  componentDidCatch(err, info){ console.error("APP ERROR:", err, info); }
+  constructor(props){
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error){ return { hasError: true, error }; }
+  componentDidCatch(error, info){ console.error("[CrashGate]", error, info); }
+
   render(){
-    if (this.state.err) {
-      return (
-        <div style={{padding:16, margin:16, borderRadius:12,
-          background:"rgba(255,60,60,.12)", border:"1px solid rgba(255,60,60,.35)", color:"#fff"}}>
-          <strong>⚠️ Se ha producido un error en la app</strong>
-          <pre style={{whiteSpace:"pre-wrap", marginTop:8, fontFamily:"monospace"}}>
-            {String(this.state.err?.message || this.state.err)}
-          </pre>
+    if (!this.state.hasError) return this.props.children;
+    return (
+      <div style={{
+        minHeight:"40vh", display:"grid", placeItems:"center",
+        color:"#fff", padding:24
+      }}>
+        <div style={{
+          background:"rgba(255,255,255,.12)",
+          border:"1px solid rgba(255,255,255,.25)",
+          borderRadius:12, padding:"16px 20px", maxWidth:800
+        }}>
+          <h3 style={{margin:"0 0 8px"}}>Se ha producido un error en la página</h3>
+          <div style={{opacity:.85, fontSize:14}}>
+            Intenta recargar o vuelve a la página de inicio.
+          </div>
         </div>
-      );
-    }
-    return this.props.children;
+      </div>
+    );
   }
 }
