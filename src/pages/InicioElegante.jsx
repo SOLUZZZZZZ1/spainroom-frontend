@@ -12,7 +12,7 @@ export default function InicioElegante(){
   return (
     <>
       <SEO
-        title="SpainRoom — Alquiler de habitaciones fáciles"
+        title="SpainRoom — Alquiler de habitaciones fácil"
         description="Encuentra habitaciones listas para entrar a vivir en las mejores zonas. SpainRoom conecta personas, viviendas y oportunidades."
       />
       <section className="sr-hero">
