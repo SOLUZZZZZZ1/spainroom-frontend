@@ -1,57 +1,51 @@
-// src/components/SOSButton.jsx
-import React, { useEffect, useState, useMemo } from "react";
-import { useLocation } from "react-router-dom";
-import "./SOSButton.css";
+import { useEffect, useState } from "react";
 
-const SUPPORT_EMAIL = "soporte@spainroom.es";
-const WHATSAPP_LINK = "https://wa.me/34616232306?text=SOS%20SpainRoom%20Necesito%20ayuda";
+const SUPPORT_EMAIL = "soporte@spainroom.com";
+const WHATSAPP_LINK = "https://wa.me/34600000000?text=SOS%20SpainRoom%20Necesito%20ayuda";
 
 export default function SOSButton() {
-  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
-  const hiddenOn = useMemo(
-    () => ["/propietarios", "/inquilinos", "/franquiciados", "/admin"],
-    []
-  );
-  if (hiddenOn.some((p) => pathname.startsWith(p))) return null;
 
   useEffect(() => {
-    const onEsc = (e) => e.key === "Escape" && setOpen(false);
+    function onEsc(e) { if (e.key === "Escape") setOpen(false); }
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
   }, []);
 
-  function sendEmail(){
+  function sendEmail() {
     const subject = encodeURIComponent("SOS SpainRoom - Solicitud de ayuda");
-    const body = encodeURIComponent(`Hola SpainRoom, necesito ayuda urgente.
-    
-Página: ${window.location.href}
-Fecha/Hora: ${new Date().toLocaleString()}`);
+    const body = encodeURIComponent(`Hola SpainRoom, necesito ayuda urgente.\n\nPágina: ${window.location.href}\nFecha/Hora: ${new Date().toLocaleString()}\n`);
     window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
   }
-  function openWhatsApp(){
-    window.open(WHATSAPP_LINK, "_blank", "noopener,noreferrer");
-  }
+  function openWhatsApp() { window.open(WHATSAPP_LINK, "_blank", "noopener,noreferrer"); }
 
   return (
     <>
-      <div className="sr-sos-wrap">
-        <button className="sr-sos-btn" onClick={()=>setOpen(true)} aria-label="Abrir SOS">SOS</button>
-      </div>
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="Abrir SOS"
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)", right: "20px" }}
+        className="fixed z-50 w-16 h-16 rounded-full bg-red-600 text-white font-bold shadow-lg flex items-center justify-center focus:outline-none focus:ring-4 focus:ring-red-300"
+      >
+        <span className="relative inline-flex">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping"></span>
+          <span className="relative inline-flex rounded-full w-16 h-16 items-center justify-center">SOS</span>
+        </span>
+      </button>
 
       {open && (
-        <div className="sr-sos-modal" role="dialog" aria-modal="true">
-          <div className="sr-sos-backdrop" onClick={()=>setOpen(false)} aria-hidden />
-          <div className="sr-sos-card">
-            <h2>Ayuda / SOS</h2>
-            <p className="sr-sos-note">Usa <strong>112</strong> solo para emergencias reales.</p>
-            <div className="sr-sos-actions">
-              <a href="tel:112" className="sr-sos-action sr-sos-red">Llamar 112 (emergencias)</a>
-              <button onClick={sendEmail} className="sr-sos-action sr-sos-blue">Enviar SOS por email</button>
-              <button onClick={openWhatsApp} className="sr-sos-action sr-sos-green">Contactar por WhatsApp</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div className="relative z-10 w-[92%] max-w-md rounded-2xl bg-white shadow-2xl p-6">
+            <h2 className="text-xl font-bold text-gray-900">Ayuda / SOS</h2>
+            <p className="text-sm text-gray-600 mt-1">Usa <strong>112</strong> solo para emergencias reales.</p>
+            <div className="mt-5 grid gap-3">
+              <a href="tel:112" className="w-full inline-flex items-center justify-center rounded-xl bg-red-600 text-white font-semibold py-3 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-300">Llamar 112 (emergencias)</a>
+              <button onClick={sendEmail} className="w-full inline-flex items-center justify-center rounded-xl bg-blue-600 text-white font-semibold py-3 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300">Enviar SOS por email</button>
+              <button onClick={openWhatsApp} className="w-full inline-flex items-center justify-center rounded-xl bg-green-600 text-white font-semibold py-3 hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300">Contactar por WhatsApp</button>
             </div>
-            <div className="sr-sos-footer">
-              <button onClick={()=>setOpen(false)} className="sr-sos-close">Cerrar</button>
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300">Cerrar</button>
             </div>
           </div>
         </div>
