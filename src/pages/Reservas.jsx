@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import SEO from "../components/SEO.jsx";
 
 export default function Reservas() {
-  const DEFAULT_DEPOSIT = Number(import.meta.env.VITE_DEFAULT_DEPOSIT_EUR || "50"); // €
+  const DEFAULT_DEPOSIT = Number(import.meta.env.VITE_DEFAULT_DEPOSIT_EUR || "150"); // €
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [telefono, setTelefono] = useState("");
