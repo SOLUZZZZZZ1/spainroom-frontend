@@ -1,120 +1,100 @@
 ﻿// src/App.jsx
-import React, { Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import React from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Navbar from "./components/Navbar.jsx";
-import PhoneBadge from "./components/PhoneBadge.jsx";
-import TopbarHider from "./components/TopbarHider.jsx";
 import SOSButton from "./components/SOSButton.jsx";
-import ContactWidget from "./components/ContactWidget.jsx";
 
 import { AuthProvider } from "./auth/AuthContext.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
-/* Páginas principales (no lazy) para evitar “pantalla negra” */
 import Inicio from "./pages/Inicio.jsx";
 import Propietarios from "./pages/Propietarios.jsx";
 import Inquilinos from "./pages/Inquilinos.jsx";
+import Habitaciones from "./pages/Habitaciones.jsx";
 import Oportunidades from "./pages/Oportunidades.jsx";
 import Franquiciados from "./pages/Franquiciados.jsx";
-import Habitaciones from "./pages/Habitaciones.jsx";
-import Admin from "./pages/Admin.jsx";
-import Login from "./pages/Login.jsx";
 import Reservas from "./pages/Reservas.jsx";
-import TramitarCedula from "./pages/TramitarCedula.jsx";
 
-/* Dashboards en lazy */
-const DashProp   = React.lazy(() => import("./pages/dashboards/DashboardPropietario.jsx"));
-const DashInq    = React.lazy(() => import("./pages/dashboards/DashboardInquilino.jsx"));
-const DashFranq  = React.lazy(() => import("./pages/dashboards/DashboardFranquiciado.jsx"));
-const DashEquipo = React.lazy(() => import("./pages/dashboards/DashboardEquipo.jsx"));
+import Habitacion from "./pages/Habitacion.jsx";
+import FAQ from "./pages/FAQ.jsx";
 
-const Fallback = () => (
-  <div style={{ minHeight: "40vh", display: "grid", placeItems: "center", color: "#fff", opacity: 0.9 }}>
-    <div
-      style={{
-        background: "rgba(255,255,255,.12)",
-        border: "1px solid rgba(255,255,255,.25)",
-        padding: "16px 20px",
-        borderRadius: 12,
-        fontWeight: 800,
-      }}
-    >
-      Cargando panel…
-    </div>
-  </div>
-);
+// Dashboards
+import DashboardPropietario from "./pages/dashboards/DashboardPropietario.jsx";
+import DashboardFranquiciado from "./pages/dashboards/DashboardFranquiciado.jsx";
+import DashboardInquilino from "./pages/dashboards/DashboardInquilino.jsx"; // si lo tienes
+
+// Login por móvil + contraseña
+import LoginPassword from "./pages/LoginPassword.jsx";
+
+// Page wrapper y CrashGate (si los tienes)
+import Page from "./components/Page.jsx";
+import CrashGate from "./components/CrashGate.jsx";
 
 export default function App() {
+  const location = useLocation();
+
+  const hideSOS =
+    location.pathname.startsWith("/oportunidades") ||
+    location.pathname.startsWith("/admin") ||
+    location.pathname.startsWith("/franquiciados") ||
+    location.pathname.startsWith("/propietarios") ||
+    location.pathname.startsWith("/inquilinos") ||
+    location.pathname.startsWith("/habitaciones");
+
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-black">
+      <div className="min-h-screen">
         <Navbar />
-        <PhoneBadge />     {/* Teléfono arriba-derecha (oculto en internas) */}
-        <TopbarHider />    {/* Oculta Nora/WhatsApp/Llamar si se cuelan del topbar antiguo */}
 
-        {/* Rutas principales en caliente (sin suspense) */}
-        <Routes>
-          <Route path="/"               element={<Inicio />} />
-          <Route path="/propietarios"   element={<Propietarios />} />
-          <Route path="/inquilinos"     element={<Inquilinos />} />
-          <Route path="/oportunidades"  element={<Oportunidades />} />
-          <Route path="/franquiciados"  element={<Franquiciados />} />
-          <Route path="/habitaciones"   element={<Habitaciones />} />
-          <Route path="/reservas"       element={<Reservas />} />
-          <Route path="/tramitar-cedula"element={<TramitarCedula />} />
+        <CrashGate>
+          <Routes>
+            {/* Públicas */}
+            <Route path="/" element={<Page><Inicio /></Page>} />
+            <Route path="/propietarios" element={<Page><Propietarios /></Page>} />
+            <Route path="/inquilinos" element={<Page><Inquilinos /></Page>} />
+            <Route path="/habitaciones" element={<Page><Habitaciones /></Page>} />
+            <Route path="/habitacion/:roomId" element={<Page><Habitacion /></Page>} />
+            <Route path="/oportunidades" element={<Page><Oportunidades /></Page>} />
+            <Route path="/franquiciados" element={<Page><Franquiciados /></Page>} />
+            <Route path="/reservas" element={<Page><Reservas /></Page>} />
+            <Route path="/ayuda" element={<Page><FAQ /></Page>} />
 
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/login" element={<Login />} />
+            {/* Login con móvil + contraseña */}
+            <Route path="/login" element={<Page><LoginPassword /></Page>} />
 
-          {/* Dashboards bajo Suspense */}
-          <Route
-            path="/dashboard/propietario"
-            element={
-              <Suspense fallback={<Fallback />}>
-                <ProtectedRoute roles={["propietario", "admin"]}>
-                  <DashProp />
+            {/* Dashboards privados */}
+            <Route
+              path="/dashboard/propietario"
+              element={
+                <ProtectedRoute roles={["propietario"]}>
+                  <Page><DashboardPropietario /></Page>
                 </ProtectedRoute>
-              </Suspense>
-            }
-          />
-          <Route
-            path="/dashboard/inquilino"
-            element={
-              <Suspense fallback={<Fallback />}>
-                <ProtectedRoute roles={["inquilino", "admin"]}>
-                  <DashInq />
+              }
+            />
+            <Route
+              path="/dashboard/franquiciado"
+              element={
+                <ProtectedRoute roles={["franquiciado","admin"]}>
+                  <Page><DashboardFranquiciado /></Page>
                 </ProtectedRoute>
-              </Suspense>
-            }
-          />
-          <Route
-            path="/dashboard/franquiciado"
-            element={
-              <Suspense fallback={<Fallback />}>
-                <ProtectedRoute roles={["franquiciado", "admin"]}>
-                  <DashFranq />
+              }
+            />
+            <Route
+              path="/dashboard/inquilino"
+              element={
+                <ProtectedRoute roles={["inquilino"]}>
+                  <Page><DashboardInquilino /></Page>
                 </ProtectedRoute>
-              </Suspense>
-            }
-          />
-          <Route
-            path="/dashboard/admin"
-            element={
-              <Suspense fallback={<Fallback />}>
-                <ProtectedRoute roles={["admin", "equipo"]}>
-                  <DashEquipo />
-                </ProtectedRoute>
-              </Suspense>
-            }
-          />
+              }
+            />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </CrashGate>
 
-        {/* Widgets globales */}
-        <ContactWidget />
-        <SOSButton />
+        {!hideSOS && <SOSButton />}
       </div>
     </AuthProvider>
   );
