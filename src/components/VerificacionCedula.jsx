@@ -39,7 +39,7 @@ export default function VerificacionCedula() {
   // Dirección / refs
   const [direccion, setDireccion] = useState("Calle Mayor 1");
   const [refCat, setRefCat]       = useState("");
-  const [cedulaNum, setCedulaNum] = useState("");   // NUEVO
+  const [cedulaNum, setCedulaNum] = useState(""); // NUEVO: nº cédula opcional
   const [email, setEmail]         = useState("");
   const [municipio, setMunicipio] = useState("Madrid");
   const [provincia, setProvincia] = useState("Madrid");
@@ -130,7 +130,7 @@ export default function VerificacionCedula() {
       if (!refcatResolved && hasDir) {
         try {
           const res = await postJSON("/api/catastro/resolve_direccion", { direccion, municipio, provincia, cp });
-          refcatResolved = res?.refcat || null;
+          refcatResolved = res?.refcat || null; // puede ser undefined si Catastro está en 503
           setRefcatFinal(refcatResolved);
         } catch { /* Catastro no disponible → seguimos */ }
       } else {
@@ -255,7 +255,7 @@ export default function VerificacionCedula() {
       `Nº cédula: ${(cedulaNum || "-")}\n` +
       `Email: ${email || "-"}\n` +
       `Municipio: ${municipio || "-"}\n` +
-      `Provincia: ${provincia || "-"}\n` +
+      `Provincia: ${provincia || "-")}\n` + // ← ojo: cierra comillas en tu dato real si no usas template literal
       `Requirement: ${(requirement?.cat || "-")} / ${requirement?.doc || ""}\n` +
       `Tiene cédula: ${cedulaStatus ? (cedulaStatus.status === "vigente" ? "Sí" : cedulaStatus.status === "caducada" ? "No (caducada)" : cedulaStatus.status === "pendiente" ? "Pendiente" : "No consta") : "-"}\n` +
       `${cedulaStatus?.expires_at ? "Caduca: " + cedulaStatus.expires_at : ""}\n`
@@ -269,7 +269,7 @@ export default function VerificacionCedula() {
     <div id="verificacion" style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:16, padding:16 }}>
       <h3 style={{ margin:"0 0 6px", color:"#0b1220" }}>Comprobar cédula y requisitos</h3>
       <p className="note" style={{ margin:"0 0 10px", color:"#334155" }}>
-        Indica <b>dirección + municipio + provincia</b> (o <b>referencia catastral</b>). Opcionalmente añade el <b>nº de cédula</b>.
+        Indica <b>dirección + municipio + provincia</b> (o <b>referencia catastral</b>) y, si lo tienes, el <b>nº de cédula</b>.
         Te devolvemos un <strong>ID</strong>, el <strong>requisito legal</strong> y si <strong>tiene cédula en vigor</strong>.
       </p>
 
@@ -310,7 +310,6 @@ export default function VerificacionCedula() {
           </div>
         </div>
 
-        {/* NUEVO: Nº de cédula opcional */}
         <div>
           <label style={{color:"#0b1220"}}>Nº de cédula (opcional)</label>
           <input value={cedulaNum} onChange={(e)=>setCedulaNum(e.target.value)} placeholder="C-2023-12345" style={inputStyle} />
@@ -334,4 +333,38 @@ export default function VerificacionCedula() {
         {error && <div style={{ color:"#b91c1c" }}>{error}</div>}
 
         {ok && (
-          <div style={{ margin
+          <div style={{ marginTop:12, background:"#eef2ff", border:"1px solid #e0e7ff", borderRadius:12, padding:12 }}>
+            <div style={{ fontWeight:800, color:"#0b1220" }}>ID de verificación: {ok.id}</div>
+            <div className="note" style={{ color:"#334155" }}>Usa este ID como referencia con el equipo.</div>
+            <div style={{ display:"flex", gap:10, marginTop:8, flexWrap:"wrap" }}>
+              <button
+                type="button"
+                onClick={async ()=>{
+                  const okc = await copyToClipboard(ok.id);
+                  alert(okc ? "ID copiado al portapapeles" : "No se pudo copiar. Copia manualmente.");
+                }}
+                style={{ background:"#fff", color:"#0A58CA", border:"1px solid #0A58CA", padding:"8px 12px", borderRadius:10, fontWeight:800 }}
+              >
+                Copiar ID
+              </button>
+              <a
+                href={mailtoHref()}
+                style={{ display:"inline-block", background:"#0A58CA", color:"#fff", padding:"8px 12px", borderRadius:10, fontWeight:800, textDecoration:"none" }}
+              >
+                Enviar por email
+              </a>
+            </div>
+
+            {renderRequirement()}
+            {renderCedulaStatus()}
+            {renderCatastro()}
+          </div>
+        )}
+      </form>
+
+      <div className="note" style={{ marginTop:10, color:"#334155" }}>
+        *Este resultado no sustituye resolución oficial. Si lo necesitas, te ayudamos a tramitarla con tu Ayuntamiento/CCAA.
+      </div>
+    </div>
+  );
+}
