@@ -32,25 +32,32 @@ const badgeStyle = (cat) => {
 };
 
 export default function VerificacionCedula() {
+  // Contacto
   const [nombre, setNombre]       = useState("");
   const [telefono, setTelefono]   = useState("");
 
+  // Dirección / refs
   const [direccion, setDireccion] = useState("Calle Mayor 1");
   const [refCat, setRefCat]       = useState("");
+  const [cedulaNum, setCedulaNum] = useState("");   // NUEVO
   const [email, setEmail]         = useState("");
   const [municipio, setMunicipio] = useState("Madrid");
   const [provincia, setProvincia] = useState("Madrid");
   const [cp, setCP]               = useState("");
 
+  // Adjuntos
   const [file, setFile]           = useState(null);
 
+  // Estado UI
   const [busy, setBusy]           = useState(false);
   const [error, setError]         = useState("");
   const [ok, setOk]               = useState(null);
+
+  // Resultados
   const [refcatFinal, setRefcatFinal] = useState(null);
   const [catastroInfo, setCatastroInfo] = useState(null);
   const [requirement, setRequirement] = useState(null);
-  const [cedulaStatus, setCedulaStatus] = useState(null); // ← NUEVO
+  const [cedulaStatus, setCedulaStatus] = useState(null);
 
   const validoRef = useMemo(
     () => /^[A-Za-z0-9]{20}$/.test((refCat || "").trim()),
@@ -118,20 +125,19 @@ export default function VerificacionCedula() {
         if (lead?.ok) { check_id = lead.id; setOk({ id: lead.id, ts: new Date().toISOString() }); }
       } catch {}
 
-      // 2) Resolver refcat si hace falta
+      // 2) Resolver refcat (estricto: puede no resolverse)
       let refcatResolved = hasRef ? refCat.trim() : null;
       if (!refcatResolved && hasDir) {
         try {
           const res = await postJSON("/api/catastro/resolve_direccion", { direccion, municipio, provincia, cp });
-          // En modo estricto, si Catastro está caído devolverá error; ignoramos silenciosamente.
           refcatResolved = res?.refcat || null;
           setRefcatFinal(refcatResolved);
-        } catch {}
+        } catch { /* Catastro no disponible → seguimos */ }
       } else {
         setRefcatFinal(refcatResolved);
       }
 
-      // 3) Info catastral si hay refcat (en modo estricto puede dar 503 → ignoramos)
+      // 3) Info catastral (opcional; ignora 503 en modo estricto)
       if (refcatResolved) {
         try {
           const c = await postJSON("/api/catastro/consulta_refcat", { refcat: refcatResolved });
@@ -139,19 +145,31 @@ export default function VerificacionCedula() {
         } catch {}
       }
 
-      // 3.b) ¿Tiene cédula en vigor?
+      // 3.b) ¿Tiene cédula en vigor? (refcat o nº de cédula; si no hay, “No consta”)
       try {
         const payload = {};
         if (refcatResolved) payload.refcat = refcatResolved;
-        const cc = await postJSON("/api/legal/cedula/check", payload);
-        if (cc?.ok) setCedulaStatus({
-          has_doc: !!cc.has_doc,
-          status: cc.status,                // "vigente" | "caducada" | "no_consta" | "pendiente"
-          expires_at: cc?.data?.expires_at || null
-        });
-      } catch {}
+        else if ((cedulaNum || "").trim()) payload.cedula_numero = (cedulaNum || "").trim();
 
-      // 4) Requirement DB (municipio+provincia si hay; si no, solo provincia)
+        if (payload.refcat || payload.cedula_numero) {
+          const cc = await postJSON("/api/legal/cedula/check", payload);
+          if (cc?.ok) {
+            setCedulaStatus({
+              has_doc: !!cc.has_doc,
+              status: cc.status,                 // "vigente" | "caducada" | "no_consta" | "pendiente"
+              expires_at: cc?.data?.expires_at || null
+            });
+          } else {
+            setCedulaStatus({ has_doc:false, status:"no_consta", expires_at:null });
+          }
+        } else {
+          setCedulaStatus({ has_doc:false, status:"no_consta", expires_at:null });
+        }
+      } catch {
+        setCedulaStatus({ has_doc:false, status:"no_consta", expires_at:null });
+      }
+
+      // 4) Requirement (municipio → provincia)
       try {
         const req = await postJSON("/api/legal/requirement", {
           municipio: hasDir ? municipio : null,
@@ -201,7 +219,9 @@ export default function VerificacionCedula() {
         <div style={{fontWeight:800, color:"#0b1220"}}>Tiene cédula</div>
         <div style={{marginTop:6, color:"#0b1220"}}>
           <b>Estado:</b> {txt}
-          {cedulaStatus.expires_at ? <> — <b>Caduca:</b> {cedulaStatus.expires_at}</> : null}
+          {cedulaStatus.expires_at ? (
+            <span> — <b>Caduca:</b> {cedulaStatus.expires_at}</span>
+          ) : null}
         </div>
       </div>
     );
@@ -232,6 +252,7 @@ export default function VerificacionCedula() {
       `Teléfono: ${telefono || "-"}\n` +
       `Dirección: ${direccion || "-"}\n` +
       `Ref. catastral: ${(refcatFinal || refCat || "-")}\n` +
+      `Nº cédula: ${(cedulaNum || "-")}\n` +
       `Email: ${email || "-"}\n` +
       `Municipio: ${municipio || "-"}\n` +
       `Provincia: ${provincia || "-"}\n` +
@@ -248,8 +269,8 @@ export default function VerificacionCedula() {
     <div id="verificacion" style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:16, padding:16 }}>
       <h3 style={{ margin:"0 0 6px", color:"#0b1220" }}>Comprobar cédula y requisitos</h3>
       <p className="note" style={{ margin:"0 0 10px", color:"#334155" }}>
-        Indica <b>dirección + municipio + provincia</b> (o <b>referencia catastral</b>). Te devolvemos un <strong>ID de verificación</strong>,
-        el <strong>requisito legal</strong> por zona y si <strong>tiene cédula en vigor</strong> (cuando conste en el sistema).
+        Indica <b>dirección + municipio + provincia</b> (o <b>referencia catastral</b>). Opcionalmente añade el <b>nº de cédula</b>.
+        Te devolvemos un <strong>ID</strong>, el <strong>requisito legal</strong> y si <strong>tiene cédula en vigor</strong>.
       </p>
 
       <form onSubmit={submit} style={{ display:"grid", gap:12 }}>
@@ -289,6 +310,12 @@ export default function VerificacionCedula() {
           </div>
         </div>
 
+        {/* NUEVO: Nº de cédula opcional */}
+        <div>
+          <label style={{color:"#0b1220"}}>Nº de cédula (opcional)</label>
+          <input value={cedulaNum} onChange={(e)=>setCedulaNum(e.target.value)} placeholder="C-2023-12345" style={inputStyle} />
+        </div>
+
         <div>
           <label style={{color:"#0b1220"}}>Adjuntar escritura/cédula (PDF/JPG/PNG) — uso interno</label>
           <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e)=>setFile(e.target.files?.[0] || null)} />
@@ -307,24 +334,4 @@ export default function VerificacionCedula() {
         {error && <div style={{ color:"#b91c1c" }}>{error}</div>}
 
         {ok && (
-          <div style={{ marginTop:12, background:"#eef2ff", border:"1px solid #e0e7ff", borderRadius:12, padding:12 }}>
-            <div style={{ fontWeight:800, color:"#0b1220" }}>ID de verificación: {ok.id}</div>
-            <div className="note" style={{ color:"#334155" }}>Usa este ID como referencia con el equipo.</div>
-            <div style={{ display:"flex", gap:10, marginTop:8, flexWrap:"wrap" }}>
-              <button
-                type="button"
-                onClick={async ()=>{
-                  const okc = await copyToClipboard(ok.id);
-                  alert(okc ? "ID copiado al portapapeles" : "No se pudo copiar. Copia manualmente.");
-                }}
-                style={{ background:"#fff", color:"#0A58CA", border:"1px solid #0A58CA", padding:"8px 12px", borderRadius:10, fontWeight:800 }}
-              >
-                Copiar ID
-              </button>
-              <a href={mailtoHref()} style={{ display:"inline-block", background:"#0A58CA", color:"#fff", padding:"8px 12px", borderRadius:10, fontWeight:800, textDecoration:"none" }}>
-                Enviar por email
-              </a>
-            </div>
-
-            {renderRequirement()}
-            {renderCedulaStatus()}
+          <div style={{ margin
