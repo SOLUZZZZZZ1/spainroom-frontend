@@ -1,3 +1,4 @@
+/* public/firebase-messaging-sw.js */
 /* global importScripts, firebase */
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
@@ -13,8 +14,7 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
-  self.registration.showNotification(
-    payload.notification?.title || "SpainRoom",
-    { body: payload.notification?.body || "", data: payload.data || {} }
-  );
+  const title = payload.notification?.title || "SpainRoom";
+  const body  = payload.notification?.body  || "";
+  self.registration.showNotification(title, { body, data: payload.data || {} });
 });
