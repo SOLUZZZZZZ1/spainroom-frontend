@@ -314,12 +314,10 @@ export default function FAQ() {
           </div>
         )}
 
-        <section style={styles.panels}>
-          <DashboardLinks />
-        </section>
+        
 
         <section style={styles.contact}>
-          <h2 style={styles.contactTitle}>¿Sigue tu duda?</h2>
+          <h2 style={styles.contactTitle}>¿No encuentras lo que buscas?</h2>
           <p style={styles.contactText}>
             Escríbenos desde aquí y te responderemos lo antes posible. Cuanta más información nos des,
             más rápido podremos ayudarte.
