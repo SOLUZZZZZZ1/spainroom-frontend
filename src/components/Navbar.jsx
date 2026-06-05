@@ -16,27 +16,15 @@ export default function Navbar(){
           <span className="sr-brand-title">SpainRoom</span>
         </Link>
         <nav className="sr-tabs" aria-label="Navegación principal">
-          <NavLink
-  to="/"
-  end
-  className={tab}
-  style={({ isActive }) => ({
-    background: isActive ? "#ffffff" : "transparent",
-    color: isActive ? "#0b69c7" : "#ffffff",
-    fontWeight: 900,
-    borderRadius: "8px",
-    padding: "8px 12px"
-  })}
->
-  INICIO
-</NavLink>
-          <NavLink to="/propietarios"  className={tab}>Propietarios</NavLink>
-          <NavLink to="/inquilinos"    className={tab}>Inquilinos</NavLink>
-          <NavLink to="/habitaciones"  className={tab}>Habitaciones</NavLink>
-          <NavLink to="/oportunidades" className={tab}>Oportunidades</NavLink>
-          <NavLink to="/franquiciados" className={tab}>Franquiciados</NavLink>
-          <NavLink to="/ayuda"         className={tab}>Ayuda</NavLink>
-          {/* Sin enlace público a /admin y sin “Mi Franquicia” aquí */}
+          <nav className="sr-tabs" aria-label="Navegación principal">
+  <Link to="/" className="sr-tab">Inicio</Link>
+  <Link to="/propietarios" className="sr-tab">Propietarios</Link>
+  <Link to="/inquilinos" className="sr-tab">Inquilinos</Link>
+  <Link to="/habitaciones" className="sr-tab">Habitaciones</Link>
+  <Link to="/oportunidades" className="sr-tab">Oportunidades</Link>
+  <Link to="/franquiciados" className="sr-tab">Franquiciados</Link>
+  <Link to="/ayuda" className="sr-tab">Ayuda</Link>
+</nav>
         </nav>
       </div>
       <div className="sr-navbar-underline" />
