@@ -58,13 +58,16 @@ a { color: inherit; text-decoration: none; }
   transition: background .2s ease, color .2s ease, transform .2s ease;
 }
 .sr-tab:hover  { background: var(--sr-pill-hover); color:#fff; transform: translateY(-1px); }
-.sr-tab.active {
+.sr-tab.active,
+.sr-tabs .sr-tab.active,
+.sr-navbar .sr-tabs .sr-tab.active {
   background: #ffffff !important;
   color: #0b69c7 !important;
-  font-weight: 800;
-  border: 1px solid #ffffff;
-  box-shadow: 0 4px 10px rgba(0,0,0,.12);
+  font-weight: 900 !important;
+  border: 1px solid #ffffff !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,.12) !important;
 }
+
 
 .sr-navbar-underline { height: 4px; width: 100%; background: var(--sr-blue-dark); }
 
