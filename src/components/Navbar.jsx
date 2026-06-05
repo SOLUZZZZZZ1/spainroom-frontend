@@ -7,7 +7,7 @@ export default function Navbar() {
 
   const isActive = (path) => {
     if (path === "/") return location.pathname === "/";
-    return location.pathname.startsWith(path);
+    return location.pathname === path || location.pathname.startsWith(path + "/");
   };
 
   const activeStyle = {
@@ -20,32 +20,47 @@ export default function Navbar() {
     transform: "translateY(-1px)",
   };
 
-  const normalStyle = {
-    color: "#ffffff",
-  };
-
-  const tabStyle = (path) => ({
-    ...(isActive(path) ? activeStyle : normalStyle),
-  });
+  const getTabStyle = (path) => (isActive(path) ? activeStyle : undefined);
 
   return (
     <header className="sr-navbar">
       <div className="sr-row">
         <Link to="/" aria-label="SpainRoom" className="sr-brand">
           <img src="/cabecera.png" alt="SpainRoom" className="sr-logo" />
-          <span className="sr-brand-title">SpainRoom TEST</span>
+          <span className="sr-brand-title">SpainRoom</span>
         </Link>
 
         <nav className="sr-tabs" aria-label="Navegación principal">
-          <Link to="/" className="sr-tab" style={tabStyle("/")}>Inicio</Link>
-          <Link to="/propietarios" className="sr-tab" style={tabStyle("/propietarios")}>Propietarios</Link>
-          <Link to="/inquilinos" className="sr-tab" style={tabStyle("/inquilinos")}>Inquilinos</Link>
-          <Link to="/habitaciones" className="sr-tab" style={tabStyle("/habitaciones")}>Habitaciones</Link>
-          <Link to="/oportunidades" className="sr-tab" style={tabStyle("/oportunidades")}>Oportunidades</Link>
-          <Link to="/franquiciados" className="sr-tab" style={tabStyle("/franquiciados")}>Franquiciados</Link>
-          <Link to="/ayuda" className="sr-tab" style={tabStyle("/ayuda")}>Ayuda</Link>
+          <Link to="/" className="sr-tab" style={getTabStyle("/")}>
+            Inicio
+          </Link>
+
+          <Link to="/propietarios" className="sr-tab" style={getTabStyle("/propietarios")}>
+            Propietarios
+          </Link>
+
+          <Link to="/inquilinos" className="sr-tab" style={getTabStyle("/inquilinos")}>
+            Inquilinos
+          </Link>
+
+          <Link to="/habitaciones" className="sr-tab" style={getTabStyle("/habitaciones")}>
+            Habitaciones
+          </Link>
+
+          <Link to="/oportunidades" className="sr-tab" style={getTabStyle("/oportunidades")}>
+            Oportunidades
+          </Link>
+
+          <Link to="/franquiciados" className="sr-tab" style={getTabStyle("/franquiciados")}>
+            Franquiciados
+          </Link>
+
+          <Link to="/ayuda" className="sr-tab" style={getTabStyle("/ayuda")}>
+            Ayuda
+          </Link>
         </nav>
       </div>
+
       <div className="sr-navbar-underline" />
     </header>
   );
