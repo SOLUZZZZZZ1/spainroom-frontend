@@ -1,12 +1,16 @@
 // src/components/Navbar.jsx
 import React from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export default function Navbar(){
-  const tab = ({ isActive }) =>
-  isActive
-    ? "sr-tab active"
-    : "sr-tab";
+  const location = useLocation();
+
+  const isActive = (path) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  };
+
+  const tabClass = (path) => "sr-tab" + (isActive(path) ? " sr-tab--active" : "");
 
   return (
     <header className="sr-navbar">
@@ -15,16 +19,15 @@ export default function Navbar(){
           <img src="/cabecera.png" alt="SpainRoom" className="sr-logo" />
           <span className="sr-brand-title">SpainRoom</span>
         </Link>
+
         <nav className="sr-tabs" aria-label="Navegación principal">
-          <nav className="sr-tabs" aria-label="Navegación principal">
-  <Link to="/" className="sr-tab">Inicio</Link>
-  <Link to="/propietarios" className="sr-tab">Propietarios</Link>
-  <Link to="/inquilinos" className="sr-tab">Inquilinos</Link>
-  <Link to="/habitaciones" className="sr-tab">Habitaciones</Link>
-  <Link to="/oportunidades" className="sr-tab">Oportunidades</Link>
-  <Link to="/franquiciados" className="sr-tab">Franquiciados</Link>
-  <Link to="/ayuda" className="sr-tab">Ayuda</Link>
-</nav>
+          <Link to="/" className={tabClass("/")}>Inicio</Link>
+          <Link to="/propietarios" className={tabClass("/propietarios")}>Propietarios</Link>
+          <Link to="/inquilinos" className={tabClass("/inquilinos")}>Inquilinos</Link>
+          <Link to="/habitaciones" className={tabClass("/habitaciones")}>Habitaciones</Link>
+          <Link to="/oportunidades" className={tabClass("/oportunidades")}>Oportunidades</Link>
+          <Link to="/franquiciados" className={tabClass("/franquiciados")}>Franquiciados</Link>
+          <Link to="/ayuda" className={tabClass("/ayuda")}>Ayuda</Link>
         </nav>
       </div>
       <div className="sr-navbar-underline" />
