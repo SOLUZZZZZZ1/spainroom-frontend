@@ -3,7 +3,10 @@ import React from "react";
 import { Link, NavLink } from "react-router-dom";
 
 export default function Navbar(){
-  const tab = ({ isActive }) => "sr-tab" + (isActive ? " active" : "");
+  const tab = ({ isActive }) =>
+  isActive
+    ? "sr-tab active"
+    : "sr-tab";
 
   return (
     <header className="sr-navbar">
@@ -13,7 +16,20 @@ export default function Navbar(){
           <span className="sr-brand-title">SpainRoom</span>
         </Link>
         <nav className="sr-tabs" aria-label="Navegación principal">
-          <NavLink to="/" end className={tab}>🏠 INICIO 🏠</NavLink>
+          <NavLink
+  to="/"
+  end
+  className={tab}
+  style={({ isActive }) => ({
+    background: isActive ? "#ffffff" : "transparent",
+    color: isActive ? "#0b69c7" : "#ffffff",
+    fontWeight: 900,
+    borderRadius: "8px",
+    padding: "8px 12px"
+  })}
+>
+  INICIO
+</NavLink>
           <NavLink to="/propietarios"  className={tab}>Propietarios</NavLink>
           <NavLink to="/inquilinos"    className={tab}>Inquilinos</NavLink>
           <NavLink to="/habitaciones"  className={tab}>Habitaciones</NavLink>
