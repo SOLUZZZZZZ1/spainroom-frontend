@@ -3,8 +3,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 // BACKEND Render + helper para imágenes servidas por el backend (/instance/*)
-const API_BASE =
-  (import.meta.env?.VITE_API_BASE?.trim?.() || "https://spainroom-backend-1.onrender.com");
+const API_BASE = (
+  import.meta.env?.VITE_API_BASE?.trim?.() ||
+  import.meta.env?.VITE_API_URL?.trim?.() ||
+  "https://backend-spainroom.onrender.com"
+).replace(/\/$/, "");
 const isAbs = (u) => /^https?:\/\//i.test(u || "");
 const withBase = (u) =>
   (u && !isAbs(u) && u.startsWith("/instance/")) ? `${API_BASE}${u}` : u;
@@ -19,6 +22,34 @@ const DEMO_IMAGES = [
   "/images/OIP-3-.webp",
   "/images/OIP-2-.webp",
 ];
+
+// Fallback para que los desplegables no queden vacíos si todavía no hay habitaciones reales publicadas.
+const FALLBACK_LOCATIONS = [
+  { provincia: "Barcelona", ciudad: "Barcelona" },
+  { provincia: "Barcelona", ciudad: "Manresa" },
+  { provincia: "Barcelona", ciudad: "Sabadell" },
+  { provincia: "Barcelona", ciudad: "Terrassa" },
+  { provincia: "Madrid", ciudad: "Madrid" },
+  { provincia: "Valencia", ciudad: "Valencia" },
+  { provincia: "Sevilla", ciudad: "Sevilla" },
+  { provincia: "Málaga", ciudad: "Málaga" },
+  { provincia: "Alicante", ciudad: "Alicante" },
+  { provincia: "Murcia", ciudad: "Murcia" },
+];
+
+function normalizeRoom(raw = {}) {
+  const provincia = raw.provincia || raw.province || raw.region || raw?.location?.provincia || raw?.location?.province || "";
+  const ciudad = raw.ciudad || raw.city || raw.municipio || raw.poblacion || raw.town || raw?.location?.ciudad || raw?.location?.city || "";
+  const precioRaw = raw.precio ?? raw.price ?? raw.price_eur ?? raw.rent ?? raw.monthly_price;
+  const precio = typeof precioRaw === "number" ? precioRaw : (Number.isFinite(Number(precioRaw)) ? Number(precioRaw) : undefined);
+
+  return {
+    ...raw,
+    provincia: String(provincia || "").trim(),
+    ciudad: String(ciudad || "").trim(),
+    precio,
+  };
+}
 
 export default function Habitaciones() {
   // Datos
@@ -43,7 +74,8 @@ export default function Habitaciones() {
       try {
         const r = await fetch(`${API_BASE}/api/rooms/published`, { cache: "no-cache", mode: "cors" });
         const j = r.ok ? await r.json() : [];
-        if (live) setRows(Array.isArray(j) ? j : (Array.isArray(j?.results) ? j.results : []));
+        const arr = Array.isArray(j) ? j : (Array.isArray(j?.results) ? j.results : []);
+        if (live) setRows(arr.map(normalizeRoom));
       } catch {
         if (live) setRows([]);
       } finally {
@@ -56,7 +88,8 @@ export default function Habitaciones() {
   // Provincias / poblaciones
   const { provincias, mapaPoblaciones } = useMemo(() => {
     const setP = new Set(); const map = {};
-    rows.forEach((r) => {
+    const source = rows.length ? rows : FALLBACK_LOCATIONS;
+    source.forEach((r) => {
       const prov = (r?.provincia || "").trim();
       const city = (r?.ciudad || "").trim();
       if (prov) {
@@ -109,7 +142,7 @@ export default function Habitaciones() {
         if (r.ok) {
           const j = await r.json();
           const arr = Array.isArray(j?.results) ? j.results : (Array.isArray(j) ? j : []);
-          setRows(arr);
+          setRows(arr.map(normalizeRoom));
           setLoading(false);
           return;
         }
@@ -118,7 +151,8 @@ export default function Habitaciones() {
       // fallback
       const r2 = await fetch(`${API_BASE}/api/rooms/published`, { cache: "no-cache", mode: "cors" });
       const j2 = r2.ok ? await r2.json() : [];
-      setRows(Array.isArray(j2) ? j2 : (Array.isArray(j2?.results) ? j2.results : []));
+      const arr2 = Array.isArray(j2) ? j2 : (Array.isArray(j2?.results) ? j2.results : []);
+      setRows(arr2.map(normalizeRoom));
     } catch {
       // sin cartel rojo
     } finally {
@@ -220,6 +254,11 @@ export default function Habitaciones() {
               <input type="checkbox" checked={soloPublicadas} onChange={e=> setSoloPublicadas(e.target.checked)} style={{ marginRight:6 }} />
               Solo publicadas
             </label>
+            {!loading && rows.length === 0 && (
+              <span style={{ fontSize:12, color:"#64748b" }}>
+                Sin habitaciones reales cargadas todavía. Los filtros muestran ubicaciones de ejemplo.
+              </span>
+            )}
           </div>
         </form>
 
@@ -275,6 +314,12 @@ export default function Habitaciones() {
                 </article>
               );
             })}
+          </div>
+        )}
+
+        {!loading && rows.length === 0 && (
+          <div style={{ color:"#64748b", padding:"4px 0 24px" }}>
+            Todavía no hay habitaciones publicadas reales. Cuando se publiquen, aparecerán aquí automáticamente.
           </div>
         )}
       </section>
