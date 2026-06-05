@@ -20,8 +20,9 @@ export default function Navbar() {
     transform: "translateY(-1px)",
   };
 
-  const getTabStyle = (path) => (isActive(path) ? activeStyle : undefined);
-
+  const getTabStyle = (path) => ({
+  ...(isActive(path) ? activeStyle : {}),
+});
   return (
     <header className="sr-navbar">
       <div className="sr-row">
