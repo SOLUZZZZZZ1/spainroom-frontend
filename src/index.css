@@ -80,7 +80,13 @@ a { color: inherit; text-decoration: none; }
 }
 
 .sr-navbar nav a:hover{ background: var(--sr-pill-hover); color:#fff; transform: translateY(-1px); }
-.sr-navbar nav a.active{ background: var(--sr-pill); color:#fff; }
+.sr-navbar nav a.active{
+  background: #ffffff;
+  color: #0b69c7;
+  font-weight: 800;
+  border: 1px solid #ffffff;
+  box-shadow: 0 4px 10px rgba(0,0,0,.12);
+}
 
 .sr-navbar-underline { height: 4px; width: 100%; background: var(--sr-blue-dark); }
 
