@@ -33,7 +33,7 @@ export default function Navbar() {
       <div className="sr-row">
         <Link to="/" aria-label="SpainRoom" className="sr-brand">
           <img src="/cabecera.png" alt="SpainRoom" className="sr-logo" />
-          <span className="sr-brand-title">SpainRoom</span>
+          <span className="sr-brand-title">SpainRoom TEST</span>
         </Link>
 
         <nav className="sr-tabs" aria-label="Navegación principal">
