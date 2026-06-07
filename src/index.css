@@ -137,8 +137,10 @@ a { color: inherit; text-decoration: none; }
 }
 /* Logo central del hero (logo.png), NO cabecera.png */
 .sr-hero-logo{
-  height: clamp(120px, 19vw, 240px);
-  width: auto; margin: 0 auto 16px; object-fit: contain;
+  height: clamp(220px, 28vw, 360px) !important;
+  width: auto !important;
+  margin: 0 auto 16px;
+  object-fit: contain;
 }
 
 /* =========================
