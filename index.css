@@ -147,7 +147,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .sr-hero-logo{
-  height: clamp(120px, 19vw, 240px);
+  height: clamp(180px, 24vw, 320px);
   width: auto;
   margin: 0 auto 16px;
   object-fit: contain;
