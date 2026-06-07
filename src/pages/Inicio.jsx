@@ -1,37 +1,31 @@
 ﻿// src/pages/Inicio.jsx
 import React from "react";
+import SOSButton from "../components/SOSButton.jsx";
+import "../styles/inicio.css";
 
 export default function Inicio() {
   return (
-    <div
-      className="sr-hero"
-      /* si prefieres inline:
-      style={{
-        minHeight:"100vh",
-        backgroundImage:'linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.12)), url("/casa-diseno.jpg")',
-        backgroundSize:"cover", backgroundPosition:"center",
-        display:"grid", placeItems:"center", padding:24
-      }}
-      */
-    >
-      <div className="sr-card">
-        {/* LOGO PRINCIPAL en el centro */}
-        <img
-          src="/logo.png"
-          alt="SpainRoom"
-          className="sr-hero-logo"
-        />
-        <h1 style={{ margin: 0, fontSize: "clamp(24px, 4.2vw, 40px)", lineHeight: 1.1 }}>
-          Bienvenido a SpainRoom
-        </h1>
-        <p style={{ margin: "12px auto 0", lineHeight: 1.6, fontSize: "clamp(14px, 2vw, 18px)", maxWidth: 880 }}>
-          Encuentra habitaciones listas para entrar a vivir en las mejores zonas.
-          <br />
-          SpainRoom conecta personas, viviendas y oportunidades.
-          <br />
-          Confiable, moderno y cercano.
-        </p>
-      </div>
-    </div>
+    <main className="sr-inicio">
+      <section className="sr-hero" aria-label="Bienvenida SpainRoom">
+        <div className="sr-hero__bg" />
+        <div className="sr-hero__overlay" />
+
+        <div className="sr-hero__content">
+          <img src="/logo.png" alt="SpainRoom" className="sr-hero__logo" />
+
+          <h1 className="sr-hero__title">Bienvenido a SpainRoom</h1>
+
+          <p className="sr-hero__subtitle">
+            Encuentra habitaciones listas para entrar a vivir en las mejores zonas.
+            <br />
+            SpainRoom conecta personas, viviendas y oportunidades.
+            <br />
+            Confiable, moderno y cercano.
+          </p>
+        </div>
+      </section>
+
+      <SOSButton />
+    </main>
   );
 }
