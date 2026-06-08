@@ -79,7 +79,7 @@
   .sr-hero{ padding: 10px; }
   .sr-hero__content{ padding: 18px 22px; }
   .sr-hero__logo{
-    width: clamp(320px, 42vw, 460px);
+    width: clamp(180px, 21vw, 270px);
     margin-bottom: 8px;
   }
   .sr-hero__title{
