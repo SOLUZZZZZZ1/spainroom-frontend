@@ -52,7 +52,7 @@
 .sr-hero__logo{
   display: block;
   margin: 0 auto 12px;
-  width: clamp(280px, 38vw, 380px);
+  width: clamp(180px, 21vw, 270px);
   height: auto;
 }
 
