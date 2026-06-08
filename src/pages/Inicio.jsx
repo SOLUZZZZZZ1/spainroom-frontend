@@ -1,7 +1,7 @@
 ﻿// src/pages/Inicio.jsx
 import React from "react";
 import SOSButton from "../components/SOSButton.jsx";
-import "../styles/inicio.css";
+import "./inicio.css";
 
 export default function Inicio() {
   return (
