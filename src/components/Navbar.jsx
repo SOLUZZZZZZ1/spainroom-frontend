@@ -58,7 +58,20 @@ export default function Navbar() {
       <div className="sr-row">
         <Link to="/" aria-label="SpainRoom" className="sr-brand">
           <img src="/cabecera.png" alt="SpainRoom" className="sr-logo" />
-          <span className="sr-brand-title">SpainRoom</span>
+          <span className="sr-brand-title">
+  SpainRoom
+  <sup
+    style={{
+      fontSize: "0.38em",
+      marginLeft: "2px",
+      verticalAlign: "super",
+      fontWeight: 700,
+      color: "#ffffff",
+    }}
+  >
+    ®
+  </sup>
+</span>
         </Link>
 
         <nav className="sr-tabs" aria-label="Navegación principal">
