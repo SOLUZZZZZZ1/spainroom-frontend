@@ -62,7 +62,7 @@ export default function Navbar() {
   SpainRoom
   <sup
     style={{
-      fontSize: "0.75em",
+      fontSize: "0.85em",
       marginLeft: "2px",
       verticalAlign: "super",
       fontWeight: 700,
