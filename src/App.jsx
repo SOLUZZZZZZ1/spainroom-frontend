@@ -51,7 +51,7 @@ export default function App() {
           <Route path="/propietarios"  element={<Page><Propietarios /></Page>} />
           <Route path="/inquilinos"    element={<Page><Inquilinos /></Page>} />
           <Route path="/habitaciones"  element={<Page><Habitaciones /></Page>} />
-          <Route path="/habitacion/:roomId" element={<Page><Habitacion /></Page>} />
+          <Route path="/habitaciones/:roomId" element={<Page><Habitacion /></Page>}           />
           <Route path="/oportunidades" element={<Page><Oportunidades /></Page>} />
           <Route path="/franquiciados" element={<Page><Franquiciados /></Page>} />
           <Route path="/reservas"      element={<Page><Reservas /></Page>} />
