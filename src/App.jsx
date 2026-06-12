@@ -3,6 +3,7 @@ import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Navbar from "./components/Navbar.jsx";
+import Footer from "./components/Footer.jsx";
 import SOSButton from "./components/SOSButton.jsx";
 
 import { AuthProvider } from "./auth/AuthContext.jsx";
@@ -88,6 +89,8 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+
+        <Footer />
 
         {!hideSOS && <SOSButton />}
       </div>
