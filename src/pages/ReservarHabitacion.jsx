@@ -89,9 +89,13 @@ export default function ReservarHabitacion() {
   };
 
   const payDeposit = async () => {
-    const success = `/habitaciones/${encodeURIComponent(code)}?reserva=ok`;
-    const cancel = `/habitaciones/${encodeURIComponent(code)}?reserva=error`;
+    const ORIGIN = window.location.origin;
 
+const success =
+  `${ORIGIN}/habitaciones/${encodeURIComponent(code)}?reserva=ok`;
+
+const cancel =
+  `${ORIGIN}/habitaciones/${encodeURIComponent(code)}/reservar?reserva=error`;
     try {
       const r = await fetch(`${API_BASE}/create-checkout-session`, {
         method: "POST",
