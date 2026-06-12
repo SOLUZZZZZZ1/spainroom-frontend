@@ -1,4 +1,4 @@
-﻿// src/App.jsx
+// src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
@@ -15,18 +15,15 @@ import Habitaciones from "./pages/Habitaciones.jsx";
 import Oportunidades from "./pages/Oportunidades.jsx";
 import Franquiciados from "./pages/Franquiciados.jsx";
 import Reservas from "./pages/Reservas.jsx";
+import ReservarHabitacion from "./pages/ReservarHabitacion.jsx";
 import Habitacion from "./pages/Habitacion.jsx";
 import FAQ from "./pages/FAQ.jsx";
 
-// Dashboards
 import DashboardPropietario from "./pages/dashboards/DashboardPropietario.jsx";
 import DashboardFranquiciado from "./pages/dashboards/DashboardFranquiciado.jsx";
 import DashboardInquilino from "./pages/dashboards/DashboardInquilino.jsx";
 
-// Login por móvil + contraseña (sin OTP)
 import LoginPassword from "./pages/LoginPassword.jsx";
-
-// Wrapper de página
 import Page from "./components/Page.jsx";
 
 export default function App() {
@@ -46,28 +43,24 @@ export default function App() {
         <Navbar />
 
         <Routes>
-          {/* Públicas */}
           <Route path="/" element={<Page><Inicio /></Page>} />
           <Route path="/propietarios" element={<Page><Propietarios /></Page>} />
           <Route path="/inquilinos" element={<Page><Inquilinos /></Page>} />
 
-          {/* Habitaciones */}
           <Route path="/habitaciones" element={<Page><Habitaciones /></Page>} />
-          <Route path="/habitaciones/:roomId" element={<Page><Habitacion /></Page>} />
+          <Route path="/habitaciones/:roomId/reservar" element={<Page><ReservarHabitacion /></Page>} />
           <Route path="/habitaciones/:roomId/fotos" element={<Page><Habitacion /></Page>} />
+          <Route path="/habitaciones/:roomId" element={<Page><Habitacion /></Page>} />
 
-          {/* Compatibilidad con ruta antigua */}
+          <Route path="/habitacion/:roomId/reservar" element={<Page><ReservarHabitacion /></Page>} />
           <Route path="/habitacion/:roomId" element={<Page><Habitacion /></Page>} />
 
           <Route path="/oportunidades" element={<Page><Oportunidades /></Page>} />
           <Route path="/franquiciados" element={<Page><Franquiciados /></Page>} />
           <Route path="/reservas" element={<Page><Reservas /></Page>} />
           <Route path="/ayuda" element={<Page><FAQ /></Page>} />
-
-          {/* Login con móvil + contraseña */}
           <Route path="/login" element={<Page><LoginPassword /></Page>} />
 
-          {/* Dashboards protegidos */}
           <Route
             path="/dashboard/propietario"
             element={
@@ -93,7 +86,6 @@ export default function App() {
             }
           />
 
-          {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 
