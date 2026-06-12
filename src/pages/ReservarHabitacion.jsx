@@ -179,7 +179,15 @@ export default function ReservarHabitacion() {
             ← Volver a la ficha
           </button>
 
-          <div style={{ fontWeight: 900, color: "#0b1220" }}>Reservar · {code}</div>
+          <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color: "#0b1220" }}>
+          Reserva tu habitación
+          </div>
+
+         <div style={{ fontSize: 16, color: "#64748b", fontWeight: 700 }}>
+         {code} · {typeof meta.precio === "number" ? `${meta.precio} €/mes` : ""}
+         </div>
+         </div>
 
           <div style={{ display: "flex", gap: 8 }}>
             <a href={`/habitaciones/${encodeURIComponent(code)}`} style={btn(false)}>
