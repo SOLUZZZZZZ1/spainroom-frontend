@@ -21,7 +21,7 @@ import FAQ from "./pages/FAQ.jsx";
 // Dashboards
 import DashboardPropietario from "./pages/dashboards/DashboardPropietario.jsx";
 import DashboardFranquiciado from "./pages/dashboards/DashboardFranquiciado.jsx";
-import DashboardInquilino from "./pages/dashboards/DashboardInquilino.jsx"; // si no existe, puedes comentar esta línea
+import DashboardInquilino from "./pages/dashboards/DashboardInquilino.jsx";
 
 // Login por móvil + contraseña (sin OTP)
 import LoginPassword from "./pages/LoginPassword.jsx";
@@ -48,19 +48,26 @@ export default function App() {
         <Routes>
           {/* Públicas */}
           <Route path="/" element={<Page><Inicio /></Page>} />
-          <Route path="/propietarios"  element={<Page><Propietarios /></Page>} />
-          <Route path="/inquilinos"    element={<Page><Inquilinos /></Page>} />
-          <Route path="/habitaciones"  element={<Page><Habitaciones /></Page>} />
-          <Route path="/habitaciones/:roomId" element={<Page><Habitacion /></Page>}           />
+          <Route path="/propietarios" element={<Page><Propietarios /></Page>} />
+          <Route path="/inquilinos" element={<Page><Inquilinos /></Page>} />
+
+          {/* Habitaciones */}
+          <Route path="/habitaciones" element={<Page><Habitaciones /></Page>} />
+          <Route path="/habitaciones/:roomId" element={<Page><Habitacion /></Page>} />
+          <Route path="/habitaciones/:roomId/fotos" element={<Page><Habitacion /></Page>} />
+
+          {/* Compatibilidad con ruta antigua */}
+          <Route path="/habitacion/:roomId" element={<Page><Habitacion /></Page>} />
+
           <Route path="/oportunidades" element={<Page><Oportunidades /></Page>} />
           <Route path="/franquiciados" element={<Page><Franquiciados /></Page>} />
-          <Route path="/reservas"      element={<Page><Reservas /></Page>} />
-          <Route path="/ayuda"         element={<Page><FAQ /></Page>} />
+          <Route path="/reservas" element={<Page><Reservas /></Page>} />
+          <Route path="/ayuda" element={<Page><FAQ /></Page>} />
 
           {/* Login con móvil + contraseña */}
           <Route path="/login" element={<Page><LoginPassword /></Page>} />
 
-          {/* Dashboards (protegidos por rol) */}
+          {/* Dashboards protegidos */}
           <Route
             path="/dashboard/propietario"
             element={
@@ -72,7 +79,7 @@ export default function App() {
           <Route
             path="/dashboard/franquiciado"
             element={
-              <ProtectedRoute roles={["franquiciado","admin"]}>
+              <ProtectedRoute roles={["franquiciado", "admin"]}>
                 <Page><DashboardFranquiciado /></Page>
               </ProtectedRoute>
             }
