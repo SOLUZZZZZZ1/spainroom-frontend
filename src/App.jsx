@@ -19,7 +19,7 @@ import Reservas from "./pages/Reservas.jsx";
 import ReservarHabitacion from "./pages/ReservarHabitacion.jsx";
 import Habitacion from "./pages/Habitacion.jsx";
 import FAQ from "./pages/FAQ.jsx";
-
+import Contacto from "./pages/Contacto.jsx";
 import DashboardPropietario from "./pages/dashboards/DashboardPropietario.jsx";
 import DashboardFranquiciado from "./pages/dashboards/DashboardFranquiciado.jsx";
 import DashboardInquilino from "./pages/dashboards/DashboardInquilino.jsx";
@@ -60,6 +60,7 @@ export default function App() {
           <Route path="/franquiciados" element={<Page><Franquiciados /></Page>} />
           <Route path="/reservas" element={<Page><Reservas /></Page>} />
           <Route path="/ayuda" element={<Page><FAQ /></Page>} />
+          <Route path="/contacto" element={<Page><Contacto /></Page>} />
           <Route path="/login" element={<Page><LoginPassword /></Page>} />
 
           <Route
