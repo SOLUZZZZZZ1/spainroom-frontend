@@ -21,6 +21,7 @@ import Habitacion from "./pages/Habitacion.jsx";
 import FAQ from "./pages/FAQ.jsx";
 import Contacto from "./pages/Contacto.jsx";
 import Privacidad from "./pages/Privacidad.jsx";
+import Cookies from "./pages/Cookies.jsx";
 import DashboardPropietario from "./pages/dashboards/DashboardPropietario.jsx";
 import DashboardFranquiciado from "./pages/dashboards/DashboardFranquiciado.jsx";
 import DashboardInquilino from "./pages/dashboards/DashboardInquilino.jsx";
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="/ayuda" element={<Page><FAQ /></Page>} />
           <Route path="/contacto" element={<Page><Contacto /></Page>} />
           <Route path="/privacidad" element={<Page><Privacidad /></Page>} />
+          <Route path="/cookies" element={<Page><Cookies /></Page>} />
           <Route path="/login" element={<Page><LoginPassword /></Page>} />
 
           <Route
