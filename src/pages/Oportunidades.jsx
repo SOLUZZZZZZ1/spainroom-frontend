@@ -182,29 +182,118 @@ export default function Oportunidades() {
         description="Inversión, publicidad y colaboraciones con SpainRoom. Presenta tu propuesta y lleguemos a un acuerdo."
       />
 
-      {/* Banner destacado (banda azul, texto blanco) */}
+      {/* HERO OPORTUNIDADES */}
       <div
         style={{
-          background: "#0A58CA",
+          background: "linear-gradient(135deg, #0b65d8 0%, #084fa8 100%)",
           color: "#fff",
-          borderRadius: 16,
-          padding: "14px 16px",
-          marginBottom: 16,
-          boxShadow: "0 8px 20px rgba(10,88,202,.35)",
-          border: "1px solid rgba(255,255,255,.25)",
-          textAlign: "center",
+          borderRadius: 18,
+          padding: "30px 24px",
+          marginBottom: 18,
+          boxShadow: "0 10px 24px rgba(10,88,202,.25)",
+          border: "1px solid rgba(255,255,255,.18)",
         }}
       >
-        <div style={{ fontSize: 16, fontWeight: 800 }}>
-          Abierto a inversión, publicidad/promociones y colaboraciones B2B.
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            background: "rgba(255,255,255,.14)",
+            border: "1px solid rgba(255,255,255,.24)",
+            borderRadius: 999,
+            padding: "7px 12px",
+            fontWeight: 800,
+            marginBottom: 16,
+            color: "#fff",
+          }}
+        >
+          SpainRoom<sup style={{ color: "#fff" }}>®</sup> · Inversión, publicidad y alianzas
         </div>
-        <div style={{ opacity: 0.95, marginTop: 4 }}>
-          Si tienes una propuesta de valor para la comunidad SpainRoom, queremos escucharte.
+
+        <h1
+          style={{
+            margin: "0 0 8px",
+            color: "#fff",
+            fontSize: "clamp(30px,4vw,48px)",
+            lineHeight: 1.08,
+            fontWeight: 950,
+            letterSpacing: "-.03em",
+          }}
+        >
+          Oportunidades SpainRoom
+        </h1>
+
+        <p
+          style={{
+            margin: "0 0 18px",
+            color: "rgba(255,255,255,.92)",
+            maxWidth: 820,
+            lineHeight: 1.6,
+            fontWeight: 600,
+            fontSize: 17,
+          }}
+        >
+          Abierto a inversión, publicidad, promociones y colaboraciones estratégicas.
+          SpainRoom conecta personas, viviendas y oportunidades.
+        </p>
+
+        <div className="sr-oportunidades-hero-grid">
+          <div style={{ background:"rgba(255,255,255,.12)", padding:14, borderRadius:14, border:"1px solid rgba(255,255,255,.18)", color:"#fff", fontWeight:900 }}>
+            📈 Inversión
+          </div>
+
+          <div style={{ background:"rgba(255,255,255,.12)", padding:14, borderRadius:14, border:"1px solid rgba(255,255,255,.18)", color:"#fff", fontWeight:900 }}>
+            📣 Publicidad
+          </div>
+
+          <div style={{ background:"rgba(255,255,255,.12)", padding:14, borderRadius:14, border:"1px solid rgba(255,255,255,.18)", color:"#fff", fontWeight:900 }}>
+            🤝 Colaboraciones
+          </div>
+
+          <div style={{ background:"rgba(255,255,255,.12)", padding:14, borderRadius:14, border:"1px solid rgba(255,255,255,.18)", color:"#fff", fontWeight:900 }}>
+            🚀 Crecimiento conjunto
+          </div>
         </div>
       </div>
 
+      <style>{`
+        .sr-oportunidades-hero-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+        }
+        @media (max-width: 900px) {
+          .sr-oportunidades-hero-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+        @media (max-width: 560px) {
+          .sr-oportunidades-hero-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        .sr-oportunidades-info-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+        .sr-oportunidades-form-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 16px;
+        }
+        @media (max-width: 980px) {
+          .sr-oportunidades-info-grid,
+          .sr-oportunidades-form-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
       {/* Tarjetas informativas */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 16 }}>
+      <div className="sr-oportunidades-info-grid">
         <SectionCard title="Inversión SpainRoom">
           <ul style={{ margin: "0 0 0 18px" }}>
             <li>Participa en el crecimiento por zonas.</li>
@@ -229,7 +318,7 @@ export default function Oportunidades() {
       </div>
 
       {/* Formularios por tipo */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+      <div className="sr-oportunidades-form-grid">
         <FormOportunidad tipo="inversion"   cta="Enviar (inversión)" />
         <FormOportunidad tipo="publicidad"  cta="Enviar (publicidad)" />
         <FormOportunidad tipo="colaboracion" cta="Enviar (colaboración)" />
