@@ -146,10 +146,10 @@ export default function Franquiciados() {
 
         {/* EXCLUSIVIDAD Y CRITERIOS */}
         <section style={card}>
-          <h2 style={{ margin:"0 0 12px", fontSize:24, fontWeight:800, color:"#0A58CA" }}>No cualquiera puede ser franquiciado SpainRoom</h2>
+          <h2 style={{ margin:"0 0 12px", fontSize:24, fontWeight:800, color:"#0A58CA" }}>Crecemos con los socios adecuados</h2>
           <p style={{ margin:0 }}>
-            Seleccionamos cuidadosamente a nuestros partners para asegurar <b>profesionalidad</b>, <b>compromiso</b> y <b>exclusividad territorial</b>.
-            Cada zona tiene un número limitado de franquicias. Crecemos de forma ordenada y sostenible.
+            Cada zona merece un franquiciado preparado, comprometido y alineado con los valores de SpainRoom.
+            Buscamos personas con vocación de servicio, capacidad de gestión y ganas de crecer junto a una marca en expansión.
           </p>
           <ul style={{ lineHeight:1.7, marginLeft:18, marginTop:10 }}>
             <li><b>Orientación comercial</b> y trato excelente con propietarios e inquilinos.</li>
