@@ -231,41 +231,4 @@ export default function Franquiciados() {
           )}
         </section>
 
-        {/* ACCESO / RECUPERAR CONTRASEÑA */}
-        <section style={{ ...card, marginTop:18 }}>
-          <h3 style={{ margin:"0 0 10px" }}>Mi Franquicia</h3>
-          <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:12 }}>
-            <a href="/login?next=/dashboard/franquiciado"
-               style={{ ...btn, textDecoration:"none", display:"inline-block" }}>
-              Acceder
-            </a>
-            <a href="#recuperar" style={{ color:"#0A58CA", textDecoration:"underline" }}>Crear / recuperar contraseña</a>
-          </div>
-
-          <div id="recuperar" style={{ marginTop:8 }}>
-            <label style={{ display:"block", marginBottom:6, fontWeight:600 }}>Móvil</label>
-            <input
-              inputMode="tel" autoComplete="tel" placeholder="+34 6XX XXX XXX"
-              value={phone} onChange={(e)=>setPhone(e.target.value)}
-              style={input}
-            />
-            <div style={{ display:"flex", gap:10, marginTop:12 }}>
-              <button onClick={sendPasswordLink} disabled={busy} style={btn}>
-                {busy ? "Enviando…" : "Recibir enlace por SMS"}
-              </button>
-              <a href="/login?next=/dashboard/franquiciado" style={linkBtn}>
-                Ir a Login
-              </a>
-            </div>
-            {msg && <div style={{ marginTop:10 }}>{msg}</div>}
-          </div>
-        </section>
-
-        {/* NOTA FINAL */}
-        <p style={{ color:"#fff", opacity:.9, marginTop:18 }}>
-          ¿Tienes dudas? Escríbenos desde <a href="/oportunidades" style={{color:"#fff", textDecoration:"underline"}}>Oportunidades</a> y te contactamos.
-        </p>
-      </div>
-    </div>
-  );
-}
+      
