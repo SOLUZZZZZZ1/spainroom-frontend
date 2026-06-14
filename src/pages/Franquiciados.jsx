@@ -231,4 +231,11 @@ export default function Franquiciados() {
           )}
         </section>
 
-      
+        {/* NOTA FINAL */}
+        <p style={{ color:"#fff", opacity:.9, marginTop:18 }}>
+          ¿Tienes dudas? Escríbenos desde <a href="/oportunidades" style={{color:"#fff", textDecoration:"underline"}}>Oportunidades</a> y te contactamos.
+        </p>
+      </div>
+    </div>
+  );
+}
