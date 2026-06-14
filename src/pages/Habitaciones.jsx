@@ -185,6 +185,99 @@ export default function Habitaciones() {
       <section className="container" style={{ padding:"24px 0", maxWidth:1200, margin:"0 auto" }}>
         <h1 style={{ margin:"0 0 12px" }}>Habitaciones</h1>
 
+        {/* HERO HABITACIONES */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, #0b65d8 0%, #084fa8 100%)",
+            color: "#fff",
+            borderRadius: 18,
+            padding: "30px 24px",
+            marginBottom: 18,
+            boxShadow: "0 10px 24px rgba(10,88,202,.25)",
+            border: "1px solid rgba(255,255,255,.18)",
+          }}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: "rgba(255,255,255,.14)",
+              border: "1px solid rgba(255,255,255,.24)",
+              borderRadius: 999,
+              padding: "7px 12px",
+              fontWeight: 800,
+              marginBottom: 16,
+              color: "#fff",
+            }}
+          >
+            SpainRoom<sup style={{ color: "#fff" }}>®</sup> · Habitaciones verificadas
+          </div>
+
+          <h2
+            style={{
+              margin: "0 0 8px",
+              color: "#fff",
+              fontSize: "clamp(30px,4vw,48px)",
+              lineHeight: 1.08,
+              fontWeight: 950,
+              letterSpacing: "-.03em",
+            }}
+          >
+            Encuentra habitaciones listas para entrar a vivir
+          </h2>
+
+          <p
+            style={{
+              margin: "0 0 18px",
+              color: "rgba(255,255,255,.92)",
+              maxWidth: 780,
+              lineHeight: 1.6,
+              fontWeight: 600,
+              fontSize: 17,
+            }}
+          >
+            Busca por provincia, ciudad o zona y encuentra habitaciones con información clara,
+            fotografías, ficha detallada y reserva online.
+          </p>
+
+          <div className="sr-habitaciones-hero-grid">
+            <div style={{ background:"rgba(255,255,255,.12)", padding:14, borderRadius:14, border:"1px solid rgba(255,255,255,.18)", color:"#fff", fontWeight:900 }}>
+              🏠 Habitaciones verificadas
+            </div>
+
+            <div style={{ background:"rgba(255,255,255,.12)", padding:14, borderRadius:14, border:"1px solid rgba(255,255,255,.18)", color:"#fff", fontWeight:900 }}>
+              🔑 Reserva online
+            </div>
+
+            <div style={{ background:"rgba(255,255,255,.12)", padding:14, borderRadius:14, border:"1px solid rgba(255,255,255,.18)", color:"#fff", fontWeight:900 }}>
+              📍 Mejores ubicaciones
+            </div>
+
+            <div style={{ background:"rgba(255,255,255,.12)", padding:14, borderRadius:14, border:"1px solid rgba(255,255,255,.18)", color:"#fff", fontWeight:900 }}>
+              🛡️ Información contrastada
+            </div>
+          </div>
+        </div>
+
+        <style>{`
+          .sr-habitaciones-hero-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+          }
+          @media (max-width: 900px) {
+            .sr-habitaciones-hero-grid {
+              grid-template-columns: 1fr 1fr;
+            }
+          }
+          @media (max-width: 560px) {
+            .sr-habitaciones-hero-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+        `}</style>
+
         {/* Buscador */}
         <form
           onSubmit={onSearch}
