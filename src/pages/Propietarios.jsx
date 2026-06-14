@@ -91,7 +91,7 @@ export default function Propietarios(){
       {/* BANDA SUPERIOR con beneficios (no toca verificador ni mapa) */}
       <section
         style={{
-          background:'#0b1220',
+          background:'linear-gradient(135deg, #0b65d8 0%, #084fa8 100%)',
           color:'#fff',
           borderRadius:16,
           padding:'18px 16px',
