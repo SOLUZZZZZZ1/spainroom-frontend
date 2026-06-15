@@ -10,7 +10,9 @@ export default function LoginPassword() {
   const [phone, setPhone] = useState("");
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recoverBusy, setRecoverBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [info, setInfo] = useState("");
 
   const nav = useNavigate();
   const loc = useLocation();
@@ -46,6 +48,7 @@ export default function LoginPassword() {
   async function doLogin(e) {
     e?.preventDefault();
     setMsg("");
+    setInfo("");
     setBusy(true);
 
     try {
@@ -58,7 +61,7 @@ export default function LoginPassword() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({ phone: t, password: pw }),
         credentials: "include",
@@ -67,6 +70,9 @@ export default function LoginPassword() {
       const j = await r.json().catch(() => ({}));
 
       if (!r.ok || j?.ok !== true || !j?.token) {
+        if (j?.error === "no_password_set") {
+          throw new Error("Este usuario todavía no tiene contraseña. Pulsa “Crear o recuperar contraseña”.");
+        }
         throw new Error(j?.error || "Credenciales no válidas.");
       }
 
@@ -85,6 +91,45 @@ export default function LoginPassword() {
       setMsg(e2.message || "No se pudo iniciar sesión.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function requestPasswordLink() {
+    setMsg("");
+    setInfo("");
+    setRecoverBusy(true);
+
+    try {
+      const t = normalizePhone(phone);
+      if (!t) throw new Error("Introduce primero tu móvil en formato +34…");
+
+      const r = await fetch(`${API_BASE}/api/auth/request_password_link`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ phone: t }),
+        credentials: "include",
+      });
+
+      const j = await r.json().catch(() => ({}));
+
+      if (!r.ok || j?.ok !== true) {
+        throw new Error(j?.error || "No se pudo generar el enlace de contraseña.");
+      }
+
+      if (j?.demo && j?.link) {
+        setInfo("Enlace generado. Se abrirá la pantalla para crear o recuperar tu contraseña.");
+        window.open(j.link, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      setInfo("Enlace generado. Revisa las instrucciones enviadas por SpainRoom.");
+    } catch (e2) {
+      setMsg(e2.message || "No se pudo generar el enlace de contraseña.");
+    } finally {
+      setRecoverBusy(false);
     }
   }
 
@@ -217,12 +262,28 @@ export default function LoginPassword() {
             fontSize: 14,
           }}
         >
-          <strong style={{ color: "#0b1220" }}>Crear o recuperar contraseña:</strong>{" "}
-          temporalmente se gestionará desde SpainRoom. Escríbenos a{" "}
-          <a href="mailto:admin@spainroom.es" style={{ color: "#0A58CA", fontWeight: 900 }}>
-            admin@spainroom.es
-          </a>
-          .
+          <strong style={{ color: "#0b1220" }}>¿No tienes contraseña o la has olvidado?</strong>
+          <div style={{ marginTop: 6 }}>
+            Introduce tu móvil y pulsa el botón para generar el acceso de creación o recuperación.
+          </div>
+
+          <button
+            type="button"
+            onClick={requestPasswordLink}
+            disabled={recoverBusy}
+            style={{
+              marginTop: 10,
+              background: "#64748b",
+              color: "#fff",
+              border: "none",
+              padding: "10px 14px",
+              borderRadius: 12,
+              fontWeight: 900,
+              cursor: recoverBusy ? "not-allowed" : "pointer",
+            }}
+          >
+            {recoverBusy ? "Generando…" : "Crear o recuperar contraseña"}
+          </button>
         </div>
 
         <div
@@ -242,6 +303,22 @@ export default function LoginPassword() {
             Contacto
           </Link>
         </div>
+
+        {info && (
+          <div
+            style={{
+              marginTop: 12,
+              background: "#ecfdf5",
+              border: "1px solid #bbf7d0",
+              color: "#065f46",
+              borderRadius: 12,
+              padding: "10px 12px",
+              fontWeight: 800,
+            }}
+          >
+            {info}
+          </div>
+        )}
 
         {msg && (
           <div
