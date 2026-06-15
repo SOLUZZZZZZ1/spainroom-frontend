@@ -193,16 +193,21 @@ export default function VerificacionCedula() {
 
   const renderCedulaStatus = () => {
     if (!cedulaStatus) return null;
-    let txt = "No consta";
-    if (cedulaStatus.status === "vigente") txt = "Sí (vigente)";
-    else if (cedulaStatus.status === "caducada") txt = "No (caducada)";
-    else if (cedulaStatus.status === "pendiente") txt = "Pendiente de verificación";
+    let txt = "Pendiente de revisión documental";
+    if (cedulaStatus.status === "vigente") txt = "Documento aportado / pendiente de validación";
+    else if (cedulaStatus.status === "caducada") txt = "Documento caducado / requiere revisión";
+    else if (cedulaStatus.status === "pendiente") txt = "Pendiente de revisión documental";
     return (
       <div style={{ marginTop:12, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:12, padding:12 }}>
-        <div style={{ fontWeight:800, color:"#0b1220" }}>Tiene cédula</div>
+        <div style={{ fontWeight:800, color:"#0b1220" }}>Estado documental</div>
         <div style={{ marginTop:6, color:"#0b1220" }}>
           <b>Estado:</b> {txt}
-          {cedulaStatus.expires_at ? (<span> — <b>Caduca:</b> {cedulaStatus.expires_at}</span>) : null}
+          {cedulaStatus.expires_at ? (<span> — <b>Fecha informada:</b> {cedulaStatus.expires_at}</span>) : null}
+        </div>
+        <div style={{ marginTop:8, color:"#475569", lineHeight:1.55 }}>
+          SpainRoom ha identificado el inmueble y los requisitos legales aplicables.
+          La existencia y vigencia de la cédula de habitabilidad no se confirma automáticamente:
+          debe revisarse con la documentación aportada o mediante comprobación posterior.
         </div>
       </div>
     );
@@ -230,10 +235,13 @@ export default function VerificacionCedula() {
 
   return (
     <div id="verificacion" style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:16, padding:16 }}>
-      <h3 style={{ margin:"0 0 6px", color:"#0b1220" }}>Comprobar cédula y requisitos</h3>
-      <p style={{ color:"#334155" }}>
-        Introduce <b>dirección</b>, <b>CP</b>, <b>municipio</b> y <b>provincia</b>, o una <b>referencia catastral</b>. 
-        (Opcional: Nº de cédula). Te devolveremos un <b>ID</b>, el <b>requisito legal</b> y si <b>tiene cédula en vigor</b>.
+      <h3 style={{ margin:"0 0 6px", color:"#0b1220" }}>Verificación previa de habitabilidad</h3>
+      <p style={{ color:"#334155", lineHeight:1.6 }}>
+        Introduce <b>dirección</b>, <b>CP</b>, <b>municipio</b> y <b>provincia</b>, o una <b>referencia catastral</b>.
+        SpainRoom identificará el inmueble, mostrará los <b>requisitos legales aplicables</b>
+        y generará un <b>expediente de revisión documental</b>.
+        La existencia y vigencia de la cédula deberá confirmarse mediante documentación aportada
+        o revisión posterior.
       </p>
 
       {/* FORMULARIO */}
@@ -264,7 +272,7 @@ export default function VerificacionCedula() {
         <div style={{ display:"flex", gap:10, justifyContent:"flex-end", flexWrap:"wrap" }}>
           <button type="submit" disabled={busy}
                   style={{ background: busy ? "#6b7280" : "#0A58CA", color:"#fff", border:"none", padding:"10px 14px", borderRadius:10, fontWeight:800, cursor: busy ? "not-allowed" : "pointer" }}>
-            {busy ? "Comprobando..." : "Comprobar"}
+            {busy ? "Revisando..." : "Iniciar revisión"}
           </button>
         </div>
 
