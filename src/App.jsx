@@ -28,6 +28,7 @@ import DashboardFranquiciado from "./pages/dashboards/DashboardFranquiciado.jsx"
 import DashboardInquilino from "./pages/dashboards/DashboardInquilino.jsx";
 
 import LoginPassword from "./pages/LoginPassword.jsx";
+import SetPassword from "./pages/SetPassword.jsx";
 import Page from "./components/Page.jsx";
 
 export default function App() {
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/cookies" element={<Page><Cookies /></Page>} />
           <Route path="/aviso-legal" element={<Page><AvisoLegal /></Page>} />
           <Route path="/login" element={<Page><LoginPassword /></Page>} />
+          <Route path="/set-password" element={<Page><SetPassword /></Page>} />
 
           <Route
             path="/dashboard/propietario"
