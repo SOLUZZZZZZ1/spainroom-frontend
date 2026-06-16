@@ -23,6 +23,7 @@ import Contacto from "./pages/Contacto.jsx";
 import Privacidad from "./pages/Privacidad.jsx";
 import Cookies from "./pages/Cookies.jsx";
 import AvisoLegal from "./pages/AvisoLegal.jsx";
+import Admin from "./pages/Admin.jsx";
 import DashboardPropietario from "./pages/dashboards/DashboardPropietario.jsx";
 import DashboardFranquiciado from "./pages/dashboards/DashboardFranquiciado.jsx";
 import DashboardInquilino from "./pages/dashboards/DashboardInquilino.jsx";
@@ -70,6 +71,7 @@ export default function App() {
           <Route path="/aviso-legal" element={<Page><AvisoLegal /></Page>} />
           <Route path="/login" element={<Page><LoginPassword /></Page>} />
           <Route path="/set-password" element={<Page><SetPassword /></Page>} />
+          <Route path="/admin" element={<Page><Admin /></Page>} />
 
           <Route
             path="/dashboard/propietario"
