@@ -1,5 +1,5 @@
 // src/pages/Admin.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import SEO from "../components/SEO.jsx";
 
 const API_BASE = import.meta.env?.VITE_API_BASE || "https://backend-spainroom.onrender.com";
@@ -29,6 +29,15 @@ function normalizePhone(v) {
   if (s.startsWith("34")) return "+" + s;
   if (/^(6|7)\d{8,}$/.test(s)) return "+34" + s;
   return s;
+}
+
+
+function dashboardPathForRole(role, userId) {
+  const q = userId ? `?admin_view_user_id=${encodeURIComponent(userId)}` : "";
+  if (role === "propietario") return `/dashboard/propietario${q}`;
+  if (role === "franquiciado") return `/dashboard/franquiciado${q}`;
+  if (role === "admin" || role === "equipo") return `/admin${q}`;
+  return `/dashboard/inquilino${q}`;
 }
 
 async function copyToClipboard(text) {
@@ -104,15 +113,39 @@ function Button({ children, onClick, href, secondary = false, disabled = false }
 export default function Admin() {
   const [form, setForm] = useState({ name: "", phone: "", email: "", role: "inquilino" });
   const [busy, setBusy] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [msg, setMsg] = useState("");
   const [ok, setOk] = useState(false);
   const [activationLink, setActivationLink] = useState("");
-  const [recentUsers, setRecentUsers] = useState([]);
+  const [users, setUsers] = useState([]);
+
+  const counts = users.reduce((acc, u) => {
+    acc.total += 1;
+    acc[u.role] = (acc[u.role] || 0) + 1;
+    return acc;
+  }, { total: 0 });
 
   function onChange(e) {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
   }
+
+  async function loadUsers() {
+    setLoadingUsers(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/auth/users?limit=100`, {
+        headers: { "X-Admin-Key": ADMIN_KEY },
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j?.ok === true) setUsers(j.users || []);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   async function createUserAndAccess(e) {
     e?.preventDefault?.();
@@ -151,15 +184,24 @@ export default function Admin() {
       } catch {}
 
       setActivationLink(link);
-      setRecentUsers((prev) => [{ id: j.user?.id || Date.now(), name, phone, email, role: form.role, createdAt: new Date().toLocaleString("es-ES"), link }, ...prev].slice(0, 8));
       setOk(true);
       setMsg(link ? "Usuario creado y enlace de activación generado." : "Usuario creado. No se ha podido generar enlace automático.");
+      await loadUsers();
     } catch (e2) {
       setOk(false);
       setMsg(e2.message || "No se pudo completar la operación.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function doLogout() {
+    try {
+      localStorage.removeItem("SR_TOKEN");
+      localStorage.removeItem("SR_USER");
+      window.dispatchEvent(new Event("sr-auth-updated"));
+    } catch {}
+    window.location.href = "/login";
   }
 
   async function copyWelcomeText() {
@@ -206,22 +248,38 @@ El equipo SpainRoom`;
           <p style={{ margin: 0, maxWidth: 900, color: "rgba(255,255,255,.92)", lineHeight: 1.6 }}>
             El cerebro operativo de la plataforma: usuarios, roles, accesos, bienvenida, documentación, habitaciones, pagos e incidencias.
           </p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18, alignItems: "center" }}>
             <Status tone="ok">🔐 Alta controlada</Status>
             <Status tone="info">👤 Roles por SpainRoom</Status>
             <Status tone="wait">📧 Bienvenida / activación</Status>
+            <button
+              type="button"
+              onClick={doLogout}
+              style={{
+                marginLeft: "auto",
+                background: "rgba(255,255,255,.14)",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,.35)",
+                padding: "9px 13px",
+                borderRadius: 12,
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              Cerrar sesión
+            </button>
           </div>
         </section>
 
         <section className="sr-admin-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}>
-          <Card title="Usuarios" icon="👥"><div style={{ fontSize: 24, fontWeight: 950 }}>Controlados</div><div>Altas creadas por Equipo/Admin.</div></Card>
-          <Card title="Roles" icon="🔐"><div style={{ fontSize: 24, fontWeight: 950 }}>5</div><div>Inquilino, propietario, franquiciado, equipo y admin.</div></Card>
-          <Card title="Accesos" icon="🔑"><div style={{ fontSize: 24, fontWeight: 950 }}>Por enlace</div><div>El usuario crea su propia contraseña.</div></Card>
-          <Card title="Alertas" icon="🚨"><div style={{ fontSize: 24, fontWeight: 950 }}>0</div><div>Sin alertas críticas visibles.</div></Card>
+          <Card title="Usuarios" icon="👥"><div style={{ fontSize: 24, fontWeight: 950 }}>{counts.total}</div><div>Usuarios reales en auth_user.</div></Card>
+          <Card title="Inquilinos" icon="🏠"><div style={{ fontSize: 24, fontWeight: 950 }}>{counts.inquilino || 0}</div><div>Acceso a Dashboard Inquilino.</div></Card>
+          <Card title="Propietarios" icon="🔑"><div style={{ fontSize: 24, fontWeight: 950 }}>{counts.propietario || 0}</div><div>Acceso a Dashboard Propietario.</div></Card>
+          <Card title="Franquiciados/Admin" icon="🤝"><div style={{ fontSize: 24, fontWeight: 950 }}>{(counts.franquiciado || 0) + (counts.admin || 0) + (counts.equipo || 0)}</div><div>Roles operativos.</div></Card>
         </section>
 
         <section className="sr-admin-main" style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 16, alignItems: "start" }}>
-          <Card title="Crear usuario y acceso" icon="👤" footer={<div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><Button onClick={createUserAndAccess} disabled={busy}>{busy ? "Creando..." : "Crear usuario + generar acceso"}</Button><Button secondary onClick={copyWelcomeText} disabled={!activationLink}>Copiar bienvenida</Button></div>}>
+          <Card title="Crear usuario y acceso" icon="👤" footer={<div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><Button onClick={createUserAndAccess} disabled={busy}>{busy ? "Creando..." : "Crear usuario + generar acceso"}</Button><Button secondary onClick={copyWelcomeText} disabled={!activationLink}>Copiar bienvenida</Button><Button secondary onClick={loadUsers} disabled={loadingUsers}>{loadingUsers ? "Actualizando..." : "Actualizar lista"}</Button></div>}>
             <form onSubmit={createUserAndAccess} style={{ display: "grid", gap: 12 }}>
               <div><label style={labelStyle}>Nombre y apellidos</label><input name="name" value={form.name} onChange={onChange} placeholder="Nombre completo" style={inputStyle} /></div>
               <div className="sr-admin-form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -266,13 +324,12 @@ El equipo SpainRoom`;
               <Row label="Admin" value="Centro de Control completo" />
             </Card>
 
-            <Card title="Accesos rápidos" icon="⚡">
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Button href="/dashboard/inquilino" secondary>Ver inquilino</Button>
-                <Button href="/dashboard/propietario" secondary>Ver propietario</Button>
-                <Button href="/dashboard/franquiciado" secondary>Ver franquiciado</Button>
-                <Button href="/propietarios" secondary>Ver propietarios</Button>
-              </div>
+            <Card title="Supervisión por usuario" icon="⚡">
+              <p style={{ marginTop: 0 }}>
+                Para revisar un dashboard, usa la tabla de usuarios reales y entra desde el botón
+                <strong> Ver dashboard</strong> del usuario correspondiente.
+              </p>
+              <Status tone="info">Acceso de admin/equipo por usuario concreto</Status>
             </Card>
 
             <Card title="Próximos módulos" icon="🧠">
@@ -287,9 +344,11 @@ El equipo SpainRoom`;
         </section>
 
         <section style={{ marginTop: 18 }}>
-          <Card title="Últimos usuarios creados en esta sesión" icon="📋">
-            {recentUsers.length === 0 ? (
-              <p style={{ margin: 0, color: "#64748b" }}>Todavía no se ha creado ningún usuario desde este panel en esta sesión.</p>
+          <Card title="Usuarios reales registrados" icon="📋">
+            {loadingUsers ? (
+              <p style={{ margin: 0, color: "#64748b" }}>Cargando usuarios...</p>
+            ) : users.length === 0 ? (
+              <p style={{ margin: 0, color: "#64748b" }}>No se han encontrado usuarios registrados o falta endpoint /api/auth/users.</p>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
@@ -299,17 +358,23 @@ El equipo SpainRoom`;
                       <th style={{ padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Teléfono</th>
                       <th style={{ padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Email</th>
                       <th style={{ padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Rol</th>
+                      <th style={{ padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Contraseña</th>
                       <th style={{ padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Creado</th>
+                      <th style={{ padding: "8px 6px", borderBottom: "1px solid #e2e8f0" }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recentUsers.map((u) => (
-                      <tr key={`${u.id}-${u.phone}`}>
-                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9", fontWeight: 800 }}>{u.name}</td>
-                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.phone}</td>
+                    {users.map((u) => (
+                      <tr key={u.id || u.phone}>
+                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9", fontWeight: 800 }}>{u.name || "—"}</td>
+                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.phone || "—"}</td>
                         <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.email || "—"}</td>
-                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.role}</td>
-                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.createdAt}</td>
+                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.role || "—"}</td>
+                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.has_password ? "Creada" : "Pendiente"}</td>
+                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.created_at ? new Date(u.created_at).toLocaleString("es-ES") : "—"}</td>
+                        <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>
+                          <Button href={dashboardPathForRole(u.role, u.id)} secondary>Ver dashboard</Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
