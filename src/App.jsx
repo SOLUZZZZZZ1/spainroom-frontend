@@ -76,7 +76,7 @@ export default function App() {
           <Route
             path="/dashboard/propietario"
             element={
-              <ProtectedRoute roles={["propietario"]}>
+              <ProtectedRoute roles={["propietario", "admin", "equipo"]}>
                 <Page><DashboardPropietario /></Page>
               </ProtectedRoute>
             }
@@ -84,7 +84,7 @@ export default function App() {
           <Route
             path="/dashboard/franquiciado"
             element={
-              <ProtectedRoute roles={["franquiciado", "admin"]}>
+              <ProtectedRoute roles={["franquiciado", "admin", "equipo"]}>
                 <Page><DashboardFranquiciado /></Page>
               </ProtectedRoute>
             }
@@ -92,7 +92,7 @@ export default function App() {
           <Route
             path="/dashboard/inquilino"
             element={
-              <ProtectedRoute roles={["inquilino"]}>
+              <ProtectedRoute roles={["inquilino", "admin", "equipo"]}>
                 <Page><DashboardInquilino /></Page>
               </ProtectedRoute>
             }
