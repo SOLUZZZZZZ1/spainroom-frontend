@@ -204,6 +204,27 @@ export default function Admin() {
     window.location.href = "/login";
   }
 
+  async function deleteUser(u) {
+    const nombre = u?.name || u?.phone || "este usuario";
+    const seguro = window.confirm(`¿Seguro que quieres borrar a ${nombre}? Esta acción no se puede deshacer.`);
+    if (!seguro) return;
+
+    try {
+      const r = await fetch(`${API_BASE}/api/auth/users/${u.id}`, {
+        method: "DELETE",
+        headers: { "X-Admin-Key": ADMIN_KEY },
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j?.ok !== true) {
+        throw new Error(j?.message || j?.error || "No se pudo borrar el usuario.");
+      }
+      await loadUsers();
+      alert("Usuario borrado correctamente.");
+    } catch (e) {
+      alert(e.message || "No se pudo borrar el usuario.");
+    }
+  }
+
   async function copyWelcomeText() {
     const phone = normalizePhone(form.phone);
     const roleText = {
@@ -373,7 +394,25 @@ El equipo SpainRoom`;
                         <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.has_password ? "Creada" : "Pendiente"}</td>
                         <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>{u.created_at ? new Date(u.created_at).toLocaleString("es-ES") : "—"}</td>
                         <td style={{ padding: "8px 6px", borderBottom: "1px solid #f1f5f9" }}>
-                          <Button href={dashboardPathForRole(u.role, u.id)} secondary>Ver dashboard</Button>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <Button href={dashboardPathForRole(u.role, u.id)} secondary>Ver dashboard</Button>
+                            <button
+                              type="button"
+                              onClick={() => deleteUser(u)}
+                              style={{
+                                background: "#fef2f2",
+                                color: "#991b1b",
+                                border: "1px solid #fecaca",
+                                padding: "10px 13px",
+                                borderRadius: 12,
+                                fontWeight: 900,
+                                cursor: "pointer",
+                                fontSize: 14,
+                              }}
+                            >
+                              Borrar
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
