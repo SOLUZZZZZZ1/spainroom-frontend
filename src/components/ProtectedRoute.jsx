@@ -24,7 +24,7 @@ export default function ProtectedRoute({ roles, children }) {
 
 function dashboardPathFor(role) {
   switch (role) {
-    case "admin": return "/dashboard/admin";
+    case "admin": return "/admin";
     case "franquiciado": return "/dashboard/franquiciado";
     case "propietario": return "/dashboard/propietario";
     case "inquilino": return "/dashboard/inquilino";
