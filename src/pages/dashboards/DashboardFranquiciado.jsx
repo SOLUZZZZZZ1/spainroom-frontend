@@ -125,10 +125,10 @@ const INITIAL_ROOMS = [
 ];
 
 const CONTACTS = [
-  { id:"SR-C-001", name:"Marta López", type:"Propietaria", next:"Llamar hoy" },
-  { id:"SR-C-002", name:"Javier Ruiz", type:"Propietario", next:"Enviar simulación" },
-  { id:"SR-C-003", name:"Laura M.", type:"Candidata", next:"Documentación" },
-  { id:"SR-C-004", name:"Inmobiliaria Delta", type:"Colaborador", next:"Reunión" },
+  { id:"SR-C-001", name:"Marta López", type:"Propietaria", phone:"+34 600 000 000", email:"propietario@ejemplo.com", zone:"Manresa", next:"Llamar hoy" },
+  { id:"SR-C-002", name:"Javier Ruiz", type:"Propietario", phone:"+34 622 000 000", email:"javier@ejemplo.com", zone:"Terrassa", next:"Enviar simulación" },
+  { id:"SR-C-003", name:"Laura M.", type:"Candidata", phone:"+34 633 000 000", email:"laura@ejemplo.com", zone:"Barcelona", next:"Documentación" },
+  { id:"SR-C-004", name:"Inmobiliaria Delta", type:"Colaborador", phone:"+34 931 000 000", email:"delta@ejemplo.com", zone:"Sabadell", next:"Reunión" },
 ];
 
 const OWNERS = [
@@ -174,6 +174,11 @@ export default function DashboardFranquiciado() {
   const [selectedOwnerId, setSelectedOwnerId] = useState("SR-PROP-00125");
   const [detailPanel, setDetailPanel] = useState(null);
   const [manualOpen, setManualOpen] = useState(null);
+  const [workPanel, setWorkPanel] = useState(null);
+  const [newContact, setNewContact] = useState({ name:"", type:"Propietario", phone:"", email:"", zone:"", next:"" });
+  const [extraContacts, setExtraContacts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("SR_FRANQ_EXTRA_CONTACTS") || "[]"); } catch { return []; }
+  });
   const [selectedRoomId, setSelectedRoomId] = useState("SR-H-00126");
   const [roomForm, setRoomForm] = useState({
     ownerId: "SR-PROP-00125",
@@ -207,6 +212,7 @@ export default function DashboardFranquiciado() {
   const euroM2 = totalPrivateM2 > 0 ? maxMonthlyRent / totalPrivateM2 : 0;
   const selectedRoom = rooms.find(r => r.id === selectedRoomId) || rooms[0];
   const selectedOwner = OWNERS.find(o => o.id === selectedOwnerId) || OWNERS[0];
+  const allContacts = [...CONTACTS, ...extraContacts];
 
   const calculatedRooms = simRooms.map((r) => {
     const privateM2 = Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0);
@@ -348,10 +354,49 @@ export default function DashboardFranquiciado() {
       rows: [
         ["Nombre", contact.name],
         ["Tipo", contact.type],
-        ["Siguiente acción", contact.next],
+        ["Teléfono", contact.phone || "Pendiente"],
+        ["Email", contact.email || "Pendiente"],
+        ["Zona", contact.zone || "Pendiente"],
+        ["Siguiente acción", contact.next || "Pendiente"],
       ],
       actions: "contact",
     });
+  }
+
+  function openWorkPanel(type) {
+    const panels = {
+      calls: {
+        title: "📞 Llamadas pendientes",
+        lines: ["Marta López · Propietaria · Llamar hoy", "Javier Ruiz · Enviar simulación", "Inmobiliaria Delta · Confirmar reunión"],
+      },
+      agenda: {
+        title: "📅 Agenda",
+        lines: ["09:30 · Llamar a Marta López", "11:00 · Visita SR-PROP-00125", "16:00 · Subir contrato firmado", "18:15 · Enviar simulación"],
+      },
+      publish: {
+        title: "📸 Publicación",
+        lines: ["SR-H-00126 · Pendiente fotos", "SR-H-00127 · Lista para publicar", "SR-H-00128 · Contrato pendiente"],
+      },
+    };
+    setWorkPanel(panels[type]);
+  }
+
+  function addContact() {
+    if (!newContact.name.trim()) {
+      setDetailPanel({
+        type: "notice",
+        title: "Falta el nombre del contacto",
+        rows: [["Aviso", "Añade al menos el nombre para guardar el contacto."]],
+      });
+      return;
+    }
+    const item = { id:`SR-C-${Date.now()}`, ...newContact };
+    const next = [item, ...extraContacts];
+    setExtraContacts(next);
+    localStorage.setItem("SR_FRANQ_EXTRA_CONTACTS", JSON.stringify(next));
+    setNewContact({ name:"", type:"Propietario", phone:"", email:"", zone:"", next:"" });
+    setPeopleTab("contacts");
+    viewContact(item);
   }
 
   function selectRoomForEditing(room) {
@@ -513,8 +558,19 @@ export default function DashboardFranquiciado() {
             <TaskRow icon="📸" title="4 habitaciones sin publicar" detail="Faltan fotos, ficha o validación" tone="info" action="Publicar" />
             <TaskRow icon="🟡" title="1 convivencia en amarillo" detail="Ruido y limpieza repetidos en SR-H-00125" tone="wait" action="Revisar" />
             <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:14}}>
-              <Button>📞 Ver llamadas</Button><Button secondary>📅 Ver agenda</Button><Button secondary>📸 Publicar</Button>
+              <Button onClick={() => openWorkPanel("calls")}>📞 Ver llamadas</Button><Button secondary onClick={() => openWorkPanel("agenda")}>📅 Ver agenda</Button><Button secondary onClick={() => openWorkPanel("publish")}>📸 Publicar</Button>
             </div>
+            {workPanel && (
+              <div style={{marginTop:14,background:"#f8fafc",border:"1px solid #cbd5e1",borderRadius:16,padding:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
+                  <strong>{workPanel.title}</strong>
+                  <Button small danger onClick={() => setWorkPanel(null)}>Cerrar</Button>
+                </div>
+                <div style={{display:"grid",gap:8}}>
+                  {workPanel.lines.map(line => <div key={line} style={{padding:"8px 0",borderBottom:"1px solid #e2e8f0",fontWeight:850,color:"#334155"}}>{line}</div>)}
+                </div>
+              </div>
+            )}
           </Card>
 
           <Card title="Simulador SpainRoom" icon="🧮" right={<Badge tone="ok">Informe propietario</Badge>}>
@@ -713,6 +769,32 @@ export default function DashboardFranquiciado() {
               <Button small secondary={peopleTab !== "contacts"} onClick={() => setPeopleTab("contacts")}>Contactos</Button>
             </div>
 
+            <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12,marginBottom:12}}>
+              <div style={{fontWeight:950,marginBottom:10}}>Añadir contacto rápido</div>
+              <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr .7fr .8fr 1fr .8fr",gap:8}}>
+                <Field label="Nombre" value={newContact.name} onChange={v => setNewContact(c => ({...c,name:v}))} />
+                <label style={{display:"grid",gap:6}}>
+                  <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Tipo</span>
+                  <select value={newContact.type} onChange={e => setNewContact(c => ({...c,type:e.target.value}))} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:800}}>
+                    <option>Propietario</option>
+                    <option>Inquilino</option>
+                    <option>Candidato</option>
+                    <option>Colaborador</option>
+                    <option>Inmobiliaria</option>
+                    <option>Administrador de fincas</option>
+                    <option>Asesoría</option>
+                  </select>
+                </label>
+                <Field label="Teléfono" value={newContact.phone} onChange={v => setNewContact(c => ({...c,phone:v}))} />
+                <Field label="Email" value={newContact.email} onChange={v => setNewContact(c => ({...c,email:v}))} />
+                <Field label="Zona" value={newContact.zone} onChange={v => setNewContact(c => ({...c,zone:v}))} />
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,marginTop:8}}>
+                <Field label="Siguiente acción" value={newContact.next} onChange={v => setNewContact(c => ({...c,next:v}))} />
+                <div style={{display:"grid",alignItems:"end"}}><Button onClick={addContact}>+ Guardar contacto</Button></div>
+              </div>
+            </div>
+
             {peopleTab === "owners" && (
               <>
                 <Table columns={[
@@ -776,9 +858,12 @@ export default function DashboardFranquiciado() {
               <Table columns={[
                 { key:"name", label:"Nombre", bold:true },
                 { key:"type", label:"Tipo" },
+                { key:"phone", label:"Teléfono" },
+                { key:"email", label:"Email" },
+                { key:"zone", label:"Zona" },
                 { key:"next", label:"Siguiente" },
                 { key:"call", label:"", render:r => <button type="button" onClick={() => viewContact(r)} style={{background:"#f8fafc",color:"#0A58CA",border:"1px solid #cfe0ff",borderRadius:10,padding:"7px 10px",fontWeight:900,cursor:"pointer"}}>Ver</button> },
-              ]} rows={CONTACTS} empty="Sin contactos." />
+              ]} rows={allContacts} empty="Sin contactos." />
             )}
 
             {detailPanel && (
@@ -849,7 +934,7 @@ export default function DashboardFranquiciado() {
 
     <style>{`
       @media(max-width:1180px){.sr-pro-kpis{grid-template-columns:1fr 1fr 1fr!important}.sr-pro-grid-main{grid-template-columns:1fr!important}}
-      @media(max-width:760px){.sr-pro-kpis{grid-template-columns:1fr!important}.sr-sim-form{grid-template-columns:1fr!important}.sr-sim-results{grid-template-columns:1fr!important}.sr-room-row{grid-template-columns:1fr!important}}
+      @media(max-width:760px){.sr-pro-kpis{grid-template-columns:1fr!important}.sr-sim-form{grid-template-columns:1fr!important}.sr-sim-results{grid-template-columns:1fr!important}.sr-room-row{grid-template-columns:1fr!important}.sr-contact-form{grid-template-columns:1fr!important}}
     `}</style>
   </main>;
 }
