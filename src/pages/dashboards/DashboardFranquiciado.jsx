@@ -1,203 +1,360 @@
-// Archivo generado por Nora para SpainRoom
-import React, { useEffect, useMemo, useState } from "react";
-
-const API_BASE = import.meta.env?.VITE_API_BASE || "https://backend-spainroom.onrender.com";
-const ADMIN_KEY = import.meta.env?.VITE_ADMIN_KEY || "ramon";
+// src/pages/dashboards/DashboardFranquiciado.jsx
+// SpainRoom® — Centro de Operaciones Franquiciado PRO V1
+import React, { useMemo, useState } from "react";
 
 function getUser() {
   try { return JSON.parse(localStorage.getItem("SR_USER") || "{}"); } catch { return {}; }
 }
-function firstName(name, fallback) {
+function firstName(name) {
   const clean = String(name || "").trim();
-  return clean ? clean.split(/\s+/)[0] : fallback;
+  return clean ? clean.split(/\s+/)[0] : "Franquiciado";
 }
 function money(n) {
-  return typeof n === "number" ? n.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) : (n || "—");
+  if (typeof n !== "number" || Number.isNaN(n)) return "—";
+  return n.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 }
+function pct(n) {
+  if (typeof n !== "number" || Number.isNaN(n)) return "—";
+  return `${n.toFixed(2).replace(".", ",")} %`;
+}
+
 function Badge({ children, tone = "info" }) {
   const map = {
     ok: ["#ecfdf5", "#047857", "#bbf7d0"],
     wait: ["#fffbeb", "#92400e", "#fde68a"],
     danger: ["#fef2f2", "#991b1b", "#fecaca"],
+    orange: ["#fff7ed", "#c2410c", "#fed7aa"],
     info: ["#eff6ff", "#1d4ed8", "#bfdbfe"],
+    dark: ["#f1f5f9", "#334155", "#cbd5e1"],
   };
   const [bg, color, border] = map[tone] || map.info;
-  return <span style={{display:"inline-flex",padding:"6px 10px",borderRadius:999,fontWeight:900,fontSize:13,background:bg,color,border:`1px solid ${border}`}}>{children}</span>;
+  return <span style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:999,fontWeight:900,fontSize:13,background:bg,color,border:`1px solid ${border}`,whiteSpace:"nowrap"}}>{children}</span>;
 }
+
 function Card({ title, icon, children, right }) {
-  return <section style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:18,boxShadow:"0 8px 22px rgba(15,23,42,.06)"}}>
-    <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",marginBottom:12}}>
+  return <section style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:20,padding:18,boxShadow:"0 8px 24px rgba(15,23,42,.06)"}}>
+    <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",marginBottom:14}}>
       <div style={{display:"flex",alignItems:"center",gap:10}}>
-        <div style={{width:38,height:38,borderRadius:12,background:"#eef6ff",display:"grid",placeItems:"center",fontSize:20}}>{icon}</div>
-        <h3 style={{margin:0,fontSize:19,fontWeight:950,color:"#0b1220"}}>{title}</h3>
+        <div style={{width:40,height:40,borderRadius:14,background:"#eef6ff",display:"grid",placeItems:"center",fontSize:21,flex:"0 0 auto"}}>{icon}</div>
+        <h3 style={{margin:0,fontSize:19,fontWeight:950,color:"#0b1220",letterSpacing:"-.01em"}}>{title}</h3>
       </div>
       {right}
     </div>
     {children}
   </section>;
 }
-function KPI({ label, value, hint, icon }) {
-  return <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:16,boxShadow:"0 8px 22px rgba(15,23,42,.06)"}}>
+
+function KPI({ label, value, hint, icon, tone = "info" }) {
+  const bg = tone === "ok" ? "#ecfdf5" : tone === "danger" ? "#fef2f2" : tone === "wait" ? "#fffbeb" : "#eff6ff";
+  return <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:18,padding:16,boxShadow:"0 8px 22px rgba(15,23,42,.06)",minHeight:112}}>
     <div style={{display:"flex",justifyContent:"space-between",gap:12}}>
       <div>
         <div style={{fontSize:25,fontWeight:950,color:"#0b1220",lineHeight:1.1}}>{value}</div>
-        <div style={{color:"#475569",fontWeight:800,marginTop:5}}>{label}</div>
-        {hint && <div style={{color:"#64748b",fontSize:13,marginTop:4}}>{hint}</div>}
+        <div style={{color:"#475569",fontWeight:850,marginTop:6}}>{label}</div>
+        {hint && <div style={{color:"#64748b",fontSize:13,marginTop:5,lineHeight:1.35}}>{hint}</div>}
       </div>
-      <div style={{width:42,height:42,borderRadius:14,background:"#eff6ff",display:"grid",placeItems:"center",fontSize:22}}>{icon}</div>
+      <div style={{width:44,height:44,borderRadius:15,background:bg,display:"grid",placeItems:"center",fontSize:23,flex:"0 0 auto"}}>{icon}</div>
     </div>
   </div>;
 }
+
+function Button({ children, onClick, href, secondary = false, danger = false, small = false }) {
+  const common = {display:"inline-flex",alignItems:"center",justifyContent:"center",textDecoration:"none",borderRadius:13,fontWeight:950,cursor:"pointer",fontSize:small?13:14,padding:small?"8px 10px":"10px 13px",border:"1px solid",whiteSpace:"nowrap"};
+  let style = {...common,background:"#0A58CA",color:"#fff",borderColor:"#0A58CA"};
+  if (secondary) style = {...common,background:"#f8fafc",color:"#0A58CA",borderColor:"#cfe0ff"};
+  if (danger) style = {...common,background:"#fef2f2",color:"#991b1b",borderColor:"#fecaca"};
+  if (href) return <a href={href} style={style}>{children}</a>;
+  return <button type="button" onClick={onClick} style={style}>{children}</button>;
+}
+
+function AdminBanner() {
+  const id = new URLSearchParams(window.location.search).get("admin_view_user_id");
+  if (!id) return null;
+  return <div style={{marginBottom:14,background:"#eff6ff",color:"#1d4ed8",border:"1px solid #bfdbfe",borderRadius:16,padding:"12px 14px",fontWeight:900}}>👑 Modo supervisión Admin · Vista usuario ID {id}</div>;
+}
+
+function TaskRow({ icon, title, detail, tone, action }) {
+  return <div style={{display:"grid",gridTemplateColumns:"42px 1fr auto",gap:10,alignItems:"center",padding:"11px 0",borderBottom:"1px solid #f1f5f9"}}>
+    <div style={{fontSize:25}}>{icon}</div>
+    <div>
+      <div style={{color:"#0b1220",fontWeight:950}}>{title}</div>
+      <div style={{color:"#64748b",fontSize:13,marginTop:2}}>{detail}</div>
+    </div>
+    <Badge tone={tone}>{action}</Badge>
+  </div>;
+}
+
 function Table({ columns, rows, empty }) {
   return <div style={{overflowX:"auto"}}>
     <table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}>
       <thead><tr style={{color:"#64748b",textAlign:"left"}}>{columns.map(c => <th key={c.key} style={{padding:"9px 7px",borderBottom:"1px solid #e2e8f0"}}>{c.label}</th>)}</tr></thead>
       <tbody>
         {rows.length === 0 ? <tr><td colSpan={columns.length} style={{padding:18,color:"#64748b",textAlign:"center"}}>{empty}</td></tr> :
-          rows.map(row => <tr key={row.id}>{columns.map(c => <td key={c.key} style={{padding:"9px 7px",borderBottom:"1px solid #f1f5f9",color:"#0b1220",fontWeight:c.bold?800:500}}>{c.render ? c.render(row) : row[c.key]}</td>)}</tr>)
-        }
+          rows.map(row => <tr key={row.id}>{columns.map(c => <td key={c.key} style={{padding:"10px 7px",borderBottom:"1px solid #f1f5f9",color:"#0b1220",fontWeight:c.bold?850:500,verticalAlign:"middle"}}>{c.render ? c.render(row) : row[c.key]}</td>)}</tr>)}
       </tbody>
     </table>
   </div>;
 }
-function Hero({ role, name, text }) {
-  return <section style={{background:"linear-gradient(135deg, #0b65d8 0%, #084fa8 100%)",color:"#fff",borderRadius:22,padding:"28px 24px",marginBottom:18,boxShadow:"0 10px 26px rgba(10,88,202,.22)"}}>
-    <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",borderRadius:999,padding:"7px 12px",fontWeight:900,marginBottom:14}}>SpainRoom<sup>®</sup> · {role}</div>
-    <h1 style={{margin:"0 0 8px",fontSize:"clamp(30px,4vw,44px)",lineHeight:1.08,fontWeight:950,letterSpacing:"-.03em"}}>Hola, {name} 👋</h1>
-    <p style={{margin:0,maxWidth:900,color:"rgba(255,255,255,.92)",lineHeight:1.6}}>{text}</p>
-  </section>;
-}
-function AdminBanner() {
-  const id = new URLSearchParams(window.location.search).get("admin_view_user_id");
-  if (!id) return null;
-  return <div style={{marginBottom:14,background:"#eff6ff",color:"#1d4ed8",border:"1px solid #bfdbfe",borderRadius:16,padding:"12px 14px",fontWeight:900}}>👑 Modo supervisión Admin · Vista usuario ID {id}</div>;
-}
-const btn = {background:"#0A58CA",color:"#fff",border:"none",padding:"11px 14px",borderRadius:12,fontWeight:900,cursor:"pointer"};
 
-function Field({ label, value }) {
-  return <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
-    <div style={{color:"#64748b",fontSize:13,fontWeight:800}}>{label}</div>
-    <div style={{color:"#0b1220",fontWeight:900,marginTop:3}}>{value || "Pendiente"}</div>
+function Field({ label, value, onChange, type = "text" }) {
+  return <label style={{display:"grid",gap:6}}>
+    <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>{label}</span>
+    <input type={type} value={value} onChange={e => onChange(e.target.value)} style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",color:"#0b1220",fontWeight:750,background:"#fff",outline:"none"}} />
+  </label>;
+}
+
+function Check({ checked, onChange, label }) {
+  return <label style={{display:"inline-flex",alignItems:"center",gap:8,cursor:"pointer",color:"#334155",fontWeight:850,padding:"8px 10px",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:12}}>
+    <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+    {label}
+  </label>;
+}
+
+function HealthLine({ label, tone }) {
+  const dot = tone === "ok" ? "🟢" : tone === "wait" ? "🟡" : tone === "orange" ? "🟠" : "🔴";
+  return <div style={{display:"flex",justifyContent:"space-between",gap:12,padding:"8px 0",borderBottom:"1px solid #f1f5f9"}}>
+    <span style={{color:"#475569",fontWeight:800}}>{label}</span><strong>{dot}</strong>
   </div>;
 }
 
+const INITIAL_ROOMS = [
+  { id:"SR-H-00125", title:"Centro A", status:"Ocupada", price:335, payment:"ok", convivencia:"wait", docs:"ok", publish:"ok" },
+  { id:"SR-H-00126", title:"Centro B", status:"Pendiente fotos", price:310, payment:"ok", convivencia:"ok", docs:"wait", publish:"wait" },
+  { id:"SR-H-00127", title:"Eixample A", status:"Lista para publicar", price:360, payment:"ok", convivencia:"ok", docs:"ok", publish:"wait" },
+  { id:"SR-H-00128", title:"Manresa Norte", status:"Contrato pendiente", price:290, payment:"danger", convivencia:"ok", docs:"danger", publish:"danger" },
+];
+
+const CONTACTS = [
+  { id:"SR-C-001", name:"Marta López", type:"Propietaria", next:"Llamar hoy" },
+  { id:"SR-C-002", name:"Javier Ruiz", type:"Propietario", next:"Enviar simulación" },
+  { id:"SR-C-003", name:"Laura M.", type:"Candidata", next:"Documentación" },
+  { id:"SR-C-004", name:"Inmobiliaria Delta", type:"Colaborador", next:"Reunión" },
+];
+
+const HELP = [
+  ["Cómo explicar SpainRoom", "Usted aporta la vivienda. SpainRoom la gestiona. Y usted cobra."],
+  ["Qué no decir", "Evita: “le voy a llenar el piso de habitaciones”. Habla de gestión, rentabilidad y tranquilidad."],
+  ["Inmobiliarias", "SpainRoom no compite: ayuda a obtener más rentabilidad en determinados inmuebles."],
+  ["Fotos y publicación", "Sube las fotos. SpainRoom las adapta automáticamente para publicación."],
+];
+
 export default function DashboardFranquiciado() {
   const user = useMemo(getUser, []);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const [pipeline, setPipeline] = useState([]);
-  const [rooms, setRooms] = useState([]);
-  const [inc, setInc] = useState([]);
-  const profile = {
-    codigo:"SR-F-PENDIENTE", zona:"Pendiente de asignación", provincia:"Pendiente", municipio:"Pendiente",
-    estado:"Onboarding", canon:"Pendiente", contrato:"Pendiente de firma", documentacion:"Pendiente",
-    factura:"Pendiente", cuenta_pago:"Pendiente"
-  };
-  const kpi = { leads:4, rooms:5, visits:2, contracts:1, incidents:2, income:6120 };
+  const [rooms] = useState(INITIAL_ROOMS);
+  const [simAddress, setSimAddress] = useState("Calle Mayor 12, Manresa");
+  const [homeValue, setHomeValue] = useState(240000);
+  const [managementPct, setManagementPct] = useState(20);
+  const [insuranceTenant, setInsuranceTenant] = useState(5);
+  const [simRooms, setSimRooms] = useState([
+    { id:1, m2:9, bathM2:3, balconyM2:0, bath:true, balcony:false },
+    { id:2, m2:12, bathM2:0, balconyM2:2, bath:false, balcony:true },
+    { id:3, m2:11, bathM2:0, balconyM2:2, bath:false, balcony:true },
+    { id:4, m2:14, bathM2:0, balconyM2:0, bath:false, balcony:false },
+  ]);
 
-  useEffect(() => {
-    setLoading(true);
-    setErr("");
-    try {
-      setPipeline([
-        { id:"LEAD-2101", nombre:"Laura M.", rol:"Inquilino", fase:"Lead", ciudad:"Madrid", zona:"Centro", tel:"+34 ***", prioridad:"Alta" },
-        { id:"LEAD-2102", nombre:"Carlos R.", rol:"Propietario", fase:"Visita", ciudad:"Madrid", zona:"Chamberí", tel:"+34 ***", prioridad:"Media" },
-        { id:"LEAD-2103", nombre:"Ana A.", rol:"Inquilino", fase:"Contrato", ciudad:"Madrid", zona:"Salamanca", tel:"+34 ***", prioridad:"Alta" },
-        { id:"LEAD-2104", nombre:"Julia V.", rol:"Propietario", fase:"Onboarding", ciudad:"Madrid", zona:"Latina", tel:"+34 ***", prioridad:"Media" },
-      ]);
-      setRooms([
-        { id:"ROOM-022", titulo:"Centro A", propietario:"Prop. 001", estado:"Ocupada", precio:580, doc:"OK" },
-        { id:"ROOM-023", titulo:"Centro B", propietario:"Prop. 001", estado:"Ocupada", precio:540, doc:"OK" },
-        { id:"ROOM-031", titulo:"Chamberí A", propietario:"Prop. 002", estado:"Libre", precio:520, doc:"Pendiente" },
-        { id:"ROOM-047", titulo:"Salamanca A", propietario:"Prop. 003", estado:"Reserva", precio:650, doc:"OK" },
-        { id:"ROOM-015", titulo:"Latina A", propietario:"Prop. 004", estado:"Limpieza", precio:490, doc:"Pendiente" },
-      ]);
-      setInc([
-        { id:"INC-901", fecha:"2026-06-12", tipo:"Mantenimiento", room:"ROOM-015", estado:"abierta" },
-        { id:"INC-902", fecha:"2026-06-17", tipo:"Ruido", room:"ROOM-023", estado:"cerrada" },
-      ]);
-    } catch(e) { setErr(e.message || "Error cargando datos"); }
-    finally { setLoading(false); }
-  }, []);
+  const activeRooms = 18;
+  const recurring = 1125;
+  const annual = recurring * 12;
+  const paidBack = 1350;
+  const canon = 5000;
+  const paybackPct = Math.min(100, (paidBack / canon) * 100);
+
+  const maxMonthlyRent = homeValue * 0.0052;
+  const totalPrivateM2 = simRooms.reduce((sum, r) => sum + Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0), 0);
+  const euroM2 = totalPrivateM2 > 0 ? maxMonthlyRent / totalPrivateM2 : 0;
+  const calculatedRooms = simRooms.map((r) => {
+    const privateM2 = Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0);
+    const supplement = (r.bath ? 25 : 0) + (r.balcony ? 25 : 0);
+    const rent = Math.round(privateM2 * euroM2 + supplement);
+    return { ...r, privateM2, supplement, rent, totalTenant: rent + Number(insuranceTenant || 0) };
+  });
+  const grossRent = calculatedRooms.reduce((sum, r) => sum + r.rent, 0);
+  const ownerMonthly = Math.round(grossRent * (1 - Number(managementPct || 0) / 100));
+  const ownerAnnual = ownerMonthly * 12;
+  const ownerYield = homeValue > 0 ? (ownerAnnual / homeValue) * 100 : 0;
+
+  function updateSimRoom(id, patch) {
+    setSimRooms(rows => rows.map(r => r.id === id ? { ...r, ...patch } : r));
+  }
+  function addRoom() {
+    const nextId = Math.max(...simRooms.map(r => r.id)) + 1;
+    setSimRooms(rows => [...rows, { id:nextId, m2:10, bathM2:0, balconyM2:0, bath:false, balcony:false }]);
+  }
+  function removeRoom(id) {
+    setSimRooms(rows => rows.length <= 1 ? rows : rows.filter(r => r.id !== id));
+  }
 
   return <main style={{minHeight:"100vh",background:"#f8fafc",color:"#0b1220",padding:"24px 16px 36px"}}>
-    <div style={{maxWidth:1240,margin:"0 auto"}}>
+    <div style={{maxWidth:1320,margin:"0 auto"}}>
       <AdminBanner />
-      <Hero role="Franquiciado" name={firstName(user.name, "Franquiciado")} text="Desde aquí podrás controlar leads, propietarios, habitaciones, visitas, contratos, documentación, incidencias e ingresos de tu zona." />
 
-      <section className="sr-kpis" style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:14,marginBottom:18}}>
-        <KPI icon="📞" label="Leads" value={kpi.leads} hint="Pendientes/activos" />
-        <KPI icon="🏠" label="Habitaciones" value={kpi.rooms} hint="Gestionadas" />
-        <KPI icon="🚶" label="Visitas" value={kpi.visits} hint="Programadas" />
-        <KPI icon="📄" label="Contratos" value={kpi.contracts} hint="En curso" />
-        <KPI icon="🛠️" label="Incidencias" value={kpi.incidents} hint="Abiertas/cerradas" />
-        <KPI icon="💶" label="Ingresos mes" value={money(kpi.income)} hint="Estimado" />
-      </section>
-
-      <section className="sr-grid2" style={{display:"grid",gridTemplateColumns:"1.1fr .9fr",gap:16,alignItems:"start"}}>
-        <Card title="Ficha del franquiciado" icon="🤝" right={<Badge tone="wait">{profile.estado}</Badge>}>
-          <div className="sr-fields" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-            <Field label="Código" value={profile.codigo} />
-            <Field label="Provincia" value={profile.provincia} />
-            <Field label="Municipio/Zona" value={profile.municipio} />
-            <Field label="Canon de entrada" value={profile.canon} />
-            <Field label="Contrato" value={profile.contrato} />
-            <Field label="Documentación" value={profile.documentacion} />
-            <Field label="Factura franquiciado" value={profile.factura} />
-            <Field label="Cuenta de pago" value={profile.cuenta_pago} />
-            <Field label="Estado zona" value={profile.zona} />
+      <section style={{background:"linear-gradient(135deg, #0b65d8 0%, #084fa8 100%)",color:"#fff",borderRadius:24,padding:"28px 24px",marginBottom:18,boxShadow:"0 12px 30px rgba(10,88,202,.24)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:18,alignItems:"flex-start",flexWrap:"wrap"}}>
+          <div>
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",borderRadius:999,padding:"7px 12px",fontWeight:950,marginBottom:14}}>
+              SpainRoom<sup>®</sup> · Centro de Operaciones
+            </div>
+            <h1 style={{margin:"0 0 8px",fontSize:"clamp(30px,4vw,46px)",lineHeight:1.08,fontWeight:950,letterSpacing:"-.035em"}}>Al ataque, {firstName(user.name)} 👋</h1>
+            <p style={{margin:0,maxWidth:890,color:"rgba(255,255,255,.92)",lineHeight:1.6}}>Tu puesto de mando para captar propietarios, publicar habitaciones, controlar pagos, anticipar incidencias y construir una cartera recurrente.</p>
           </div>
-        </Card>
-        <Card title="Datos que debe recoger" icon="📋" right={<Badge tone="info">Onboarding</Badge>}>
-          <div style={{display:"grid",gap:8,color:"#334155",lineHeight:1.5}}>
-            <div>✅ Datos personales / empresa</div>
-            <div>✅ DNI/NIE/CIF y domicilio</div>
-            <div>✅ Zona solicitada y municipios</div>
-            <div>✅ Teléfono, email y cuenta bancaria</div>
-            <div>✅ Contrato firmado y factura de canon</div>
-            <div>✅ Leads, propietarios, habitaciones y visitas</div>
-            <div>✅ Documentación de habitaciones y fotos</div>
+          <div style={{background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",borderRadius:18,padding:14,minWidth:250}}>
+            <div style={{fontWeight:950,marginBottom:8}}>🧠 Asistente SpainRoom</div>
+            <div style={{fontSize:14,lineHeight:1.5,color:"rgba(255,255,255,.92)"}}>Tienes 2 habitaciones listas para publicar, 1 convivencia en amarillo y 1 contrato pendiente de subir.</div>
           </div>
-        </Card>
+        </div>
       </section>
 
-      <section style={{display:"grid",gridTemplateColumns:"1fr",gap:16,marginTop:18}}>
-        <Card title="Pipeline comercial" icon="📞" right={<Badge tone="ok">Activo</Badge>}>
-          <Table columns={[
-            { key:"id", label:"ID", bold:true },
-            { key:"nombre", label:"Nombre" },
-            { key:"rol", label:"Tipo" },
-            { key:"fase", label:"Fase", render:r=><Badge tone={r.fase==="Contrato"?"ok":r.fase==="Lead"?"wait":"info"}>{r.fase}</Badge> },
-            { key:"ciudad", label:"Ciudad" },
-            { key:"zona", label:"Zona" },
-            { key:"tel", label:"Teléfono" },
-            { key:"prioridad", label:"Prioridad", render:r=><Badge tone={r.prioridad==="Alta"?"danger":"info"}>{r.prioridad}</Badge> },
-          ]} rows={pipeline} empty="Sin leads." />
-        </Card>
-        <Card title="Mis habitaciones" icon="🏠">
-          <Table columns={[
-            { key:"id", label:"ID", bold:true },
-            { key:"titulo", label:"Habitación" },
-            { key:"propietario", label:"Propietario" },
-            { key:"estado", label:"Estado", render:r=><Badge tone={r.estado==="Ocupada"?"ok":r.estado==="Libre"?"info":"wait"}>{r.estado}</Badge> },
-            { key:"precio", label:"Precio", render:r=>money(r.precio) },
-            { key:"doc", label:"Documentación", render:r=><Badge tone={r.doc==="OK"?"ok":"wait"}>{r.doc}</Badge> },
-          ]} rows={rooms} empty="Sin habitaciones." />
-        </Card>
-        <Card title="Incidencias" icon="🛠️">
-          <Table columns={[
-            { key:"id", label:"ID", bold:true },
-            { key:"fecha", label:"Fecha" },
-            { key:"tipo", label:"Tipo" },
-            { key:"room", label:"Habitación" },
-            { key:"estado", label:"Estado", render:r=><Badge tone={r.estado==="cerrada"?"ok":"danger"}>{r.estado}</Badge> },
-          ]} rows={inc} empty="Sin incidencias." />
-        </Card>
+      <section className="sr-pro-kpis" style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:14,marginBottom:18}}>
+        <KPI icon="🏠" label="Habitaciones activas" value={activeRooms} hint="Cartera viva" tone="ok" />
+        <KPI icon="💶" label="Recurrente mensual" value={money(recurring)} hint="Estimado franquiciado" tone="ok" />
+        <KPI icon="📈" label="Anual estimado" value={money(annual)} hint="Si mantiene cartera" />
+        <KPI icon="🎯" label="Recuperación canon" value={`${Math.round(paybackPct)} %`} hint={`${money(paidBack)} de ${money(canon)}`} />
+        <KPI icon="📸" label="Para publicar" value="4" hint="Fotos/ficha pendientes" tone="wait" />
+        <KPI icon="⚠️" label="Alertas" value="3" hint="Pagos, convivencia, docs" tone="danger" />
       </section>
 
-      {loading && <div style={{marginTop:14,color:"#64748b"}}>Cargando...</div>}
-      {err && <div style={{marginTop:14,color:"#991b1b",fontWeight:800}}>{err}</div>}
+      <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:16,alignItems:"start"}}>
+        <div style={{display:"grid",gap:16}}>
+          <Card title="Mi trabajo hoy" icon="🎯" right={<Badge tone="danger">Prioridad</Badge>}>
+            <TaskRow icon="📞" title="3 llamadas pendientes" detail="Propietarios y candidatos por contactar" tone="danger" action="Llamar" />
+            <TaskRow icon="🏠" title="2 visitas programadas" detail="Manresa 11:00 · Terrassa 17:30" tone="orange" action="Visitar" />
+            <TaskRow icon="📄" title="1 contrato pendiente de firma" detail="SR-PROP-00125 · contrato propietario" tone="wait" action="Contrato" />
+            <TaskRow icon="📸" title="4 habitaciones sin publicar" detail="Faltan fotos, ficha o validación" tone="info" action="Publicar" />
+            <TaskRow icon="🟡" title="1 convivencia en amarillo" detail="Ruido y limpieza repetidos en SR-H-00125" tone="wait" action="Revisar" />
+            <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:14}}>
+              <Button>📞 Ver llamadas</Button><Button secondary>📅 Ver agenda</Button><Button secondary>📸 Publicar</Button>
+            </div>
+          </Card>
+
+          <Card title="Simulador SpainRoom" icon="🧮" right={<Badge tone="dark">Método interno</Badge>}>
+            <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>Introduce datos del inmueble y habitaciones. El sistema muestra resultados, no la fórmula interna.</p>
+            <div className="sr-sim-form" style={{display:"grid",gridTemplateColumns:"1.4fr .8fr .8fr .8fr",gap:10,marginBottom:14}}>
+              <Field label="Dirección / zona" value={simAddress} onChange={setSimAddress} />
+              <Field label="Valor estimado vivienda" type="number" value={homeValue} onChange={v => setHomeValue(Number(v))} />
+              <Field label="% gestión SpainRoom" type="number" value={managementPct} onChange={v => setManagementPct(Number(v))} />
+              <Field label="Seguro inquilino aparte" type="number" value={insuranceTenant} onChange={v => setInsuranceTenant(Number(v))} />
+            </div>
+
+            <div style={{display:"grid",gap:10}}>
+              {simRooms.map((r, idx) => <div key={r.id} className="sr-room-row" style={{display:"grid",gridTemplateColumns:"80px 1fr 1fr 1fr auto",gap:10,alignItems:"end",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
+                <div style={{fontWeight:950,color:"#0b1220"}}>H{idx + 1}</div>
+                <Field label="m² habitación" type="number" value={r.m2} onChange={v => updateSimRoom(r.id, { m2:Number(v) })} />
+                <Field label="m² baño privado" type="number" value={r.bathM2} onChange={v => updateSimRoom(r.id, { bathM2:Number(v), bath:Number(v) > 0 ? true : r.bath })} />
+                <Field label="m² balcón privado" type="number" value={r.balconyM2} onChange={v => updateSimRoom(r.id, { balconyM2:Number(v), balcony:Number(v) > 0 ? true : r.balcony })} />
+                <div style={{display:"grid",gap:8}}>
+                  <Check checked={r.bath} onChange={v => updateSimRoom(r.id, { bath:v })} label="+25 baño" />
+                  <Check checked={r.balcony} onChange={v => updateSimRoom(r.id, { balcony:v })} label="+25 balcón" />
+                  <Button small danger onClick={() => removeRoom(r.id)}>Quitar</Button>
+                </div>
+              </div>)}
+            </div>
+            <div style={{marginTop:12}}><Button secondary onClick={addRoom}>+ Añadir habitación</Button></div>
+
+            <div className="sr-sim-results" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginTop:16}}>
+              <KPI icon="🏠" label="Ingresos vivienda" value={money(grossRent)} hint="Alquiler mensual total" tone="ok" />
+              <KPI icon="👤" label="Propietario" value={money(ownerMonthly)} hint={`${money(ownerAnnual)} / año`} tone="ok" />
+              <KPI icon="📊" label="Rentabilidad propietario" value={pct(ownerYield)} hint="Tras gestión estimada" />
+              <KPI icon="🛡️" label="Seguro aparte" value={`+${money(insuranceTenant)}`} hint="Lo paga cada inquilino" tone="wait" />
+            </div>
+
+            <div style={{marginTop:14,overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}>
+                <thead><tr style={{color:"#64748b",textAlign:"left"}}>
+                  <th style={th}>Hab.</th><th style={th}>m² privados</th><th style={th}>Suplementos</th><th style={th}>Alquiler</th><th style={th}>Total inquilino</th>
+                </tr></thead>
+                <tbody>{calculatedRooms.map((r, idx) => <tr key={r.id}>
+                  <td style={td}>H{idx + 1}</td>
+                  <td style={td}>{r.privateM2} m²</td>
+                  <td style={td}>{money(r.supplement)}</td>
+                  <td style={td}><strong>{money(r.rent)}</strong></td>
+                  <td style={td}>{money(r.totalTenant)} <span style={{color:"#64748b"}}>(con seguro)</span></td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+            <div style={{marginTop:14,background:"#ecfdf5",border:"1px solid #bbf7d0",color:"#047857",borderRadius:14,padding:12,fontWeight:900}}>
+              ✅ Simulación viable SpainRoom · Precio calculado por sistema · Sin enseñar método al franquiciado.
+            </div>
+          </Card>
+
+          <Card title="Cartera y publicación" icon="🏠" right={<Badge tone="info">Trabajo productivo</Badge>}>
+            <Table columns={[
+              { key:"id", label:"Habitación", bold:true },
+              { key:"title", label:"Zona" },
+              { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Ocupada" ? "ok" : r.status.includes("Pendiente") ? "wait" : "info"}>{r.status}</Badge> },
+              { key:"price", label:"Precio", render:r => money(r.price) },
+              { key:"health", label:"Salud", render:r => <span title="Pagos · Convivencia · Docs · Publicación">{r.payment === "ok" ? "🟢" : "🔴"} {r.convivencia === "ok" ? "🟢" : "🟡"} {r.docs === "ok" ? "🟢" : "🔴"} {r.publish === "ok" ? "🟢" : r.publish === "wait" ? "🟡" : "🔴"}</span> },
+              { key:"actions", label:"Acciones", render:() => <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button small secondary>Ficha</Button><Button small secondary>Fotos</Button><Button small>Publicar</Button></div> },
+            ]} rows={rooms} empty="Sin habitaciones." />
+          </Card>
+        </div>
+
+        <div style={{display:"grid",gap:16}}>
+          <Card title="Mi negocio" icon="💰" right={<Badge tone="ok">Cartera</Badge>}>
+            <div style={{display:"grid",gap:10}}>
+              <div style={metricLine}><span>Canon inicial</span><strong>{money(canon)}</strong></div>
+              <div style={metricLine}><span>Ingresos acumulados</span><strong>{money(paidBack)}</strong></div>
+              <div style={metricLine}><span>Recuperación</span><strong>{Math.round(paybackPct)} %</strong></div>
+              <div style={metricLine}><span>Ingreso mensual estimado</span><strong>{money(recurring)}</strong></div>
+              <div style={metricLine}><span>Ingreso anual estimado</span><strong>{money(annual)}</strong></div>
+            </div>
+            <div style={{marginTop:14,background:"#f1f5f9",borderRadius:999,height:12,overflow:"hidden"}}><div style={{width:`${paybackPct}%`,height:"100%",background:"#0A58CA"}} /></div>
+            <p style={{margin:"12px 0 0",color:"#64748b",lineHeight:1.5}}>Sin objetivos impuestos. Tu objetivo lo marca tu propia cartera activa.</p>
+          </Card>
+
+          <Card title="Agenda inmediata" icon="📅">
+            {[
+              ["09:30", "Llamar a Marta López", "Propietaria"],
+              ["11:00", "Visita SR-PROP-00125", "Manresa"],
+              ["16:00", "Subir contrato firmado", "Pendiente"],
+              ["18:15", "Enviar simulación", "Inmobiliaria Delta"],
+            ].map(([time, title, desc]) => <div key={`${time}-${title}`} style={{display:"grid",gridTemplateColumns:"64px 1fr",gap:10,padding:"10px 0",borderBottom:"1px solid #f1f5f9"}}>
+              <div style={{color:"#0A58CA",fontWeight:950}}>{time}</div>
+              <div><div style={{color:"#0b1220",fontWeight:900}}>{title}</div><div style={{color:"#64748b",fontSize:13}}>{desc}</div></div>
+            </div>)}
+          </Card>
+
+          <Card title="Contactos vivos" icon="👥" right={<Badge tone="info">CRM</Badge>}>
+            <Table columns={[
+              { key:"name", label:"Nombre", bold:true },
+              { key:"type", label:"Tipo" },
+              { key:"next", label:"Siguiente" },
+              { key:"call", label:"", render:() => <Button small secondary>📞</Button> },
+            ]} rows={CONTACTS} empty="Sin contactos." />
+          </Card>
+
+          <Card title="Salud de habitaciones" icon="🧠">
+            <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:14,marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}><strong>SR-H-00125</strong><Badge tone="wait">🟡 Revisar</Badge></div>
+              <HealthLine label="Pagos" tone="ok" />
+              <HealthLine label="Convivencia" tone="wait" />
+              <HealthLine label="Documentación" tone="ok" />
+              <HealthLine label="Contrato" tone="ok" />
+              <p style={{color:"#64748b",margin:"10px 0 0",lineHeight:1.45}}>Motivos repetidos: ruido nocturno y limpieza de cocina.</p>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <Badge tone="ok">🟢 7 comentarios</Badge><Badge tone="wait">🟡 3 comentarios</Badge><Badge tone="orange">🟠 0</Badge><Badge tone="danger">🔴 0</Badge>
+            </div>
+          </Card>
+
+          <Card title="Centro de ayuda comercial" icon="📚" right={<Badge tone="dark">Manual</Badge>}>
+            <div style={{display:"grid",gap:10}}>
+              {HELP.map(([title, text]) => <div key={title} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+                <div style={{color:"#0b1220",fontWeight:950}}>{title}</div>
+                <div style={{color:"#64748b",fontSize:13,marginTop:4,lineHeight:1.45}}>{text}</div>
+              </div>)}
+            </div>
+          </Card>
+        </div>
+      </section>
     </div>
-    <style>{`@media(max-width:1150px){.sr-kpis{grid-template-columns:1fr 1fr 1fr!important}.sr-grid2{grid-template-columns:1fr!important}.sr-fields{grid-template-columns:1fr 1fr!important}}@media(max-width:700px){.sr-kpis{grid-template-columns:1fr!important}.sr-fields{grid-template-columns:1fr!important}}`}</style>
+
+    <style>{`
+      @media(max-width:1180px){.sr-pro-kpis{grid-template-columns:1fr 1fr 1fr!important}.sr-pro-grid-main{grid-template-columns:1fr!important}}
+      @media(max-width:760px){.sr-pro-kpis{grid-template-columns:1fr!important}.sr-sim-form{grid-template-columns:1fr!important}.sr-sim-results{grid-template-columns:1fr!important}.sr-room-row{grid-template-columns:1fr!important}}
+    `}</style>
   </main>;
 }
+
+const metricLine = {display:"flex",justifyContent:"space-between",gap:12,padding:"9px 0",borderBottom:"1px solid #f1f5f9",color:"#475569"};
+const th = {padding:"9px 7px",borderBottom:"1px solid #e2e8f0",color:"#64748b"};
+const td = {padding:"9px 7px",borderBottom:"1px solid #f1f5f9",color:"#0b1220"};
