@@ -714,33 +714,52 @@ export default function DashboardFranquiciado() {
             </div>
 
             {peopleTab === "owners" && (
-              <Table columns={[
-                { key:"id", label:"Código", bold:true },
-                { key:"name", label:"Propietario", bold:true },
-                { key:"property", label:"Inmueble" },
-                { key:"rooms", label:"Hab." },
-                { key:"status", label:"Estado", render:r => <Badge tone="info">{r.status}</Badge> },
-                { key:"actions", label:"", render:r => <Button small onClick={() => viewOwner(r)}>Ver</Button> },
-              ]} rows={OWNERS} empty="Sin propietarios." />
-              <div style={{marginTop:12,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:8}}>
-                  <strong>Ficha propietario seleccionado</strong>
-                  <Badge tone="info">{selectedOwner?.id}</Badge>
+              <>
+                <Table columns={[
+                  { key:"id", label:"Código", bold:true },
+                  { key:"name", label:"Propietario", bold:true },
+                  { key:"property", label:"Inmueble" },
+                  { key:"rooms", label:"Hab." },
+                  { key:"status", label:"Estado", render:r => <Badge tone="info">{r.status}</Badge> },
+                  { key:"actions", label:"", render:r => (
+                    <button
+                      type="button"
+                      onClick={() => viewOwner(r)}
+                      style={{background:"#0A58CA",color:"#fff",border:"1px solid #0A58CA",borderRadius:10,padding:"7px 10px",fontWeight:900,cursor:"pointer"}}
+                    >
+                      Ver
+                    </button>
+                  ) },
+                ]} rows={OWNERS} empty="Sin propietarios." />
+
+                <div style={{marginTop:14,background:"#f8fafc",border:"1px solid #cbd5e1",borderRadius:16,padding:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
+                    <strong style={{color:"#0b1220"}}>Propietario seleccionado</strong>
+                    <Badge tone="info">{selectedOwner?.id}</Badge>
+                  </div>
+                  <div style={{display:"grid",gap:7,color:"#334155",fontSize:14}}>
+                    <div><strong>Nombre:</strong> {selectedOwner?.name}</div>
+                    <div><strong>Teléfono:</strong> {selectedOwner?.phone}</div>
+                    <div><strong>Email:</strong> {selectedOwner?.email}</div>
+                    <div><strong>Inmueble:</strong> {selectedOwner?.property}</div>
+                    <div><strong>Habitaciones:</strong> {selectedOwner?.rooms}</div>
+                    <div><strong>Estado:</strong> {selectedOwner?.status}</div>
+                  </div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
+                    <button type="button" onClick={() => {
+                      setSimAddress(selectedOwner?.property || "");
+                      setOwnerName(selectedOwner?.name || "");
+                      setOwnerEmail(selectedOwner?.email || "");
+                      setOwnerPhone(selectedOwner?.phone || "");
+                    }} style={{background:"#f8fafc",color:"#0A58CA",border:"1px solid #cfe0ff",borderRadius:10,padding:"8px 10px",fontWeight:900,cursor:"pointer"}}>
+                      Cargar en simulador
+                    </button>
+                    <button type="button" onClick={() => setRoomForm(f => ({...f, ownerId:selectedOwner?.id || f.ownerId}))} style={{background:"#f8fafc",color:"#0A58CA",border:"1px solid #cfe0ff",borderRadius:10,padding:"8px 10px",fontWeight:900,cursor:"pointer"}}>
+                      Vincular a habitación
+                    </button>
+                  </div>
                 </div>
-                <div style={{display:"grid",gap:7,color:"#334155",fontSize:14}}>
-                  <div><strong>Nombre:</strong> {selectedOwner?.name}</div>
-                  <div><strong>Teléfono:</strong> {selectedOwner?.phone}</div>
-                  <div><strong>Email:</strong> {selectedOwner?.email}</div>
-                  <div><strong>Inmueble:</strong> {selectedOwner?.property}</div>
-                  <div><strong>Habitaciones previstas:</strong> {selectedOwner?.rooms}</div>
-                  <div><strong>Estado:</strong> {selectedOwner?.status}</div>
-                </div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
-                  <Button small secondary onClick={() => { setSimAddress(selectedOwner?.property || ""); setOwnerName(selectedOwner?.name || ""); setOwnerEmail(selectedOwner?.email || ""); setOwnerPhone(selectedOwner?.phone || ""); }}>Cargar en simulador</Button>
-                  <Button small secondary onClick={() => { setRoomForm(f => ({...f, ownerId:selectedOwner?.id || f.ownerId})); }}>Vincular a habitación</Button>
-                  <Button small secondary href={`tel:${selectedOwner?.phone || ""}`}>Llamar</Button>
-                </div>
-              </div>
+              </>
             )}
 
             {peopleTab === "tenants" && (
@@ -758,7 +777,7 @@ export default function DashboardFranquiciado() {
                 { key:"name", label:"Nombre", bold:true },
                 { key:"type", label:"Tipo" },
                 { key:"next", label:"Siguiente" },
-                { key:"call", label:"", render:r => <Button small secondary onClick={() => viewContact(r)}>Ver</Button> },
+                { key:"call", label:"", render:r => <button type="button" onClick={() => viewContact(r)} style={{background:"#f8fafc",color:"#0A58CA",border:"1px solid #cfe0ff",borderRadius:10,padding:"7px 10px",fontWeight:900,cursor:"pointer"}}>Ver</button> },
               ]} rows={CONTACTS} empty="Sin contactos." />
             )}
 
@@ -807,29 +826,21 @@ export default function DashboardFranquiciado() {
             </div>
           </Card>
 
-          <Card title="Centro de ayuda comercial" icon="📚" right={<Button small secondary onClick={() => setManualOpen(manualOpen === "all" ? null : "all")}>Abrir manual</Button>}>
+          <Card title="Centro de ayuda comercial" icon="📚" right={<Badge tone="dark">Manual abierto</Badge>}>
             <div style={{display:"grid",gap:10}}>
-              {HELP.map(([title, text]) => {
-                const open = manualOpen === title || manualOpen === "all";
-                return (
-                  <div key={title} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
-                    <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
-                      <div style={{color:"#0b1220",fontWeight:950}}>{title}</div>
-                      <Button small secondary onClick={() => setManualOpen(open ? null : title)}>{open ? "Cerrar" : "Ver"}</Button>
+              {HELP.map(([title, text]) => (
+                <details key={title} open style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+                  <summary style={{color:"#0b1220",fontWeight:950,cursor:"pointer"}}>{title}</summary>
+                  <div style={{color:"#334155",fontSize:14,marginTop:10,lineHeight:1.55}}>
+                    {text}
+                    <div style={{marginTop:10,background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:10}}>
+                      <strong>Guion rápido:</strong><br/>
+                      Propietario: “Usted aporta la vivienda, SpainRoom la gestiona y usted cobra.”<br/>
+                      Franquiciado: “Yo capto y acompaño; la plataforma organiza, calcula y documenta.”
                     </div>
-                    {open && (
-                      <div style={{color:"#334155",fontSize:14,marginTop:10,lineHeight:1.55}}>
-                        {text}
-                        <div style={{marginTop:10,background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:10}}>
-                          <strong>Guion rápido:</strong><br/>
-                          Propietario: “Usted aporta la vivienda, SpainRoom la gestiona y usted cobra.”<br/>
-                          Franquiciado: “Yo capto y acompaño; la plataforma organiza, calcula y documenta.”
-                        </div>
-                      </div>
-                    )}
                   </div>
-                );
-              })}
+                </details>
+              ))}
             </div>
           </Card>
         </div>
