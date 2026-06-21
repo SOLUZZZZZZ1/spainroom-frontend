@@ -131,6 +131,18 @@ const CONTACTS = [
   { id:"SR-C-004", name:"Inmobiliaria Delta", type:"Colaborador", next:"Reunión" },
 ];
 
+const OWNERS = [
+  { id:"SR-PROP-00125", name:"Marta López", phone:"+34 600 000 000", email:"propietario@ejemplo.com", property:"Calle Mayor 12, Manresa", rooms:4, status:"Simulación enviada" },
+  { id:"SR-PROP-00126", name:"Javier Ruiz", phone:"+34 622 000 000", email:"javier@ejemplo.com", property:"Piso Centro B", rooms:2, status:"Pendiente visita" },
+  { id:"SR-PROP-00127", name:"Inmobiliaria Delta", phone:"+34 931 000 000", email:"delta@ejemplo.com", property:"Cartera Sabadell", rooms:8, status:"Colaborador" },
+];
+
+const TENANTS = [
+  { id:"SR-I-00451", name:"Laura M.", phone:"+34 633 000 000", email:"laura@ejemplo.com", room:"SR-H-00125", status:"Documentación" },
+  { id:"SR-I-00452", name:"Christian B.", phone:"+34 607 000 000", email:"christian@ejemplo.com", room:"SR-H-00126", status:"Activo" },
+  { id:"SR-I-00453", name:"Ana R.", phone:"+34 644 000 000", email:"ana@ejemplo.com", room:"SR-H-00127", status:"Pendiente pago" },
+];
+
 const HELP = [
   ["Cómo explicar SpainRoom", "Usted aporta la vivienda. SpainRoom la gestiona. Y usted cobra."],
   ["Qué no decir", "Evita: “le voy a llenar el piso de habitaciones”. Habla de gestión, rentabilidad y tranquilidad."],
@@ -158,6 +170,19 @@ export default function DashboardFranquiciado() {
     try { return JSON.parse(localStorage.getItem("SR_FRANQ_SIMULATIONS") || "[]"); } catch { return []; }
   });
   const [savedNotice, setSavedNotice] = useState("");
+  const [peopleTab, setPeopleTab] = useState("owners");
+  const [selectedRoomId, setSelectedRoomId] = useState("SR-H-00126");
+  const [roomForm, setRoomForm] = useState({
+    ownerId: "SR-PROP-00125",
+    title: "Centro B",
+    description: "Habitación luminosa, amueblada y lista para entrar a vivir. Precio calculado por SpainRoom.",
+    m2: 12,
+    bathM2: 0,
+    balconyM2: 2,
+    bath: false,
+    balcony: true,
+    photos: ["principal.jpg", "ventana.jpg"],
+  });
 
   const activeRooms = 18;
   const recurring = 1125;
@@ -169,6 +194,8 @@ export default function DashboardFranquiciado() {
   const maxMonthlyRent = homeValue * 0.0052;
   const totalPrivateM2 = simRooms.reduce((sum, r) => sum + Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0), 0);
   const euroM2 = totalPrivateM2 > 0 ? maxMonthlyRent / totalPrivateM2 : 0;
+  const selectedRoom = rooms.find(r => r.id === selectedRoomId) || rooms[0];
+
   const calculatedRooms = simRooms.map((r) => {
     const privateM2 = Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0);
     const supplement = (r.bath ? 25 : 0) + (r.balcony ? 25 : 0);
@@ -236,6 +263,23 @@ export default function DashboardFranquiciado() {
       `Saludos,\nSpainRoom®`
     );
     window.location.href = `mailto:${ownerEmail || ""}?subject=${subject}&body=${body}`;
+  }
+
+  function addDemoPhoto() {
+    const next = `foto-${roomForm.photos.length + 1}.jpg`;
+    setRoomForm(f => ({ ...f, photos: [...f.photos, next] }));
+  }
+
+  function removeDemoPhoto(name) {
+    setRoomForm(f => ({ ...f, photos: f.photos.filter(p => p !== name) }));
+  }
+
+  function saveRoomDraft() {
+    alert("Borrador de habitación guardado. En backend real quedará vinculado al propietario y a la habitación.");
+  }
+
+  function publishRoom() {
+    alert("Comprobación de publicación: ficha, propietario, fotos, contrato y documentación.");
   }
 
   function downloadSimulationPDF() {
@@ -430,8 +474,64 @@ export default function DashboardFranquiciado() {
               { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Ocupada" ? "ok" : r.status.includes("Pendiente") ? "wait" : "info"}>{r.status}</Badge> },
               { key:"price", label:"Precio", render:r => money(r.price) },
               { key:"health", label:"Salud", render:r => <span title="Pagos · Convivencia · Docs · Publicación">{r.payment === "ok" ? "🟢" : "🔴"} {r.convivencia === "ok" ? "🟢" : "🟡"} {r.docs === "ok" ? "🟢" : "🔴"} {r.publish === "ok" ? "🟢" : r.publish === "wait" ? "🟡" : "🔴"}</span> },
-              { key:"actions", label:"Acciones", render:() => <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button small secondary>Ficha</Button><Button small secondary>Fotos</Button><Button small>Publicar</Button></div> },
+              { key:"actions", label:"Acciones", render:r => <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <Button small secondary onClick={() => setSelectedRoomId(r.id)}>Ficha</Button>
+                <Button small secondary onClick={() => setSelectedRoomId(r.id)}>Fotos</Button>
+                <Button small onClick={publishRoom}>Publicar</Button>
+              </div> },
             ]} rows={rooms} empty="Sin habitaciones." />
+          </Card>
+
+          <Card title="Editor de habitación y publicación" icon="📸" right={<Badge tone="wait">{selectedRoom?.id}</Badge>}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <label style={{display:"grid",gap:6}}>
+                <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Propietario vinculado</span>
+                <select value={roomForm.ownerId} onChange={e => setRoomForm(f => ({...f, ownerId:e.target.value}))} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:800}}>
+                  {OWNERS.map(o => <option key={o.id} value={o.id}>{o.id} · {o.name}</option>)}
+                </select>
+              </label>
+              <Field label="Título habitación" value={roomForm.title} onChange={v => setRoomForm(f => ({...f,title:v}))} />
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
+              <Field label="m² habitación" type="number" value={roomForm.m2} onChange={v => setRoomForm(f => ({...f,m2:Number(v)}))} />
+              <Field label="m² baño privado" type="number" value={roomForm.bathM2} onChange={v => setRoomForm(f => ({...f,bathM2:Number(v),bath:Number(v)>0?true:f.bath}))} />
+              <Field label="m² balcón privado" type="number" value={roomForm.balconyM2} onChange={v => setRoomForm(f => ({...f,balconyM2:Number(v),balcony:Number(v)>0?true:f.balcony}))} />
+            </div>
+
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+              <Check checked={roomForm.bath} onChange={v => setRoomForm(f => ({...f,bath:v}))} label="+25 baño privado" />
+              <Check checked={roomForm.balcony} onChange={v => setRoomForm(f => ({...f,balcony:v}))} label="+25 balcón privado" />
+            </div>
+
+            <label style={{display:"grid",gap:6,marginBottom:12}}>
+              <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Descripción para publicar</span>
+              <textarea value={roomForm.description} onChange={e => setRoomForm(f => ({...f,description:e.target.value}))} rows={4} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} />
+            </label>
+
+            <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12,marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
+                <strong>Fotos de la habitación</strong>
+                <Button small secondary onClick={addDemoPhoto}>+ Subir foto</Button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+                {roomForm.photos.map((photo, idx) => (
+                  <div key={photo} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                    <div style={{height:74,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24}}>🖼️</div>
+                    <div style={{fontWeight:900,marginTop:8}}>{idx === 0 ? "Principal" : `Foto ${idx + 1}`}</div>
+                    <div style={{color:"#64748b",fontSize:12}}>{photo}</div>
+                    <div style={{marginTop:8}}><Button small danger onClick={() => removeDemoPhoto(photo)}>Eliminar</Button></div>
+                  </div>
+                ))}
+              </div>
+              <p style={{color:"#64748b",fontSize:13,margin:"10px 0 0"}}>En backend real, aquí irá el upload con adaptación automática de tamaño SpainRoom.</p>
+            </div>
+
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <Button onClick={saveRoomDraft}>💾 Guardar ficha</Button>
+              <Button secondary onClick={addDemoPhoto}>📸 Subir fotos</Button>
+              <Button onClick={publishRoom}>🚀 Publicar si está completa</Button>
+            </div>
           </Card>
         </div>
 
@@ -460,13 +560,42 @@ export default function DashboardFranquiciado() {
             </div>)}
           </Card>
 
-          <Card title="Contactos vivos" icon="👥" right={<Badge tone="info">CRM</Badge>}>
-            <Table columns={[
-              { key:"name", label:"Nombre", bold:true },
-              { key:"type", label:"Tipo" },
-              { key:"next", label:"Siguiente" },
-              { key:"call", label:"", render:() => <Button small secondary>📞</Button> },
-            ]} rows={CONTACTS} empty="Sin contactos." />
+          <Card title="Cartera de personas" icon="👥" right={<Badge tone="info">Propietarios / Inquilinos</Badge>}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+              <Button small secondary={peopleTab !== "owners"} onClick={() => setPeopleTab("owners")}>Propietarios</Button>
+              <Button small secondary={peopleTab !== "tenants"} onClick={() => setPeopleTab("tenants")}>Inquilinos</Button>
+              <Button small secondary={peopleTab !== "contacts"} onClick={() => setPeopleTab("contacts")}>Contactos</Button>
+            </div>
+
+            {peopleTab === "owners" && (
+              <Table columns={[
+                { key:"id", label:"Código", bold:true },
+                { key:"name", label:"Propietario", bold:true },
+                { key:"property", label:"Inmueble" },
+                { key:"rooms", label:"Hab." },
+                { key:"status", label:"Estado", render:r => <Badge tone="info">{r.status}</Badge> },
+                { key:"actions", label:"", render:() => <Button small secondary>Ver</Button> },
+              ]} rows={OWNERS} empty="Sin propietarios." />
+            )}
+
+            {peopleTab === "tenants" && (
+              <Table columns={[
+                { key:"id", label:"Código", bold:true },
+                { key:"name", label:"Inquilino", bold:true },
+                { key:"room", label:"Habitación" },
+                { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Activo" ? "ok" : r.status.includes("pago") ? "danger" : "wait"}>{r.status}</Badge> },
+                { key:"actions", label:"", render:() => <Button small secondary>Ver</Button> },
+              ]} rows={TENANTS} empty="Sin inquilinos." />
+            )}
+
+            {peopleTab === "contacts" && (
+              <Table columns={[
+                { key:"name", label:"Nombre", bold:true },
+                { key:"type", label:"Tipo" },
+                { key:"next", label:"Siguiente" },
+                { key:"call", label:"", render:() => <Button small secondary>📞</Button> },
+              ]} rows={CONTACTS} empty="Sin contactos." />
+            )}
           </Card>
 
           <Card title="Salud de habitaciones" icon="🧠">
