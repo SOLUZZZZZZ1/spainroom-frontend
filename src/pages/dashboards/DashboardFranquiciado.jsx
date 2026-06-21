@@ -183,6 +183,8 @@ export default function DashboardFranquiciado() {
     try { return JSON.parse(localStorage.getItem("SR_FRANQ_BASE_CONTACTS_EDIT") || "{}"); } catch { return {}; }
   });
   const [editingContact, setEditingContact] = useState(null);
+  const [editingOwner, setEditingOwner] = useState(null);
+  const [editingTenant, setEditingTenant] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState("SR-H-00126");
   const [roomForm, setRoomForm] = useState({
     ownerId: "SR-PROP-00125",
@@ -215,7 +217,18 @@ export default function DashboardFranquiciado() {
   const totalPrivateM2 = simRooms.reduce((sum, r) => sum + Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0), 0);
   const euroM2 = totalPrivateM2 > 0 ? maxMonthlyRent / totalPrivateM2 : 0;
   const selectedRoom = rooms.find(r => r.id === selectedRoomId) || rooms[0];
-  const selectedOwner = OWNERS.find(o => o.id === selectedOwnerId) || OWNERS[0];
+  const selectedOwner = selectedOwnerLive;
+  const [ownersEdit, setOwnersEdit] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("SR_FRANQ_OWNERS_EDIT") || "{}"); } catch { return {}; }
+  });
+  const [tenantsEdit, setTenantsEdit] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("SR_FRANQ_TENANTS_EDIT") || "{}"); } catch { return {}; }
+  });
+
+  const allOwners = OWNERS.map(o => ({ ...o, ...(ownersEdit[o.id] || {}) }));
+  const allTenants = TENANTS.map(t => ({ ...t, ...(tenantsEdit[t.id] || {}) }));
+  const selectedOwnerLive = allOwners.find(o => o.id === selectedOwnerId) || allOwners[0];
+
   const allContacts = [
     ...CONTACTS.map(c => ({ ...c, ...(baseContactsEdit[c.id] || {}) })),
     ...extraContacts,
@@ -317,6 +330,7 @@ export default function DashboardFranquiciado() {
   function viewOwner(owner) {
     setSelectedOwnerId(owner.id);
     setPeopleTab("owners");
+    setEditingOwner(null);
     setDetailPanel({
       type: "owner",
       title: `${owner.id} · ${owner.name}`,
@@ -335,6 +349,61 @@ export default function DashboardFranquiciado() {
     setOwnerName(owner.name || ownerName);
     setOwnerEmail(owner.email || ownerEmail);
     setOwnerPhone(owner.phone || ownerPhone);
+  }
+
+  function editOwner(owner) {
+    setSelectedOwnerId(owner.id);
+    setPeopleTab("owners");
+    setEditingOwner({ ...owner });
+    setEditingTenant(null);
+    setEditingContact(null);
+  }
+
+  function saveEditedOwner() {
+    if (!editingOwner?.id) return;
+    const next = {
+      ...ownersEdit,
+      [editingOwner.id]: {
+        name: editingOwner.name,
+        phone: editingOwner.phone,
+        email: editingOwner.email,
+        property: editingOwner.property,
+        rooms: editingOwner.rooms,
+        status: editingOwner.status,
+      },
+    };
+    setOwnersEdit(next);
+    localStorage.setItem("SR_FRANQ_OWNERS_EDIT", JSON.stringify(next));
+    setSelectedOwnerId(editingOwner.id);
+    setOwnerName(editingOwner.name || "");
+    setOwnerEmail(editingOwner.email || "");
+    setOwnerPhone(editingOwner.phone || "");
+    setSimAddress(editingOwner.property || "");
+  }
+
+  function editTenant(tenant) {
+    setPeopleTab("tenants");
+    setEditingTenant({ ...tenant });
+    setEditingOwner(null);
+    setEditingContact(null);
+    viewTenant(tenant);
+  }
+
+  function saveEditedTenant() {
+    if (!editingTenant?.id) return;
+    const next = {
+      ...tenantsEdit,
+      [editingTenant.id]: {
+        name: editingTenant.name,
+        phone: editingTenant.phone,
+        email: editingTenant.email,
+        room: editingTenant.room,
+        status: editingTenant.status,
+      },
+    };
+    setTenantsEdit(next);
+    localStorage.setItem("SR_FRANQ_TENANTS_EDIT", JSON.stringify(next));
+    viewTenant(editingTenant);
   }
 
   function viewTenant(tenant) {
@@ -852,6 +921,45 @@ export default function DashboardFranquiciado() {
               </div>
             </div>
 
+            {editingOwner && (
+              <div style={{background:"#fff",border:"2px solid #bfdbfe",borderRadius:16,padding:12,marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
+                  <strong>Editando propietario: {editingOwner.id}</strong>
+                  <Button small danger onClick={() => setEditingOwner(null)}>Cerrar edición</Button>
+                </div>
+                <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr .8fr 1fr 1fr .5fr",gap:8}}>
+                  <Field label="Nombre" value={editingOwner.name || ""} onChange={v => setEditingOwner(o => ({...o,name:v}))} />
+                  <Field label="Teléfono" value={editingOwner.phone || ""} onChange={v => setEditingOwner(o => ({...o,phone:v}))} />
+                  <Field label="Email" value={editingOwner.email || ""} onChange={v => setEditingOwner(o => ({...o,email:v}))} />
+                  <Field label="Inmueble" value={editingOwner.property || ""} onChange={v => setEditingOwner(o => ({...o,property:v}))} />
+                  <Field label="Hab." type="number" value={editingOwner.rooms || 0} onChange={v => setEditingOwner(o => ({...o,rooms:Number(v)}))} />
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,marginTop:8}}>
+                  <Field label="Estado" value={editingOwner.status || ""} onChange={v => setEditingOwner(o => ({...o,status:v}))} />
+                  <div style={{display:"grid",alignItems:"end"}}><Button onClick={saveEditedOwner}>💾 Guardar propietario</Button></div>
+                </div>
+              </div>
+            )}
+
+            {editingTenant && (
+              <div style={{background:"#fff",border:"2px solid #bbf7d0",borderRadius:16,padding:12,marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
+                  <strong>Editando inquilino: {editingTenant.id}</strong>
+                  <Button small danger onClick={() => setEditingTenant(null)}>Cerrar edición</Button>
+                </div>
+                <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr .8fr 1fr .8fr .8fr",gap:8}}>
+                  <Field label="Nombre" value={editingTenant.name || ""} onChange={v => setEditingTenant(t => ({...t,name:v}))} />
+                  <Field label="Teléfono" value={editingTenant.phone || ""} onChange={v => setEditingTenant(t => ({...t,phone:v}))} />
+                  <Field label="Email" value={editingTenant.email || ""} onChange={v => setEditingTenant(t => ({...t,email:v}))} />
+                  <Field label="Habitación" value={editingTenant.room || ""} onChange={v => setEditingTenant(t => ({...t,room:v}))} />
+                  <Field label="Estado" value={editingTenant.status || ""} onChange={v => setEditingTenant(t => ({...t,status:v}))} />
+                </div>
+                <div style={{display:"flex",gap:8,marginTop:10}}>
+                  <Button onClick={saveEditedTenant}>💾 Guardar inquilino</Button>
+                </div>
+              </div>
+            )}
+
             {editingContact && (
               <div style={{background:"#fff",border:"2px solid #bfdbfe",borderRadius:16,padding:12,marginBottom:12}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
@@ -895,15 +1003,24 @@ export default function DashboardFranquiciado() {
                   { key:"rooms", label:"Hab." },
                   { key:"status", label:"Estado", render:r => <Badge tone="info">{r.status}</Badge> },
                   { key:"actions", label:"", render:r => (
-                    <button
-                      type="button"
-                      onClick={() => viewOwner(r)}
-                      style={{background:"#0A58CA",color:"#fff",border:"1px solid #0A58CA",borderRadius:10,padding:"7px 10px",fontWeight:900,cursor:"pointer"}}
-                    >
-                      Ver
-                    </button>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                      <button
+                        type="button"
+                        onClick={() => viewOwner(r)}
+                        style={{background:"#0A58CA",color:"#fff",border:"1px solid #0A58CA",borderRadius:10,padding:"7px 10px",fontWeight:900,cursor:"pointer"}}
+                      >
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => editOwner(r)}
+                        style={{background:"#f8fafc",color:"#0A58CA",border:"1px solid #cfe0ff",borderRadius:10,padding:"7px 10px",fontWeight:900,cursor:"pointer"}}
+                      >
+                        Editar
+                      </button>
+                    </div>
                   ) },
-                ]} rows={OWNERS} empty="Sin propietarios." />
+                ]} rows={allOwners} empty="Sin propietarios." />
 
                 <div style={{marginTop:14,background:"#f8fafc",border:"1px solid #cbd5e1",borderRadius:16,padding:14}}>
                   <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
@@ -930,6 +1047,9 @@ export default function DashboardFranquiciado() {
                     <button type="button" onClick={() => setRoomForm(f => ({...f, ownerId:selectedOwner?.id || f.ownerId}))} style={{background:"#f8fafc",color:"#0A58CA",border:"1px solid #cfe0ff",borderRadius:10,padding:"8px 10px",fontWeight:900,cursor:"pointer"}}>
                       Vincular a habitación
                     </button>
+                    <button type="button" onClick={() => editOwner(selectedOwner)} style={{background:"#0A58CA",color:"#fff",border:"1px solid #0A58CA",borderRadius:10,padding:"8px 10px",fontWeight:900,cursor:"pointer"}}>
+                      Editar propietario
+                    </button>
                   </div>
                 </div>
               </>
@@ -942,7 +1062,7 @@ export default function DashboardFranquiciado() {
                 { key:"room", label:"Habitación" },
                 { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Activo" ? "ok" : r.status.includes("pago") ? "danger" : "wait"}>{r.status}</Badge> },
                 { key:"actions", label:"", render:r => <Button small onClick={() => viewOwner(r)}>Ver</Button> },
-              ]} rows={TENANTS} empty="Sin inquilinos." />
+              ]} rows={allTenants} empty="Sin inquilinos." />
             )}
 
             {peopleTab === "contacts" && (
