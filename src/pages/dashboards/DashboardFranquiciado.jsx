@@ -171,6 +171,9 @@ export default function DashboardFranquiciado() {
   });
   const [savedNotice, setSavedNotice] = useState("");
   const [peopleTab, setPeopleTab] = useState("owners");
+  const [selectedOwnerId, setSelectedOwnerId] = useState("SR-PROP-00125");
+  const [detailPanel, setDetailPanel] = useState(null);
+  const [manualOpen, setManualOpen] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState("SR-H-00126");
   const [roomForm, setRoomForm] = useState({
     ownerId: "SR-PROP-00125",
@@ -181,8 +184,16 @@ export default function DashboardFranquiciado() {
     balconyM2: 2,
     bath: false,
     balcony: true,
-    photos: ["principal.jpg", "ventana.jpg"],
+    price: 355,
+    photos: [
+      { name: "principal.jpg", url: "", principal: true },
+      { name: "ventana.jpg", url: "", principal: false },
+    ],
   });
+  const [roomDrafts, setRoomDrafts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("SR_FRANQ_ROOM_DRAFTS") || "[]"); } catch { return []; }
+  });
+  const [roomNotice, setRoomNotice] = useState("");
 
   const activeRooms = 18;
   const recurring = 1125;
@@ -195,6 +206,7 @@ export default function DashboardFranquiciado() {
   const totalPrivateM2 = simRooms.reduce((sum, r) => sum + Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0), 0);
   const euroM2 = totalPrivateM2 > 0 ? maxMonthlyRent / totalPrivateM2 : 0;
   const selectedRoom = rooms.find(r => r.id === selectedRoomId) || rooms[0];
+  const selectedOwner = OWNERS.find(o => o.id === selectedOwnerId) || OWNERS[0];
 
   const calculatedRooms = simRooms.map((r) => {
     const privateM2 = Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0);
@@ -259,27 +271,137 @@ export default function DashboardFranquiciado() {
       `Ingresos estimados propietario: ${money(ownerMonthly)} / mes\n` +
       `Ingresos estimados propietario: ${money(ownerAnnual)} / año\n` +
       `Rentabilidad estimada: ${pct(ownerYield)}\n\n` +
-      `El importe de protección/seguro del inquilino se muestra separado del alquiler.\n\n` +
+      `La protección del inquilino se cobra junto al recibo, pero aparece separada del alquiler para mayor claridad.\n\n` +
       `Saludos,\nSpainRoom®`
     );
     window.location.href = `mailto:${ownerEmail || ""}?subject=${subject}&body=${body}`;
   }
 
+  function handlePhotoUpload(files) {
+    const uploaded = Array.from(files || []).map((file, idx) => ({
+      name: file.name,
+      url: URL.createObjectURL(file),
+      principal: roomForm.photos.length === 0 && idx === 0,
+    }));
+    if (uploaded.length === 0) return;
+    setRoomForm(f => ({ ...f, photos: [...f.photos, ...uploaded] }));
+    setRoomNotice(`${uploaded.length} foto(s) añadida(s).`);
+  }
+
   function addDemoPhoto() {
-    const next = `foto-${roomForm.photos.length + 1}.jpg`;
+    const next = { name: `foto-${roomForm.photos.length + 1}.jpg`, url: "", principal: roomForm.photos.length === 0 };
     setRoomForm(f => ({ ...f, photos: [...f.photos, next] }));
   }
 
   function removeDemoPhoto(name) {
-    setRoomForm(f => ({ ...f, photos: f.photos.filter(p => p !== name) }));
+    setRoomForm(f => ({ ...f, photos: f.photos.filter(p => p.name !== name) }));
+  }
+
+  function setPrincipalPhoto(name) {
+    setRoomForm(f => ({ ...f, photos: f.photos.map(p => ({ ...p, principal: p.name === name })) }));
+  }
+
+  function viewOwner(owner) {
+    setSelectedOwnerId(owner.id);
+    setPeopleTab("owners");
+    setDetailPanel({
+      type: "owner",
+      title: `${owner.id} · ${owner.name}`,
+      rows: [
+        ["Nombre", owner.name],
+        ["Teléfono", owner.phone],
+        ["Email", owner.email],
+        ["Inmueble", owner.property],
+        ["Habitaciones", owner.rooms],
+        ["Estado", owner.status],
+      ],
+      actions: "owner",
+    });
+    setRoomForm(f => ({ ...f, ownerId: owner.id }));
+    setSimAddress(owner.property || simAddress);
+    setOwnerName(owner.name || ownerName);
+    setOwnerEmail(owner.email || ownerEmail);
+    setOwnerPhone(owner.phone || ownerPhone);
+  }
+
+  function viewTenant(tenant) {
+    setPeopleTab("tenants");
+    setDetailPanel({
+      type: "tenant",
+      title: `${tenant.id} · ${tenant.name}`,
+      rows: [
+        ["Nombre", tenant.name],
+        ["Teléfono", tenant.phone],
+        ["Email", tenant.email],
+        ["Habitación", tenant.room],
+        ["Estado", tenant.status],
+      ],
+      actions: "tenant",
+    });
+  }
+
+  function viewContact(contact) {
+    setPeopleTab("contacts");
+    setDetailPanel({
+      type: "contact",
+      title: `${contact.id} · ${contact.name}`,
+      rows: [
+        ["Nombre", contact.name],
+        ["Tipo", contact.type],
+        ["Siguiente acción", contact.next],
+      ],
+      actions: "contact",
+    });
+  }
+
+  function selectRoomForEditing(room) {
+    setSelectedRoomId(room.id);
+    setRoomForm(f => ({
+      ...f,
+      title: room.title,
+      price: room.price,
+      description: f.description || "Habitación lista para publicar con SpainRoom.",
+    }));
+    setRoomNotice(`Editando ${room.id}.`);
+  }
+
+  function buildRoomDraft(status = "Borrador") {
+    const owner = OWNERS.find(o => o.id === roomForm.ownerId);
+    return {
+      id: selectedRoomId || `SR-H-${Date.now()}`,
+      createdAt: new Date().toLocaleString("es-ES"),
+      ownerId: roomForm.ownerId,
+      ownerName: owner?.name || "Propietario",
+      title: roomForm.title,
+      description: roomForm.description,
+      m2: Number(roomForm.m2 || 0),
+      bathM2: Number(roomForm.bathM2 || 0),
+      balconyM2: Number(roomForm.balconyM2 || 0),
+      bath: roomForm.bath,
+      balcony: roomForm.balcony,
+      price: Number(roomForm.price || 0),
+      photos: roomForm.photos.map(p => ({ name: p.name, principal: p.principal })),
+      status,
+    };
   }
 
   function saveRoomDraft() {
-    alert("Borrador de habitación guardado. En backend real quedará vinculado al propietario y a la habitación.");
+    const draft = buildRoomDraft("Borrador guardado");
+    const next = [draft, ...roomDrafts.filter(d => d.id !== draft.id)].slice(0, 20);
+    setRoomDrafts(next);
+    localStorage.setItem("SR_FRANQ_ROOM_DRAFTS", JSON.stringify(next));
+    setRoomNotice(`Ficha guardada y vinculada a ${draft.ownerName}.`);
   }
 
   function publishRoom() {
-    alert("Comprobación de publicación: ficha, propietario, fotos, contrato y documentación.");
+    if (!roomForm.ownerId) return setRoomNotice("Falta vincular propietario.");
+    if (!roomForm.title || !roomForm.description) return setRoomNotice("Falta título o descripción.");
+    if (roomForm.photos.length === 0) return setRoomNotice("Faltan fotos de la habitación.");
+    const draft = buildRoomDraft("Lista para publicar");
+    const next = [draft, ...roomDrafts.filter(d => d.id !== draft.id)].slice(0, 20);
+    setRoomDrafts(next);
+    localStorage.setItem("SR_FRANQ_ROOM_DRAFTS", JSON.stringify(next));
+    setRoomNotice(`Habitación ${draft.id} lista para publicar.`);
   }
 
   function downloadSimulationPDF() {
@@ -340,7 +462,7 @@ export default function DashboardFranquiciado() {
         </table>
 
         <p class="note">
-          Simulación orientativa SpainRoom. El importe de protección/seguro del inquilino se muestra separado del alquiler.
+          Simulación orientativa SpainRoom. La protección del inquilino se cobra junto al recibo, pero aparece separada del alquiler para mayor claridad.
         </p>
         <script>window.print();</script>
       </body>
@@ -407,7 +529,7 @@ export default function DashboardFranquiciado() {
               <Field label="Dirección / zona" value={simAddress} onChange={setSimAddress} />
               <Field label="Valor estimado vivienda" type="number" value={homeValue} onChange={v => setHomeValue(Number(v))} />
               <Field label="% gestión SpainRoom" type="number" value={managementPct} onChange={v => setManagementPct(Number(v))} />
-              <Field label="Seguro inquilino aparte" type="number" value={insuranceTenant} onChange={v => setInsuranceTenant(Number(v))} />
+              <Field label="Protección inquilino" type="number" value={insuranceTenant} onChange={v => setInsuranceTenant(Number(v))} />
             </div>
 
             <div style={{display:"grid",gap:10}}>
@@ -429,20 +551,20 @@ export default function DashboardFranquiciado() {
               <KPI icon="🏠" label="Ingresos vivienda" value={money(grossRent)} hint="Alquiler mensual total" tone="ok" />
               <KPI icon="👤" label="Propietario" value={money(ownerMonthly)} hint={`${money(ownerAnnual)} / año`} tone="ok" />
               <KPI icon="📊" label="Rentabilidad propietario" value={pct(ownerYield)} hint="Tras gestión estimada" />
-              <KPI icon="🛡️" label="Seguro aparte" value={`+${money(insuranceTenant)}`} hint="Lo paga cada inquilino" tone="wait" />
+              <KPI icon="🛡️" label="Protección" value={`+${money(insuranceTenant)}`} hint="Se cobra junto al recibo" tone="wait" />
             </div>
 
             <div style={{marginTop:14,overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}>
                 <thead><tr style={{color:"#64748b",textAlign:"left"}}>
-                  <th style={th}>Hab.</th><th style={th}>m² privados</th><th style={th}>Suplementos</th><th style={th}>Alquiler</th><th style={th}>Total inquilino</th>
+                  <th style={th}>Hab.</th><th style={th}>m² privados</th><th style={th}>Suplementos</th><th style={th}>Alquiler</th><th style={th}>Total a cobrar</th>
                 </tr></thead>
                 <tbody>{calculatedRooms.map((r, idx) => <tr key={r.id}>
                   <td style={td}>H{idx + 1}</td>
                   <td style={td}>{r.privateM2} m²</td>
                   <td style={td}>{money(r.supplement)}</td>
                   <td style={td}><strong>{money(r.rent)}</strong></td>
-                  <td style={td}>{money(r.totalTenant)} <span style={{color:"#64748b"}}>(con seguro)</span></td>
+                  <td style={td}>{money(r.totalTenant)} <span style={{color:"#64748b"}}>(alquiler + protección)</span></td>
                 </tr>)}</tbody>
               </table>
             </div>
@@ -475,8 +597,8 @@ export default function DashboardFranquiciado() {
               { key:"price", label:"Precio", render:r => money(r.price) },
               { key:"health", label:"Salud", render:r => <span title="Pagos · Convivencia · Docs · Publicación">{r.payment === "ok" ? "🟢" : "🔴"} {r.convivencia === "ok" ? "🟢" : "🟡"} {r.docs === "ok" ? "🟢" : "🔴"} {r.publish === "ok" ? "🟢" : r.publish === "wait" ? "🟡" : "🔴"}</span> },
               { key:"actions", label:"Acciones", render:r => <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <Button small secondary onClick={() => setSelectedRoomId(r.id)}>Ficha</Button>
-                <Button small secondary onClick={() => setSelectedRoomId(r.id)}>Fotos</Button>
+                <Button small secondary onClick={() => selectRoomForEditing(r)}>Ficha</Button>
+                <Button small secondary onClick={() => selectRoomForEditing(r)}>Fotos</Button>
                 <Button small onClick={publishRoom}>Publicar</Button>
               </div> },
             ]} rows={rooms} empty="Sin habitaciones." />
@@ -493,10 +615,11 @@ export default function DashboardFranquiciado() {
               <Field label="Título habitación" value={roomForm.title} onChange={v => setRoomForm(f => ({...f,title:v}))} />
             </div>
 
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:12}}>
               <Field label="m² habitación" type="number" value={roomForm.m2} onChange={v => setRoomForm(f => ({...f,m2:Number(v)}))} />
               <Field label="m² baño privado" type="number" value={roomForm.bathM2} onChange={v => setRoomForm(f => ({...f,bathM2:Number(v),bath:Number(v)>0?true:f.bath}))} />
               <Field label="m² balcón privado" type="number" value={roomForm.balconyM2} onChange={v => setRoomForm(f => ({...f,balconyM2:Number(v),balcony:Number(v)>0?true:f.balcony}))} />
+              <Field label="Precio alquiler" type="number" value={roomForm.price} onChange={v => setRoomForm(f => ({...f,price:Number(v)}))} />
             </div>
 
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
@@ -512,26 +635,49 @@ export default function DashboardFranquiciado() {
             <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12,marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
                 <strong>Fotos de la habitación</strong>
-                <Button small secondary onClick={addDemoPhoto}>+ Subir foto</Button>
+                <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:"#0A58CA",background:"#f8fafc",cursor:"pointer"}}>
+                  + Subir fotos
+                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handlePhotoUpload(e.target.files)} />
+                </label>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
                 {roomForm.photos.map((photo, idx) => (
-                  <div key={photo} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
-                    <div style={{height:74,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24}}>🖼️</div>
-                    <div style={{fontWeight:900,marginTop:8}}>{idx === 0 ? "Principal" : `Foto ${idx + 1}`}</div>
-                    <div style={{color:"#64748b",fontSize:12}}>{photo}</div>
-                    <div style={{marginTop:8}}><Button small danger onClick={() => removeDemoPhoto(photo)}>Eliminar</Button></div>
+                  <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                    <div style={{height:92,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24,overflow:"hidden"}}>
+                      {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
+                    </div>
+                    <div style={{fontWeight:900,marginTop:8}}>{photo.principal ? "Principal" : `Foto ${idx + 1}`}</div>
+                    <div style={{color:"#64748b",fontSize:12,wordBreak:"break-word"}}>{photo.name}</div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+                      <Button small secondary onClick={() => setPrincipalPhoto(photo.name)}>Principal</Button>
+                      <Button small danger onClick={() => removeDemoPhoto(photo.name)}>Eliminar</Button>
+                    </div>
                   </div>
                 ))}
               </div>
-              <p style={{color:"#64748b",fontSize:13,margin:"10px 0 0"}}>En backend real, aquí irá el upload con adaptación automática de tamaño SpainRoom.</p>
+              <p style={{color:"#64748b",fontSize:13,margin:"10px 0 0"}}>Vista previa funcional. En producción el backend guardará las fotos y aplicará la adaptación automática SpainRoom.</p>
             </div>
 
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
               <Button onClick={saveRoomDraft}>💾 Guardar ficha</Button>
-              <Button secondary onClick={addDemoPhoto}>📸 Subir fotos</Button>
+              <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"10px 13px",fontWeight:950,color:"#0A58CA",background:"#f8fafc",cursor:"pointer"}}>
+                📸 Subir fotos
+                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handlePhotoUpload(e.target.files)} />
+              </label>
               <Button onClick={publishRoom}>🚀 Publicar si está completa</Button>
             </div>
+            {roomNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{roomNotice}</div>}
+            {roomDrafts.length > 0 && (
+              <div style={{marginTop:14,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+                <div style={{fontWeight:950,marginBottom:8}}>Últimas fichas guardadas</div>
+                {roomDrafts.slice(0,3).map(d => (
+                  <div key={`${d.id}-${d.createdAt}`} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"7px 0",borderBottom:"1px solid #e2e8f0"}}>
+                    <span style={{fontWeight:850,color:"#334155"}}>{d.id} · {d.title} · {d.ownerName}</span>
+                    <span style={{color:"#64748b"}}>{d.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 
@@ -574,8 +720,27 @@ export default function DashboardFranquiciado() {
                 { key:"property", label:"Inmueble" },
                 { key:"rooms", label:"Hab." },
                 { key:"status", label:"Estado", render:r => <Badge tone="info">{r.status}</Badge> },
-                { key:"actions", label:"", render:() => <Button small secondary>Ver</Button> },
+                { key:"actions", label:"", render:r => <Button small onClick={() => viewOwner(r)}>Ver</Button> },
               ]} rows={OWNERS} empty="Sin propietarios." />
+              <div style={{marginTop:12,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:8}}>
+                  <strong>Ficha propietario seleccionado</strong>
+                  <Badge tone="info">{selectedOwner?.id}</Badge>
+                </div>
+                <div style={{display:"grid",gap:7,color:"#334155",fontSize:14}}>
+                  <div><strong>Nombre:</strong> {selectedOwner?.name}</div>
+                  <div><strong>Teléfono:</strong> {selectedOwner?.phone}</div>
+                  <div><strong>Email:</strong> {selectedOwner?.email}</div>
+                  <div><strong>Inmueble:</strong> {selectedOwner?.property}</div>
+                  <div><strong>Habitaciones previstas:</strong> {selectedOwner?.rooms}</div>
+                  <div><strong>Estado:</strong> {selectedOwner?.status}</div>
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                  <Button small secondary onClick={() => { setSimAddress(selectedOwner?.property || ""); setOwnerName(selectedOwner?.name || ""); setOwnerEmail(selectedOwner?.email || ""); setOwnerPhone(selectedOwner?.phone || ""); }}>Cargar en simulador</Button>
+                  <Button small secondary onClick={() => { setRoomForm(f => ({...f, ownerId:selectedOwner?.id || f.ownerId})); }}>Vincular a habitación</Button>
+                  <Button small secondary href={`tel:${selectedOwner?.phone || ""}`}>Llamar</Button>
+                </div>
+              </div>
             )}
 
             {peopleTab === "tenants" && (
@@ -584,7 +749,7 @@ export default function DashboardFranquiciado() {
                 { key:"name", label:"Inquilino", bold:true },
                 { key:"room", label:"Habitación" },
                 { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Activo" ? "ok" : r.status.includes("pago") ? "danger" : "wait"}>{r.status}</Badge> },
-                { key:"actions", label:"", render:() => <Button small secondary>Ver</Button> },
+                { key:"actions", label:"", render:r => <Button small onClick={() => viewOwner(r)}>Ver</Button> },
               ]} rows={TENANTS} empty="Sin inquilinos." />
             )}
 
@@ -593,8 +758,38 @@ export default function DashboardFranquiciado() {
                 { key:"name", label:"Nombre", bold:true },
                 { key:"type", label:"Tipo" },
                 { key:"next", label:"Siguiente" },
-                { key:"call", label:"", render:() => <Button small secondary>📞</Button> },
+                { key:"call", label:"", render:r => <Button small secondary onClick={() => viewContact(r)}>Ver</Button> },
               ]} rows={CONTACTS} empty="Sin contactos." />
+            )}
+
+            {detailPanel && (
+              <div style={{marginTop:14,background:"#f8fafc",border:"1px solid #cbd5e1",borderRadius:16,padding:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
+                  <strong style={{color:"#0b1220"}}>{detailPanel.title}</strong>
+                  <Button small danger onClick={() => setDetailPanel(null)}>Cerrar</Button>
+                </div>
+                <div style={{display:"grid",gap:7,color:"#334155",fontSize:14}}>
+                  {detailPanel.rows.map(([k,v]) => (
+                    <div key={k} style={{display:"flex",justifyContent:"space-between",gap:12,borderBottom:"1px solid #e2e8f0",padding:"6px 0"}}>
+                      <span style={{color:"#64748b",fontWeight:800}}>{k}</span>
+                      <strong style={{textAlign:"right"}}>{v}</strong>
+                    </div>
+                  ))}
+                </div>
+                {detailPanel.actions === "owner" && (
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
+                    <Button small secondary onClick={() => {
+                      const owner = OWNERS.find(o => o.id === selectedOwnerId);
+                      setSimAddress(owner?.property || "");
+                      setOwnerName(owner?.name || "");
+                      setOwnerEmail(owner?.email || "");
+                      setOwnerPhone(owner?.phone || "");
+                    }}>Cargar en simulador</Button>
+                    <Button small secondary onClick={() => setRoomForm(f => ({...f, ownerId:selectedOwnerId}))}>Vincular a habitación</Button>
+                    <Button small secondary href={`tel:${selectedOwner?.phone || ""}`}>Llamar</Button>
+                  </div>
+                )}
+              </div>
             )}
           </Card>
 
@@ -612,12 +807,29 @@ export default function DashboardFranquiciado() {
             </div>
           </Card>
 
-          <Card title="Centro de ayuda comercial" icon="📚" right={<Badge tone="dark">Manual</Badge>}>
+          <Card title="Centro de ayuda comercial" icon="📚" right={<Button small secondary onClick={() => setManualOpen(manualOpen === "all" ? null : "all")}>Abrir manual</Button>}>
             <div style={{display:"grid",gap:10}}>
-              {HELP.map(([title, text]) => <div key={title} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
-                <div style={{color:"#0b1220",fontWeight:950}}>{title}</div>
-                <div style={{color:"#64748b",fontSize:13,marginTop:4,lineHeight:1.45}}>{text}</div>
-              </div>)}
+              {HELP.map(([title, text]) => {
+                const open = manualOpen === title || manualOpen === "all";
+                return (
+                  <div key={title} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
+                      <div style={{color:"#0b1220",fontWeight:950}}>{title}</div>
+                      <Button small secondary onClick={() => setManualOpen(open ? null : title)}>{open ? "Cerrar" : "Ver"}</Button>
+                    </div>
+                    {open && (
+                      <div style={{color:"#334155",fontSize:14,marginTop:10,lineHeight:1.55}}>
+                        {text}
+                        <div style={{marginTop:10,background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:10}}>
+                          <strong>Guion rápido:</strong><br/>
+                          Propietario: “Usted aporta la vivienda, SpainRoom la gestiona y usted cobra.”<br/>
+                          Franquiciado: “Yo capto y acompaño; la plataforma organiza, calcula y documenta.”
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </Card>
         </div>
