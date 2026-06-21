@@ -217,7 +217,6 @@ export default function DashboardFranquiciado() {
   const totalPrivateM2 = simRooms.reduce((sum, r) => sum + Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0), 0);
   const euroM2 = totalPrivateM2 > 0 ? maxMonthlyRent / totalPrivateM2 : 0;
   const selectedRoom = rooms.find(r => r.id === selectedRoomId) || rooms[0];
-  const selectedOwner = selectedOwnerLive;
   const [ownersEdit, setOwnersEdit] = useState(() => {
     try { return JSON.parse(localStorage.getItem("SR_FRANQ_OWNERS_EDIT") || "{}"); } catch { return {}; }
   });
@@ -228,6 +227,7 @@ export default function DashboardFranquiciado() {
   const allOwners = OWNERS.map(o => ({ ...o, ...(ownersEdit[o.id] || {}) }));
   const allTenants = TENANTS.map(t => ({ ...t, ...(tenantsEdit[t.id] || {}) }));
   const selectedOwnerLive = allOwners.find(o => o.id === selectedOwnerId) || allOwners[0];
+  const selectedOwner = selectedOwnerLive;
 
   const allContacts = [
     ...CONTACTS.map(c => ({ ...c, ...(baseContactsEdit[c.id] || {}) })),
@@ -1061,7 +1061,10 @@ export default function DashboardFranquiciado() {
                 { key:"name", label:"Inquilino", bold:true },
                 { key:"room", label:"Habitación" },
                 { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Activo" ? "ok" : r.status.includes("pago") ? "danger" : "wait"}>{r.status}</Badge> },
-                { key:"actions", label:"", render:r => <Button small onClick={() => viewOwner(r)}>Ver</Button> },
+                { key:"actions", label:"", render:r => <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  <Button small onClick={() => viewTenant(r)}>Ver</Button>
+                  <Button small secondary onClick={() => editTenant(r)}>Editar</Button>
+                </div> },
               ]} rows={allTenants} empty="Sin inquilinos." />
             )}
 
