@@ -142,6 +142,9 @@ export default function DashboardFranquiciado() {
   const user = useMemo(getUser, []);
   const [rooms] = useState(INITIAL_ROOMS);
   const [simAddress, setSimAddress] = useState("Calle Mayor 12, Manresa");
+  const [ownerName, setOwnerName] = useState("Marta López");
+  const [ownerEmail, setOwnerEmail] = useState("propietario@ejemplo.com");
+  const [ownerPhone, setOwnerPhone] = useState("+34 600 000 000");
   const [homeValue, setHomeValue] = useState(240000);
   const [managementPct, setManagementPct] = useState(20);
   const [insuranceTenant, setInsuranceTenant] = useState(5);
@@ -151,6 +154,10 @@ export default function DashboardFranquiciado() {
     { id:3, m2:11, bathM2:0, balconyM2:2, bath:false, balcony:true },
     { id:4, m2:14, bathM2:0, balconyM2:0, bath:false, balcony:false },
   ]);
+  const [savedSimulations, setSavedSimulations] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("SR_FRANQ_SIMULATIONS") || "[]"); } catch { return []; }
+  });
+  const [savedNotice, setSavedNotice] = useState("");
 
   const activeRooms = 18;
   const recurring = 1125;
@@ -182,6 +189,124 @@ export default function DashboardFranquiciado() {
   }
   function removeRoom(id) {
     setSimRooms(rows => rows.length <= 1 ? rows : rows.filter(r => r.id !== id));
+  }
+
+  function buildSimulationPayload() {
+    return {
+      id: `SR-SIM-${Date.now()}`,
+      createdAt: new Date().toLocaleString("es-ES"),
+      ownerName,
+      ownerEmail,
+      ownerPhone,
+      simAddress,
+      homeValue,
+      grossRent,
+      ownerMonthly,
+      ownerAnnual,
+      ownerYield,
+      insuranceTenant,
+      rooms: calculatedRooms.map((r, idx) => ({
+        name: `H${idx + 1}`,
+        privateM2: r.privateM2,
+        supplement: r.supplement,
+        rent: r.rent,
+        totalTenant: r.totalTenant,
+      })),
+    };
+  }
+
+  function saveSimulation() {
+    const payload = buildSimulationPayload();
+    const next = [payload, ...savedSimulations].slice(0, 12);
+    setSavedSimulations(next);
+    localStorage.setItem("SR_FRANQ_SIMULATIONS", JSON.stringify(next));
+    setSavedNotice(`Simulación guardada: ${payload.id}`);
+  }
+
+  function emailSimulation() {
+    const subject = encodeURIComponent(`Simulación SpainRoom - ${ownerName || simAddress}`);
+    const body = encodeURIComponent(
+      `Hola ${ownerName || ""},\n\n` +
+      `Te envío la simulación orientativa SpainRoom para:\n${simAddress}\n\n` +
+      `Ingresos vivienda: ${money(grossRent)} / mes\n` +
+      `Ingresos estimados propietario: ${money(ownerMonthly)} / mes\n` +
+      `Ingresos estimados propietario: ${money(ownerAnnual)} / año\n` +
+      `Rentabilidad estimada: ${pct(ownerYield)}\n\n` +
+      `El importe de protección/seguro del inquilino se muestra separado del alquiler.\n\n` +
+      `Saludos,\nSpainRoom®`
+    );
+    window.location.href = `mailto:${ownerEmail || ""}?subject=${subject}&body=${body}`;
+  }
+
+  function downloadSimulationPDF() {
+    const payload = buildSimulationPayload();
+    const rows = payload.rooms.map(r => `
+      <tr>
+        <td>${r.name}</td>
+        <td>${r.privateM2} m²</td>
+        <td>${money(r.supplement)}</td>
+        <td><strong>${money(r.rent)}</strong></td>
+        <td>${money(r.totalTenant)}</td>
+      </tr>
+    `).join("");
+
+    const html = `
+      <!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Simulación SpainRoom</title>
+        <style>
+          body { font-family: Arial, sans-serif; color:#0b1220; padding:32px; }
+          .header { background:#0b65d8; color:white; padding:22px; border-radius:16px; }
+          h1 { margin:0 0 8px; }
+          .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:18px 0; }
+          .box { border:1px solid #e2e8f0; border-radius:12px; padding:14px; }
+          .big { font-size:24px; font-weight:800; }
+          table { width:100%; border-collapse:collapse; margin-top:14px; }
+          th, td { border-bottom:1px solid #e2e8f0; padding:9px; text-align:left; }
+          .note { margin-top:18px; color:#475569; font-size:13px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>SpainRoom® · Simulación de rentabilidad</h1>
+          <div>${payload.createdAt}</div>
+        </div>
+
+        <h2>Propietario</h2>
+        <p><strong>${payload.ownerName || "Propietario"}</strong><br/>
+        ${payload.ownerEmail || ""}<br/>
+        ${payload.ownerPhone || ""}</p>
+
+        <h2>Inmueble</h2>
+        <p>${payload.simAddress}</p>
+
+        <div class="grid">
+          <div class="box"><div>Ingresos vivienda</div><div class="big">${money(payload.grossRent)} / mes</div></div>
+          <div class="box"><div>Propietario</div><div class="big">${money(payload.ownerMonthly)} / mes</div></div>
+          <div class="box"><div>Propietario anual</div><div class="big">${money(payload.ownerAnnual)} / año</div></div>
+          <div class="box"><div>Rentabilidad estimada</div><div class="big">${pct(payload.ownerYield)}</div></div>
+        </div>
+
+        <h2>Habitaciones</h2>
+        <table>
+          <thead><tr><th>Hab.</th><th>m² privados</th><th>Suplementos</th><th>Alquiler</th><th>Total inquilino</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+
+        <p class="note">
+          Simulación orientativa SpainRoom. El importe de protección/seguro del inquilino se muestra separado del alquiler.
+        </p>
+        <script>window.print();</script>
+      </body>
+      </html>
+    `;
+
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
   }
 
   return <main style={{minHeight:"100vh",background:"#f8fafc",color:"#0b1220",padding:"24px 16px 36px"}}>
@@ -226,8 +351,14 @@ export default function DashboardFranquiciado() {
             </div>
           </Card>
 
-          <Card title="Simulador SpainRoom" icon="🧮" right={<Badge tone="dark">Método interno</Badge>}>
-            <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>Introduce datos del inmueble y habitaciones. El sistema muestra resultados, no la fórmula interna.</p>
+          <Card title="Simulador SpainRoom" icon="🧮" right={<Badge tone="ok">Informe propietario</Badge>}>
+            <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>Introduce los datos del propietario, inmueble y habitaciones. El sistema devuelve una simulación clara para guardar, enviar o descargar.</p>
+            <div className="sr-sim-form" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:12}}>
+              <Field label="Nombre propietario" value={ownerName} onChange={setOwnerName} />
+              <Field label="Email propietario" value={ownerEmail} onChange={setOwnerEmail} />
+              <Field label="Teléfono propietario" value={ownerPhone} onChange={setOwnerPhone} />
+            </div>
+
             <div className="sr-sim-form" style={{display:"grid",gridTemplateColumns:"1.4fr .8fr .8fr .8fr",gap:10,marginBottom:14}}>
               <Field label="Dirección / zona" value={simAddress} onChange={setSimAddress} />
               <Field label="Valor estimado vivienda" type="number" value={homeValue} onChange={v => setHomeValue(Number(v))} />
@@ -271,9 +402,25 @@ export default function DashboardFranquiciado() {
                 </tr>)}</tbody>
               </table>
             </div>
-            <div style={{marginTop:14,background:"#ecfdf5",border:"1px solid #bbf7d0",color:"#047857",borderRadius:14,padding:12,fontWeight:900}}>
-              ✅ Simulación viable SpainRoom · Precio calculado por sistema · Sin enseñar método al franquiciado.
+            <div style={{marginTop:14,display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
+              <Button onClick={saveSimulation}>💾 Guardar simulación</Button>
+              <Button secondary onClick={emailSimulation}>📧 Enviar por correo</Button>
+              <Button secondary onClick={downloadSimulationPDF}>📄 Descargar PDF</Button>
+              <Badge tone="ok">✅ Informe listo</Badge>
             </div>
+            {savedNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{savedNotice}</div>}
+
+            {savedSimulations.length > 0 && (
+              <div style={{marginTop:14,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+                <div style={{fontWeight:950,color:"#0b1220",marginBottom:8}}>Últimas simulaciones guardadas</div>
+                {savedSimulations.slice(0,3).map(s => (
+                  <div key={s.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"7px 0",borderBottom:"1px solid #e2e8f0"}}>
+                    <span style={{color:"#334155",fontWeight:800}}>{s.ownerName || "Propietario"} · {s.simAddress}</span>
+                    <span style={{color:"#64748b"}}>{money(s.ownerMonthly)} / mes</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
 
           <Card title="Cartera y publicación" icon="🏠" right={<Badge tone="info">Trabajo productivo</Badge>}>
