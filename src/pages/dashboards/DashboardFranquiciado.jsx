@@ -179,6 +179,10 @@ export default function DashboardFranquiciado() {
   const [extraContacts, setExtraContacts] = useState(() => {
     try { return JSON.parse(localStorage.getItem("SR_FRANQ_EXTRA_CONTACTS") || "[]"); } catch { return []; }
   });
+  const [baseContactsEdit, setBaseContactsEdit] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("SR_FRANQ_BASE_CONTACTS_EDIT") || "{}"); } catch { return {}; }
+  });
+  const [editingContact, setEditingContact] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState("SR-H-00126");
   const [roomForm, setRoomForm] = useState({
     ownerId: "SR-PROP-00125",
@@ -212,7 +216,10 @@ export default function DashboardFranquiciado() {
   const euroM2 = totalPrivateM2 > 0 ? maxMonthlyRent / totalPrivateM2 : 0;
   const selectedRoom = rooms.find(r => r.id === selectedRoomId) || rooms[0];
   const selectedOwner = OWNERS.find(o => o.id === selectedOwnerId) || OWNERS[0];
-  const allContacts = [...CONTACTS, ...extraContacts];
+  const allContacts = [
+    ...CONTACTS.map(c => ({ ...c, ...(baseContactsEdit[c.id] || {}) })),
+    ...extraContacts,
+  ];
 
   const calculatedRooms = simRooms.map((r) => {
     const privateM2 = Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0);
@@ -379,6 +386,56 @@ export default function DashboardFranquiciado() {
       },
     };
     setWorkPanel(panels[type]);
+  }
+
+  function editContact(contact) {
+    setEditingContact({ ...contact });
+    setPeopleTab("contacts");
+    viewContact(contact);
+  }
+
+  function saveEditedContact() {
+    if (!editingContact?.id) return;
+    if (editingContact.id.startsWith("SR-C-") && CONTACTS.some(c => c.id === editingContact.id)) {
+      const next = {
+        ...baseContactsEdit,
+        [editingContact.id]: {
+          name: editingContact.name,
+          type: editingContact.type,
+          phone: editingContact.phone,
+          email: editingContact.email,
+          zone: editingContact.zone,
+          next: editingContact.next,
+        },
+      };
+      setBaseContactsEdit(next);
+      localStorage.setItem("SR_FRANQ_BASE_CONTACTS_EDIT", JSON.stringify(next));
+    } else {
+      const next = extraContacts.map(c => c.id === editingContact.id ? editingContact : c);
+      setExtraContacts(next);
+      localStorage.setItem("SR_FRANQ_EXTRA_CONTACTS", JSON.stringify(next));
+    }
+    setDetailPanel({
+      type: "contact",
+      title: `${editingContact.id} · ${editingContact.name}`,
+      rows: [
+        ["Nombre", editingContact.name],
+        ["Tipo", editingContact.type],
+        ["Teléfono", editingContact.phone || "Pendiente"],
+        ["Email", editingContact.email || "Pendiente"],
+        ["Zona", editingContact.zone || "Pendiente"],
+        ["Siguiente acción", editingContact.next || "Pendiente"],
+      ],
+      actions: "contact",
+    });
+  }
+
+  function deleteExtraContact(id) {
+    const next = extraContacts.filter(c => c.id !== id);
+    setExtraContacts(next);
+    localStorage.setItem("SR_FRANQ_EXTRA_CONTACTS", JSON.stringify(next));
+    if (editingContact?.id === id) setEditingContact(null);
+    setDetailPanel(null);
   }
 
   function addContact() {
@@ -795,6 +852,40 @@ export default function DashboardFranquiciado() {
               </div>
             </div>
 
+            {editingContact && (
+              <div style={{background:"#fff",border:"2px solid #bfdbfe",borderRadius:16,padding:12,marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
+                  <strong>Editando contacto: {editingContact.id}</strong>
+                  <Button small danger onClick={() => setEditingContact(null)}>Cerrar edición</Button>
+                </div>
+                <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr .7fr .8fr 1fr .8fr",gap:8}}>
+                  <Field label="Nombre" value={editingContact.name || ""} onChange={v => setEditingContact(c => ({...c,name:v}))} />
+                  <label style={{display:"grid",gap:6}}>
+                    <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Tipo</span>
+                    <select value={editingContact.type || "Propietario"} onChange={e => setEditingContact(c => ({...c,type:e.target.value}))} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:800}}>
+                      <option>Propietario</option>
+                      <option>Inquilino</option>
+                      <option>Candidato</option>
+                      <option>Colaborador</option>
+                      <option>Inmobiliaria</option>
+                      <option>Administrador de fincas</option>
+                      <option>Asesoría</option>
+                    </select>
+                  </label>
+                  <Field label="Teléfono" value={editingContact.phone || ""} onChange={v => setEditingContact(c => ({...c,phone:v}))} />
+                  <Field label="Email" value={editingContact.email || ""} onChange={v => setEditingContact(c => ({...c,email:v}))} />
+                  <Field label="Zona" value={editingContact.zone || ""} onChange={v => setEditingContact(c => ({...c,zone:v}))} />
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:8,marginTop:8}}>
+                  <Field label="Siguiente acción" value={editingContact.next || ""} onChange={v => setEditingContact(c => ({...c,next:v}))} />
+                  <div style={{display:"grid",alignItems:"end"}}><Button onClick={saveEditedContact}>💾 Guardar cambios</Button></div>
+                  <div style={{display:"grid",alignItems:"end"}}>
+                    {!CONTACTS.some(c => c.id === editingContact.id) && <Button danger onClick={() => deleteExtraContact(editingContact.id)}>Eliminar</Button>}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {peopleTab === "owners" && (
               <>
                 <Table columns={[
@@ -862,7 +953,10 @@ export default function DashboardFranquiciado() {
                 { key:"email", label:"Email" },
                 { key:"zone", label:"Zona" },
                 { key:"next", label:"Siguiente" },
-                { key:"call", label:"", render:r => <button type="button" onClick={() => viewContact(r)} style={{background:"#f8fafc",color:"#0A58CA",border:"1px solid #cfe0ff",borderRadius:10,padding:"7px 10px",fontWeight:900,cursor:"pointer"}}>Ver</button> },
+                { key:"call", label:"", render:r => <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  <button type="button" onClick={() => viewContact(r)} style={{background:"#f8fafc",color:"#0A58CA",border:"1px solid #cfe0ff",borderRadius:10,padding:"7px 10px",fontWeight:900,cursor:"pointer"}}>Ver</button>
+                  <button type="button" onClick={() => editContact(r)} style={{background:"#0A58CA",color:"#fff",border:"1px solid #0A58CA",borderRadius:10,padding:"7px 10px",fontWeight:900,cursor:"pointer"}}>Editar</button>
+                </div> },
               ]} rows={allContacts} empty="Sin contactos." />
             )}
 
