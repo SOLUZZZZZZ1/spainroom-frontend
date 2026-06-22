@@ -604,3 +604,6 @@ export default function DashboardFranquiciado() {
 }
 
 const metricLine = {display:"flex",justifyContent:"space-between",gap:12,padding:"9px 0",borderBottom:"1px solid #f1f5f9",color:"#475569"};
+
+const th = {padding:"9px 7px",borderBottom:"1px solid #e2e8f0",color:"#64748b"};
+const td = {padding:"9px 7px",borderBottom:"1px solid #f1f5f9",color:"#0b1220"};
