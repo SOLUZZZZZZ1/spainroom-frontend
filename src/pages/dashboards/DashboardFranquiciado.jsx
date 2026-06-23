@@ -324,6 +324,11 @@ export default function DashboardFranquiciado() {
           h1 { margin:0 0 8px; font-size:28px; }
           h2 { margin-top:22px; }
           .grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin:18px 0; }
+          .grid.two { grid-template-columns:1fr 1fr; }
+          .actions { display:flex; gap:10px; justify-content:flex-end; margin:0 0 18px; }
+          button { border:0; border-radius:10px; padding:10px 14px; font-weight:800; cursor:pointer; }
+          .primary { background:#0b65d8; color:white; }
+          .secondary { background:#f1f5f9; color:#0b1220; }
           .box { border:1px solid #e2e8f0; border-radius:12px; padding:14px; }
           .big { font-size:24px; font-weight:800; }
           table { width:100%; border-collapse:collapse; margin-top:14px; }
@@ -332,6 +337,10 @@ export default function DashboardFranquiciado() {
         </style>
       </head>
       <body>
+        <div class="actions">
+          <button class="secondary" onclick="window.print()">Imprimir / guardar PDF</button>
+          <button class="primary" onclick="window.print()">Descargar PDF</button>
+        </div>
         <div class="header">
           <h1>SpainRoom® · Simulación de precios por finca</h1>
           <div>${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}</div>
@@ -341,10 +350,9 @@ export default function DashboardFranquiciado() {
         <p><strong>${selectedOwner.name}</strong><br/>${selectedOwner.email}<br/>${selectedOwner.phone}</p>
 
         <h2>Resultado</h2>
-        <div class="grid">
+        <div class="grid two">
           <div class="box"><div>Precio final habitaciones</div><div class="big">${money(simGross)}</div></div>
           <div class="box"><div>Propietario</div><div class="big">${money(simOwner)}</div></div>
-          <div class="box"><div>Mi ingreso</div><div class="big">${money(simMyIncome)}</div></div>
         </div>
 
         <h2>Habitaciones</h2>
@@ -357,7 +365,7 @@ export default function DashboardFranquiciado() {
           Simulación orientativa SpainRoom para propietario. El inquilino ve el precio final con servicios incluidos.
           El desglose operativo de servicios, baño y balcón queda como criterio interno de SpainRoom.
         </p>
-        <script>window.print();</script>
+
       </body>
       </html>
     `;
