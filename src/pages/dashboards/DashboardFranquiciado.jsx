@@ -344,7 +344,7 @@ export default function DashboardFranquiciado() {
         <div class="grid">
           <div class="box"><div>Precio final habitaciones</div><div class="big">${money(simGross)}</div></div>
           <div class="box"><div>Propietario</div><div class="big">${money(simOwner)}</div></div>
-          <div class="box"><div>Mi ingreso</div><div class="big">${money(simFranchisee)}</div></div>
+          <div class="box"><div>Mi ingreso</div><div class="big">${money(simMyIncome)}</div></div>
         </div>
 
         <h2>Habitaciones</h2>
@@ -530,15 +530,22 @@ export default function DashboardFranquiciado() {
 
         <div style={{display:"grid",gap:16}}>
           <Card title={`${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}`} icon="📁" right={<Badge tone="info">{selectedEstate.franchisee}</Badge>}>
-            <div className="sr-estate-summary" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:12}}>
+            <div className="sr-estate-summary" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:12}}>
               <KPI icon="🚪" label="Habitaciones" value={selectedEstate.rooms.length} hint={`${selectedEstate.rooms.filter(r => r.status === "Ocupada").length} ocupadas`} tone="ok" />
               <KPI icon="💶" label="Bruto finca" value={money(selectedLiq.gross)} hint="Precio final" />
               <KPI icon="🔌" label="Servicios internos" value={money(selectedLiq.services)} hint={`${selectedEstate.servicesFee} €/hab.`} tone="wait" />
+              <KPI icon="👤" label="Propietario" value={money(selectedLiq.owner)} hint="Liquidación finca" tone="ok" />
               <KPI icon="🤝" label="Mi ingreso" value={money(selectedLiq.franchisee)} hint="Cartera finca" tone="ok" />
             </div>
             <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
               <strong>Descripción del inmueble</strong>
               <p style={{color:"#475569",lineHeight:1.55,margin:"8px 0 0"}}>{selectedEstate.description}</p>
+              <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #e2e8f0",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,color:"#334155",fontSize:13,fontWeight:850}} className="sr-exact-breakdown">
+                <div>Bruto: {money(selectedLiq.gross)}</div>
+                <div>Servicios: {money(selectedLiq.services)}</div>
+                <div>Propietario: {money(selectedLiq.owner)}</div>
+                <div>Mi ingreso: {money(selectedLiq.franchisee)}</div>
+              </div>
             </div>
           </Card>
 
