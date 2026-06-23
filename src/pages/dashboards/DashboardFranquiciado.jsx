@@ -157,6 +157,13 @@ const CONTACTS = [
   { id:"SR-C-003", name:"Corredor MAPFRE", type:"Corredor seguros", phone:"+34 699 000 000", email:"seguros@ejemplo.com", zone:"Barcelona", next:"Seguro finca" },
 ];
 
+const TASKS = [
+  { id:"TASK-001", title:"Llamar a Marta López", type:"Propietario", estateId:"SR-IMM-00001", priority:"Alta", due:"Hoy", done:false },
+  { id:"TASK-002", title:"Pedir IBAN a Javier Ruiz", type:"Documentación", estateId:"SR-IMM-00002", priority:"Alta", due:"Hoy", done:false },
+  { id:"TASK-003", title:"Subir fotos Habitación Terrassa B", type:"Publicación", estateId:"SR-IMM-00002", priority:"Media", due:"Esta semana", done:false },
+  { id:"TASK-004", title:"Revisar ruido nocturno H01", type:"Incidencia", estateId:"SR-IMM-00001", priority:"Media", due:"Hoy", done:false },
+];
+
 function estateLiquidation(estate) {
   const gross = estate.rooms.reduce((sum, r) => sum + Number(r.price || 0), 0);
   const services = estate.servicesIncluded ? estate.rooms.length * estate.servicesFee : 0;
@@ -181,6 +188,11 @@ export default function DashboardFranquiciado() {
   const [contacts, setContacts] = useState(() => {
     try { return JSON.parse(localStorage.getItem("SR_V2_CONTACTS") || "null") || CONTACTS; } catch { return CONTACTS; }
   });
+  const [taskList, setTaskList] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("SR_V2_TASKS") || "null") || TASKS; } catch { return TASKS; }
+  });
+  const [newTask, setNewTask] = useState({ title:"", type:"Seguimiento", estateId:"SR-IMM-00001", priority:"Media", due:"Hoy" });
+  const [globalSearch, setGlobalSearch] = useState("");
   const [editingOwner, setEditingOwner] = useState(null);
   const [editingTenant, setEditingTenant] = useState(null);
   const [editingContact, setEditingContact] = useState(null);
@@ -206,6 +218,15 @@ export default function DashboardFranquiciado() {
   const selectedEstate = ESTATES.find(e => e.id === selectedEstateId) || ESTATES[0];
   const selectedOwner = owners.find(o => o.id === selectedEstate.ownerId) || owners[0];
   const allRooms = ESTATES.flatMap(e => e.rooms.map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
+  const pendingTasks = taskList.filter(t => !t.done);
+  const urgentTasks = pendingTasks.filter(t => t.priority === "Alta" || t.due === "Hoy");
+  const searchText = globalSearch.trim().toLowerCase();
+  const filteredEstates = !searchText ? ESTATES : ESTATES.filter(e => {
+    const owner = owners.find(o => o.id === e.ownerId);
+    return [e.id, e.city, e.zone, e.address, owner?.name].filter(Boolean).join(" ").toLowerCase().includes(searchText);
+  });
+  const filteredOwners = !searchText ? owners : owners.filter(o => [o.id,o.name,o.phone,o.email,o.iban].filter(Boolean).join(" ").toLowerCase().includes(searchText));
+  const filteredTenants = !searchText ? tenants : tenants.filter(t => [t.id,t.name,t.phone,t.email,t.room,t.status].filter(Boolean).join(" ").toLowerCase().includes(searchText));
   const selectedRoom = allRooms.find(r => r.id === selectedRoomId) || selectedEstate.rooms[0];
   const selectedTenant = selectedRoom?.tenantId ? tenants.find(t => t.id === selectedRoom.tenantId) : null;
   const selectedLiq = estateLiquidation(selectedEstate);
@@ -232,6 +253,42 @@ export default function DashboardFranquiciado() {
     acc.gross += liq.gross; acc.franchisee += liq.franchisee; acc.spainroom += liq.spainroom; acc.owner += liq.owner;
     return acc;
   }, { estates:0, rooms:0, occupied:0, gross:0, franchisee:0, spainroom:0, owner:0 });
+
+  function normalizePhone(phone) {
+    return String(phone || "").replace(/\s+/g, "");
+  }
+
+  function addTask() {
+    if (!newTask.title.trim()) return;
+    const item = { id:`TASK-${Date.now()}`, ...newTask, done:false };
+    const next = [item, ...taskList];
+    setTaskList(next); localStorage.setItem("SR_V2_TASKS", JSON.stringify(next));
+    setNewTask({ title:"", type:"Seguimiento", estateId:selectedEstate.id, priority:"Media", due:"Hoy" });
+  }
+
+  function toggleTask(id) {
+    const next = taskList.map(t => t.id === id ? { ...t, done:!t.done } : t);
+    setTaskList(next); localStorage.setItem("SR_V2_TASKS", JSON.stringify(next));
+  }
+
+  function deleteTask(id) {
+    const next = taskList.filter(t => t.id !== id);
+    setTaskList(next); localStorage.setItem("SR_V2_TASKS", JSON.stringify(next));
+  }
+
+  function exportPortfolioCSV() {
+    const header = ["Finca","Ciudad","Zona","Propietario","Habitaciones","Bruto","Propietario","Mi ingreso","Estado"];
+    const lines = ESTATES.map(e => {
+      const o = owners.find(x => x.id === e.ownerId);
+      const liq = estateLiquidation(e);
+      return [e.id,e.city,e.zone,o?.name || "",e.rooms.length,liq.gross,liq.owner,liq.franchisee,e.status].map(v => `"${String(v).replace(/"/g,'""')}"`).join(",");
+    });
+    const blob = new Blob([[header.join(","), ...lines].join("\n")], { type:"text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "spainroom-cartera-franquiciado.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function openEstate(id) {
     setSelectedEstateId(id);
@@ -421,9 +478,14 @@ export default function DashboardFranquiciado() {
         <KPI icon="🚪" label="Habitaciones" value={global.rooms} hint={`${global.occupied} ocupadas`} tone="ok" />
         <KPI icon="💶" label="Ingreso bruto" value={money(global.gross)} hint="Cartera mensual" />
         <KPI icon="🤝" label="Mi ingreso" value={money(global.franchisee)} hint="Cartera activa" tone="ok" />
-        <KPI icon="📌" label="Pendientes" value="2" hint="Contrato y fotos" />
+        <KPI icon="📌" label="Tareas hoy" value={urgentTasks.length} hint="Seguimiento operativo" />
         <KPI icon="🎯" label="Canon recuperado" value="27 %" hint="1.350 € de 5.000 €" tone="wait" />
       </section>
+
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12,alignItems:"center"}}>
+        <input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} placeholder="Buscar finca, propietario, ciudad, email..." style={{flex:"1 1 320px",border:"1px solid #cbd5e1",borderRadius:14,padding:"11px 12px",fontWeight:850,outline:"none"}} />
+        <Button secondary onClick={exportPortfolioCSV}>⬇️ Exportar cartera</Button>
+      </div>
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
         <button type="button" style={tabStyle("negocio")} onClick={() => setActiveTab("negocio")}>📊 Mi negocio</button>
@@ -433,6 +495,7 @@ export default function DashboardFranquiciado() {
         <button type="button" style={tabStyle("inquilinos")} onClick={() => setActiveTab("inquilinos")}>👥 Inquilinos</button>
         <button type="button" style={tabStyle("contactos")} onClick={() => setActiveTab("contactos")}>📞 Contactos</button>
         <button type="button" style={tabStyle("liquidaciones")} onClick={() => setActiveTab("liquidaciones")}>💰 Liquidaciones</button>
+        <button type="button" style={tabStyle("tareas")} onClick={() => setActiveTab("tareas")}>✅ Tareas</button>
       </div>
 
       {activeTab === "negocio" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
@@ -502,7 +565,7 @@ export default function DashboardFranquiciado() {
               { key:"rooms", label:"Hab.", render:e => e.rooms.length },
               { key:"status", label:"Estado", render:e => <Badge tone={e.status === "Activo" ? "ok" : "wait"}>{e.status}</Badge> },
               { key:"actions", label:"", render:e => <Button small onClick={() => openEstate(e.id)}>Ver</Button> },
-            ]} rows={ESTATES} empty="Sin fincas." />
+            ]} rows={filteredEstates} empty="Sin fincas." />
           </Card>
 
           <Card title="Propietario de la finca" icon="👤" right={<Badge tone={selectedOwner.iban === "Pendiente" ? "danger" : "ok"}>IBAN {selectedOwner.iban === "Pendiente" ? "pendiente" : "ok"}</Badge>}>
@@ -510,6 +573,11 @@ export default function DashboardFranquiciado() {
               <div><strong>{selectedOwner.id}</strong> · {selectedOwner.name}</div>
               <div>📞 {selectedOwner.phone}</div>
               <div>✉️ {selectedOwner.email}</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",margin:"6px 0"}}>
+                <a href={`tel:${normalizePhone(selectedOwner.phone)}`} style={{...linkBtn,textDecoration:"none"}}>📞 Llamar</a>
+                <a href={`mailto:${selectedOwner.email}`} style={{...linkBtn,textDecoration:"none"}}>✉️ Email</a>
+                <a href={`https://wa.me/${normalizePhone(selectedOwner.phone).replace("+","")}`} target="_blank" rel="noreferrer" style={{...linkBtn,textDecoration:"none"}}>💬 WhatsApp</a>
+              </div>
               <div>🏦 {selectedOwner.iban}</div>
               <div>📄 Contrato: {selectedEstate.contractStatus}</div>
               <div><strong>🏠 Mis fincas:</strong> {ESTATES.filter(e => e.ownerId === selectedOwner.id).map(e => <button key={e.id} type="button" style={{...linkBtn, marginLeft:8}} onClick={() => openEstate(e.id)}>{e.id}</button>)}</div>
@@ -713,7 +781,7 @@ export default function DashboardFranquiciado() {
             { key:"iban", label:"IBAN" },
             { key:"fincas", label:"Fincas", render:o => ESTATES.filter(e => e.ownerId === o.id).length },
             { key:"actions", label:"", render:o => <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><Button small onClick={() => setEditingOwner(o)}>Editar</Button><Button small secondary onClick={() => { const e = ESTATES.find(x => x.ownerId === o.id); if (e) openEstate(e.id); }}>Ver fincas</Button></div> },
-          ]} rows={owners} empty="Sin propietarios." />
+          ]} rows={filteredOwners} empty="Sin propietarios." />
         </Card>
 
         <Card title="Editar propietario" icon="✏️" right={editingOwner ? <Badge tone="wait">{editingOwner.id}</Badge> : <Badge tone="dark">Selecciona</Badge>}>
@@ -738,7 +806,7 @@ export default function DashboardFranquiciado() {
             { key:"room", label:"Habitación" },
             { key:"status", label:"Estado", render:t => <Badge tone={t.status === "Activo" ? "ok" : "wait"}>{t.status}</Badge> },
             { key:"actions", label:"", render:t => <Button small onClick={() => setEditingTenant(t)}>Editar</Button> },
-          ]} rows={tenants} empty="Sin inquilinos." />
+          ]} rows={filteredTenants} empty="Sin inquilinos." />
         </Card>
         <Card title="Editar inquilino" icon="✏️" right={editingTenant ? <Badge tone="wait">{editingTenant.id}</Badge> : <Badge tone="dark">Selecciona</Badge>}>
           {editingTenant ? <div style={{display:"grid",gap:10}}>
@@ -788,6 +856,41 @@ export default function DashboardFranquiciado() {
             <Button onClick={saveContact}>💾 Guardar contacto</Button>
           </div> : <p style={{color:"#64748b"}}>Pulsa editar en un contacto.</p>}
         </Card>
+      </section>}
+
+      {activeTab === "tareas" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1fr .8fr",gap:16,alignItems:"start"}}>
+        <Card title="Tareas operativas" icon="✅" right={<Badge tone={urgentTasks.length ? "wait" : "ok"}>{pendingTasks.length} pendientes</Badge>}>
+          <Table columns={[
+            { key:"done", label:"", render:t => <input type="checkbox" checked={t.done} onChange={() => toggleTask(t.id)} /> },
+            { key:"title", label:"Tarea", bold:true, render:t => <span style={{textDecoration:t.done ? "line-through" : "none", color:t.done ? "#94a3b8" : "#0b1220"}}>{t.title}</span> },
+            { key:"type", label:"Tipo" },
+            { key:"estateId", label:"Finca", render:t => <button type="button" style={linkBtn} onClick={() => openEstate(t.estateId)}>{t.estateId}</button> },
+            { key:"priority", label:"Prioridad", render:t => <Badge tone={t.priority === "Alta" ? "danger" : t.priority === "Media" ? "wait" : "info"}>{t.priority}</Badge> },
+            { key:"due", label:"Vence" },
+            { key:"actions", label:"", render:t => <Button small danger onClick={() => deleteTask(t.id)}>Borrar</Button> },
+          ]} rows={taskList} empty="Sin tareas." />
+        </Card>
+        <div style={{display:"grid",gap:16}}>
+          <Card title="Añadir tarea" icon="➕" right={<Badge tone="dark">CRM diario</Badge>}>
+            <div style={{display:"grid",gap:10}}>
+              <Field label="Tarea" value={newTask.title} onChange={v => setNewTask(t => ({...t,title:v}))} />
+              <Field label="Tipo" value={newTask.type} onChange={v => setNewTask(t => ({...t,type:v}))} />
+              <Field label="Finca" value={newTask.estateId} onChange={v => setNewTask(t => ({...t,estateId:v}))} />
+              <Field label="Prioridad" value={newTask.priority} onChange={v => setNewTask(t => ({...t,priority:v}))} />
+              <Field label="Vence" value={newTask.due} onChange={v => setNewTask(t => ({...t,due:v}))} />
+              <Button onClick={addTask}>+ Guardar tarea</Button>
+            </div>
+          </Card>
+          <Card title="Hoy hay que mirar" icon="🎯">
+            <div style={{display:"grid",gap:9}}>
+              {urgentTasks.slice(0,6).map(t => <div key={t.id} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                <div style={{fontWeight:950}}>{t.title}</div>
+                <div style={{fontSize:13,color:"#64748b",marginTop:4}}>{t.estateId} · {t.type} · {t.due}</div>
+              </div>)}
+              {!urgentTasks.length && <div style={{color:"#64748b"}}>No hay tareas urgentes.</div>}
+            </div>
+          </Card>
+        </div>
       </section>}
 
       {activeTab === "liquidaciones" && <Card title="Liquidaciones por finca" icon="💰" right={<Badge tone="ok">Centralizado</Badge>}>
