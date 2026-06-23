@@ -1059,9 +1059,21 @@ export default function DashboardFranquiciado() {
                 <div style={infoBox}>👥 Inquilino:<br/>{selectedRoom.tenantId ? <button type="button" style={linkBtn} onClick={() => goTenant(selectedRoom.tenantId)}>{tenants.find(t => t.id === selectedRoom.tenantId)?.name || selectedRoom.tenantId}</button> : "Sin asignar"}<br/>Extras: {selectedRoom.services ? "Servicios " : ""}{selectedRoom.bath ? "· Baño " : ""}{selectedRoom.balcony ? "· Balcón" : ""}</div>
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",fontSize:13}}>
+                  📸 Subir fotos
+                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handlePhotos(e.target.files)} />
+                </label>
                 <Button small onClick={() => saveRoomDraft()}>💾 Guardar ficha</Button>
                 <Button small secondary onClick={publishRoom}>🚀 Publicar si está completa</Button>
               </div>
+              {(roomDrafts[selectedRoom.id]?.photos || []).length > 0 && <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:10}} className="sr-photo-grid">
+                {(roomDrafts[selectedRoom.id]?.photos || []).slice(0,4).map((photo, idx) => <div key={`quick-${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:8}}>
+                  <div style={{height:72,borderRadius:10,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",overflow:"hidden"}}>
+                    {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
+                  </div>
+                  <div style={{color:"#64748b",fontSize:11,marginTop:5,wordBreak:"break-word"}}>{photo.name}</div>
+                </div>)}
+              </div>}
             </div>}
           </Card>
 
