@@ -191,6 +191,17 @@ export default function DashboardFranquiciado() {
   const [roomNotice, setRoomNotice] = useState("");
   const [contractFileName, setContractFileName] = useState("");
   const [checks, setChecks] = useState({ sameModel:true, noChanges:true, witnessed:true, identity:true, authorized:true, responsible:true });
+  const franchisee = { id:"SR-FR-00012", name:"Marta", zone:"Manresa · Bages" };
+  const [simHomeValue, setSimHomeValue] = useState(240000);
+  const [simServicesIncluded, setSimServicesIncluded] = useState(true);
+  const [simServicesFee, setSimServicesFee] = useState(25);
+  const [simRooms, setSimRooms] = useState([
+    { id:1, m2:9, bathM2:3, balconyM2:0, bath:true, balcony:false },
+    { id:2, m2:12, bathM2:0, balconyM2:2, bath:false, balcony:true },
+    { id:3, m2:11, bathM2:0, balconyM2:0, bath:false, balcony:false },
+    { id:4, m2:14, bathM2:0, balconyM2:0, bath:false, balcony:false },
+  ]);
+  const [simNotice, setSimNotice] = useState("");
 
   const selectedEstate = ESTATES.find(e => e.id === selectedEstateId) || ESTATES[0];
   const selectedOwner = owners.find(o => o.id === selectedEstate.ownerId) || owners[0];
@@ -198,6 +209,22 @@ export default function DashboardFranquiciado() {
   const selectedRoom = allRooms.find(r => r.id === selectedRoomId) || selectedEstate.rooms[0];
   const selectedTenant = selectedRoom?.tenantId ? tenants.find(t => t.id === selectedRoom.tenantId) : null;
   const selectedLiq = estateLiquidation(selectedEstate);
+  const simMaxMonthlyRent = simHomeValue * 0.0052;
+  const simTotalPrivateM2 = simRooms.reduce((sum, r) => sum + Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0), 0);
+  const simEuroM2 = simTotalPrivateM2 > 0 ? simMaxMonthlyRent / simTotalPrivateM2 : 0;
+  const calculatedSimRooms = simRooms.map((r, idx) => {
+    const privateM2 = Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0);
+    const services = simServicesIncluded ? Number(simServicesFee || 0) : 0;
+    const supplement = services + (r.bath ? 25 : 0) + (r.balcony ? 25 : 0);
+    const finalPrice = Math.round(privateM2 * simEuroM2 + supplement);
+    return { ...r, code:`${selectedEstate.id}-H${String(idx + 1).padStart(2, "0")}`, privateM2, services, supplement, finalPrice };
+  });
+  const simGross = calculatedSimRooms.reduce((sum, r) => sum + r.finalPrice, 0);
+  const simServicesCost = calculatedSimRooms.reduce((sum, r) => sum + r.services, 0);
+  const simNet = Math.max(0, simGross - simServicesCost);
+  const simOwner = Math.round(simNet * 0.80);
+  const simManagement = Math.round(simNet * 0.20);
+  const simMyIncome = Math.round(simManagement * 0.60);
 
   const global = ESTATES.reduce((acc, e) => {
     const liq = estateLiquidation(e);
@@ -259,6 +286,37 @@ export default function DashboardFranquiciado() {
     setRoomNotice(`Habitación ${selectedRoom.id} lista para publicar.`);
   }
 
+  function updateSimRoom(id, patch) {
+    setSimRooms(rows => rows.map(r => r.id === id ? { ...r, ...patch } : r));
+  }
+  function addSimRoom() {
+    const nextId = Math.max(...simRooms.map(r => r.id)) + 1;
+    setSimRooms(rows => [...rows, { id:nextId, m2:10, bathM2:0, balconyM2:0, bath:false, balcony:false }]);
+  }
+  function removeSimRoom(id) {
+    setSimRooms(rows => rows.length <= 1 ? rows : rows.filter(r => r.id !== id));
+  }
+  function saveSimulation() {
+    setSimNotice(`Simulación guardada para ${selectedEstate.id}: ${calculatedSimRooms.length} habitación(es) · ${money(simGross)}.`);
+  }
+  function goOwner(ownerId) {
+    const owner = owners.find(o => o.id === ownerId);
+    if (owner) setEditingOwner(owner);
+    setActiveTab("propietarios");
+  }
+  function goTenant(tenantId) {
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (tenant) setEditingTenant(tenant);
+    setActiveTab("inquilinos");
+  }
+  function openRoom(roomId) {
+    setSelectedRoomId(roomId);
+    setActiveTab("fincas");
+    setTimeout(() => document.getElementById("sr-room-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
+  }
+
+  const linkBtn = { background:"transparent", border:0, color:blue, cursor:"pointer", fontWeight:950, padding:0, textDecoration:"underline" };
+
   const tabStyle = (tab) => ({
     border:"1px solid " + (activeTab === tab ? blue : "#dbeafe"),
     background:activeTab === tab ? blue : "#fff",
@@ -271,9 +329,9 @@ export default function DashboardFranquiciado() {
       <section style={{background:"linear-gradient(135deg, #0b65d8 0%, #084fa8 100%)",color:"#fff",borderRadius:24,padding:"28px 24px",marginBottom:18,boxShadow:"0 12px 30px rgba(10,88,202,.24)"}}>
         <div style={{display:"flex",justifyContent:"space-between",gap:18,alignItems:"flex-start",flexWrap:"wrap"}}>
           <div>
-            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",borderRadius:999,padding:"7px 12px",fontWeight:950,marginBottom:14}}>SpainRoom<sup>®</sup> · Dashboard Franquiciado V2</div>
-            <h1 style={{margin:"0 0 8px",fontSize:"clamp(30px,4vw,46px)",lineHeight:1.08,fontWeight:950,letterSpacing:"-.035em"}}>Fincas, habitaciones y liquidaciones</h1>
-            <p style={{margin:0,maxWidth:930,color:"rgba(255,255,255,.92)",lineHeight:1.6}}>El centro del sistema es la finca: propietario, habitaciones, zonas comunes, inventario, incidencias y liquidaciones quedan vinculadas al expediente maestro.</p>
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",borderRadius:999,padding:"7px 12px",fontWeight:950,marginBottom:14}}>SpainRoom<sup>®</sup> · Dashboard Franquiciado</div>
+            <h1 style={{margin:"0 0 8px",fontSize:"clamp(30px,4vw,46px)",lineHeight:1.08,fontWeight:950,letterSpacing:"-.035em"}}>Hola {franchisee.name} 👋</h1>
+            <p style={{margin:0,maxWidth:930,color:"rgba(255,255,255,.92)",lineHeight:1.6}}><strong>{franchisee.id}</strong> · Zona {franchisee.zone}. El centro del sistema es la finca: desde un expediente llegas a propietario, habitaciones, inquilinos y liquidaciones.</p>
           </div>
           <div style={{background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",borderRadius:18,padding:14,minWidth:270}}>
             <div style={{fontWeight:950,marginBottom:8}}>🏠 Expediente activo</div>
@@ -286,13 +344,14 @@ export default function DashboardFranquiciado() {
         <KPI icon="🏠" label="Fincas" value={global.estates} hint="Expedientes maestros" tone="purple" />
         <KPI icon="🚪" label="Habitaciones" value={global.rooms} hint={`${global.occupied} ocupadas`} tone="ok" />
         <KPI icon="💶" label="Ingreso bruto" value={money(global.gross)} hint="Cartera mensual" />
-        <KPI icon="🤝" label="Tu parte 60%" value={money(global.franchisee)} hint="Sobre gestión 20%" tone="ok" />
-        <KPI icon="🏢" label="SpainRoom 40%" value={money(global.spainroom)} hint="Sin royalty" />
+        <KPI icon="🤝" label="Mi ingreso" value={money(global.franchisee)} hint="Cartera activa" tone="ok" />
+        <KPI icon="📌" label="Pendientes" value="2" hint="Contrato y fotos" />
         <KPI icon="🎯" label="Canon recuperado" value="27 %" hint="1.350 € de 5.000 €" tone="wait" />
       </section>
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
         <button type="button" style={tabStyle("negocio")} onClick={() => setActiveTab("negocio")}>📊 Mi negocio</button>
+        <button type="button" style={tabStyle("simulador")} onClick={() => setActiveTab("simulador")}>🧮 Simulador</button>
         <button type="button" style={tabStyle("fincas")} onClick={() => setActiveTab("fincas")}>🏠 Fincas</button>
         <button type="button" style={tabStyle("propietarios")} onClick={() => setActiveTab("propietarios")}>👤 Propietarios</button>
         <button type="button" style={tabStyle("inquilinos")} onClick={() => setActiveTab("inquilinos")}>👥 Inquilinos</button>
@@ -301,22 +360,58 @@ export default function DashboardFranquiciado() {
       </div>
 
       {activeTab === "negocio" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
-        <Card title="Mi negocio" icon="💰" right={<Badge tone="ok">60 / 40 · Royalty 0</Badge>}>
+        <Card title="Mi negocio" icon="💰" right={<Badge tone="ok">Cartera activa</Badge>}>
           <div style={{display:"grid",gap:10}}>
             <div style={metricLine}><span>Canon inicial</span><strong>{money(5000)}</strong></div>
             <div style={metricLine}><span>Ingresos acumulados</span><strong>{money(1350)}</strong></div>
             <div style={metricLine}><span>Recuperación</span><strong>27 %</strong></div>
-            <div style={metricLine}><span>Ingreso mensual franquiciado</span><strong>{money(global.franchisee)}</strong></div>
-            <div style={metricLine}><span>Ingreso anual estimado</span><strong>{money(global.franchisee * 12)}</strong></div>
+            <div style={metricLine}><span>Mi ingreso</span><strong>{money(global.franchisee)}</strong></div>
+            <div style={metricLine}><span>Ingreso anual</span><strong>{money(global.franchisee * 12)}</strong></div>
           </div>
         </Card>
-        <Card title="Cálculo transparente" icon="🧮" right={<Badge tone="dark">Interno</Badge>}>
+        <Card title="Resumen de cartera" icon="🧮" right={<Badge tone="dark">Sin porcentajes visibles</Badge>}>
           <div style={{display:"grid",gap:10}}>
             <div style={metricLine}><span>Ingreso bruto habitaciones</span><strong>{money(global.gross)}</strong></div>
-            <div style={metricLine}><span>Gestión total 20%</span><strong>{money(global.franchisee + global.spainroom)}</strong></div>
-            <div style={metricLine}><span>Franquiciado 60%</span><strong>{money(global.franchisee)}</strong></div>
-            <div style={metricLine}><span>Central 40%</span><strong>{money(global.spainroom)}</strong></div>
+            <div style={metricLine}><span>Propietarios</span><strong>{money(global.owner)}</strong></div>
+            <div style={metricLine}><span>Mi ingreso</span><strong>{money(global.franchisee)}</strong></div>
+            <div style={metricLine}><span>Pendientes</span><strong>2</strong></div>
           </div>
+        </Card>
+      </section>}
+
+      {activeTab === "simulador" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1fr .8fr",gap:16,alignItems:"start"}}>
+        <Card title="Simulador de precios por finca" icon="🧮" right={<Badge tone="ok">{selectedEstate.id}</Badge>}>
+          <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>Calcula precios finales por habitación. El inquilino solo ve el precio final con servicios incluidos.</p>
+          <div className="sr-sim-form" style={{display:"grid",gridTemplateColumns:"1.2fr .8fr .7fr",gap:10,marginBottom:14}}>
+            <Field label="Finca" value={`${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}`} onChange={() => {}} />
+            <Field label="Valor estimado vivienda" type="number" value={simHomeValue} onChange={v => setSimHomeValue(Number(v))} />
+            <Field label="Servicios €/hab." type="number" value={simServicesFee} onChange={v => setSimServicesFee(Number(v))} />
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+            <Check checked={simServicesIncluded} onChange={setSimServicesIncluded} label="+25 servicios incluidos" />
+            <Badge tone="dark">Baño privado +25</Badge>
+            <Badge tone="dark">Balcón privado +25</Badge>
+          </div>
+          <div style={{display:"grid",gap:10}}>
+            {simRooms.map((r, idx) => <div key={r.id} className="sr-room-row" style={{display:"grid",gridTemplateColumns:"150px 1fr 1fr 1fr auto",gap:10,alignItems:"end",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
+              <div><button type="button" style={linkBtn} onClick={() => openRoom(`${selectedEstate.id}-H${String(idx + 1).padStart(2, "0")}`)}>{selectedEstate.id}-H{String(idx + 1).padStart(2, "0")}</button><div style={{fontSize:12,color:"#64748b"}}>Precio final: {money(calculatedSimRooms[idx]?.finalPrice)}</div></div>
+              <Field label="m² habitación" type="number" value={r.m2} onChange={v => updateSimRoom(r.id, { m2:Number(v) })} />
+              <Field label="m² baño privado" type="number" value={r.bathM2} onChange={v => updateSimRoom(r.id, { bathM2:Number(v), bath:Number(v) > 0 ? true : r.bath })} />
+              <Field label="m² balcón privado" type="number" value={r.balconyM2} onChange={v => updateSimRoom(r.id, { balconyM2:Number(v), balcony:Number(v) > 0 ? true : r.balcony })} />
+              <div style={{display:"grid",gap:8}}><Check checked={r.bath} onChange={v => updateSimRoom(r.id, { bath:v })} label="+25 baño" /><Check checked={r.balcony} onChange={v => updateSimRoom(r.id, { balcony:v })} label="+25 balcón" /><Button small danger onClick={() => removeSimRoom(r.id)}>Quitar</Button></div>
+            </div>)}
+          </div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}><Button secondary onClick={addSimRoom}>+ Añadir habitación</Button><Button onClick={saveSimulation}>💾 Guardar simulación</Button></div>
+          {simNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{simNotice}</div>}
+        </Card>
+        <Card title="Resultado" icon="💰" right={<Badge tone="dark">Interno</Badge>}>
+          <div style={{display:"grid",gap:10}}>
+            <div style={metricLine}><span>Precio final habitaciones</span><strong>{money(simGross)}</strong></div>
+            <div style={metricLine}><span>Servicios internos</span><strong>{money(simServicesCost)}</strong></div>
+            <div style={metricLine}><span>Propietario</span><strong>{money(simOwner)}</strong></div>
+            <div style={metricLine}><span>Mi ingreso</span><strong>{money(simMyIncome)}</strong></div>
+          </div>
+          <p style={{color:"#64748b",lineHeight:1.55,margin:"12px 0 0"}}>Servicios, baño y balcón justifican diferencias internas. No se muestran porcentajes al franquiciado.</p>
         </Card>
       </section>}
 
@@ -324,10 +419,10 @@ export default function DashboardFranquiciado() {
         <div style={{display:"grid",gap:16}}>
           <Card title="Fincas asignadas" icon="🏠" right={<Badge tone="purple">Expediente maestro</Badge>}>
             <Table columns={[
-              { key:"id", label:"Finca", bold:true },
+              { key:"id", label:"Finca", bold:true, render:e => <button type="button" style={linkBtn} onClick={() => openEstate(e.id)}>{e.id}</button> },
               { key:"city", label:"Localidad" },
               { key:"zone", label:"Zona" },
-              { key:"owner", label:"Propietario", render:e => owners.find(o => o.id === e.ownerId)?.name || "—" },
+              { key:"owner", label:"Propietario", render:e => { const o = owners.find(x => x.id === e.ownerId); return <button type="button" style={linkBtn} onClick={() => goOwner(e.ownerId)}>{o?.name || "—"}</button>; } },
               { key:"rooms", label:"Hab.", render:e => e.rooms.length },
               { key:"status", label:"Estado", render:e => <Badge tone={e.status === "Activo" ? "ok" : "wait"}>{e.status}</Badge> },
               { key:"actions", label:"", render:e => <Button small onClick={() => openEstate(e.id)}>Ver</Button> },
@@ -341,6 +436,7 @@ export default function DashboardFranquiciado() {
               <div>✉️ {selectedOwner.email}</div>
               <div>🏦 {selectedOwner.iban}</div>
               <div>📄 Contrato: {selectedEstate.contractStatus}</div>
+              <div><strong>🏠 Mis fincas:</strong> {ESTATES.filter(e => e.ownerId === selectedOwner.id).map(e => <button key={e.id} type="button" style={{...linkBtn, marginLeft:8}} onClick={() => openEstate(e.id)}>{e.id}</button>)}</div>
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
               <Button small secondary onClick={() => { setEditingOwner(selectedOwner); setActiveTab("propietarios"); }}>Editar propietario</Button>
@@ -370,7 +466,7 @@ export default function DashboardFranquiciado() {
               <KPI icon="🚪" label="Habitaciones" value={selectedEstate.rooms.length} hint={`${selectedEstate.rooms.filter(r => r.status === "Ocupada").length} ocupadas`} tone="ok" />
               <KPI icon="💶" label="Bruto finca" value={money(selectedLiq.gross)} hint="Precio final" />
               <KPI icon="🔌" label="Servicios internos" value={money(selectedLiq.services)} hint={`${selectedEstate.servicesFee} €/hab.`} tone="wait" />
-              <KPI icon="🤝" label="Tu parte" value={money(selectedLiq.franchisee)} hint="60% gestión" tone="ok" />
+              <KPI icon="🤝" label="Mi ingreso" value={money(selectedLiq.franchisee)} hint="Cartera finca" tone="ok" />
             </div>
             <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
               <strong>Descripción del inmueble</strong>
@@ -398,7 +494,7 @@ export default function DashboardFranquiciado() {
 
           <Card title="Habitaciones de la finca" icon="🚪" right={<Badge tone="ok">Precio final visible</Badge>}>
             <Table columns={[
-              { key:"id", label:"Habitación", bold:true },
+              { key:"id", label:"Habitación", bold:true, render:r => <button type="button" style={linkBtn} onClick={() => openRoom(r.id)}>{r.id}</button> },
               { key:"title", label:"Título" },
               { key:"price", label:"Precio", render:r => money(r.price) },
               { key:"features", label:"Extras", render:r => <span>{r.services ? "Servicios " : ""}{r.bath ? "· Baño " : ""}{r.balcony ? "· Balcón" : ""}</span> },
@@ -407,7 +503,7 @@ export default function DashboardFranquiciado() {
             ]} rows={selectedEstate.rooms} empty="Sin habitaciones." />
           </Card>
 
-          <Card title={`Ficha habitación · ${selectedRoom?.id || "—"}`} icon="📸" right={<Badge tone={selectedRoom?.publish === "ok" ? "ok" : "wait"}>{selectedRoom?.status}</Badge>}>
+          <Card title={<span id="sr-room-detail">{`Ficha habitación · ${selectedRoom?.id || "—"}`}</span>} icon="📸" right={<Badge tone={selectedRoom?.publish === "ok" ? "ok" : "wait"}>{selectedRoom?.status}</Badge>}>
             {selectedRoom && <>
               <div className="sr-room-editor" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
                 <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
@@ -417,7 +513,7 @@ export default function DashboardFranquiciado() {
                     Servicios incluidos: {selectedRoom.services ? "Sí" : "No"}<br/>
                     Baño privado: {selectedRoom.bath ? "Sí" : "No"}<br/>
                     Balcón privado: {selectedRoom.balcony ? "Sí" : "No"}<br/>
-                    Inquilino: {selectedTenant?.name || "Sin asignar"}
+                    Inquilino: {selectedTenant ? <button type="button" style={linkBtn} onClick={() => goTenant(selectedTenant.id)}>{selectedTenant.name}</button> : "Sin asignar"}
                   </div>
                 </div>
                 <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
@@ -568,22 +664,24 @@ export default function DashboardFranquiciado() {
         </Card>
       </section>}
 
-      {activeTab === "liquidaciones" && <Card title="Liquidaciones por finca" icon="💰" right={<Badge tone="ok">60 / 40 · Centralizado</Badge>}>
+      {activeTab === "liquidaciones" && <Card title="Liquidaciones por finca" icon="💰" right={<Badge tone="ok">Centralizado</Badge>}>
         <Table columns={[
-          { key:"id", label:"Finca", bold:true },
-          { key:"owner", label:"Propietario", render:e => owners.find(o => o.id === e.ownerId)?.name || "—" },
+          { key:"id", label:"Finca", bold:true, render:e => <button type="button" style={linkBtn} onClick={() => openEstate(e.id)}>{e.id}</button> },
+          { key:"owner", label:"Propietario", render:e => { const o = owners.find(x => x.id === e.ownerId); return <button type="button" style={linkBtn} onClick={() => goOwner(e.ownerId)}>{o?.name || "—"}</button>; } },
           { key:"gross", label:"Bruto", render:e => money(estateLiquidation(e).gross) },
           { key:"services", label:"Servicios internos", render:e => money(estateLiquidation(e).services) },
           { key:"ownerAmount", label:"Propietario", render:e => money(estateLiquidation(e).owner) },
-          { key:"franchisee", label:"Franquiciado", render:e => money(estateLiquidation(e).franchisee) },
-          { key:"spainroom", label:"SpainRoom", render:e => money(estateLiquidation(e).spainroom) },
+          { key:"franchisee", label:"Mi ingreso", render:e => money(estateLiquidation(e).franchisee) },
+          { key:"spainroom", label:"Gestión central", render:e => money(estateLiquidation(e).spainroom) },
           { key:"actions", label:"", render:e => <Button small secondary onClick={() => openEstate(e.id)}>Abrir finca</Button> },
         ]} rows={ESTATES} empty="Sin liquidaciones." />
       </Card>}
 
-      <Card title="Centro de ayuda comercial" icon="📚" right={<Badge tone="dark">Manual abierto</Badge>}>
+      <Card title="Academia SpainRoom" icon="📚" right={<Badge tone="dark">Manual abierto</Badge>}>
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-help-grid">
           {[
+            ["ADN SpainRoom", "Explicamos mucho, presionamos cero. SpainRoom organiza y el propietario decide."],
+            ["Necesito pensarlo", "Respuesta: muchas gracias, ya sabe dónde localizarme. Ni una palabra más."],
             ["Cómo explicar SpainRoom", "Usted aporta la finca. SpainRoom la gestiona por habitaciones. Usted cobra con control y trazabilidad."],
             ["Qué no decir", "Evita hablar de fórmulas internas, catastro, método de cálculo o valor inmueble."],
             ["Precio habitación", "El inquilino ve precio final con servicios incluidos. Internamente se registran servicios, baño y balcón."],
@@ -598,7 +696,7 @@ export default function DashboardFranquiciado() {
 
     <style>{`
       @media(max-width:1180px){.sr-pro-kpis{grid-template-columns:1fr 1fr 1fr!important}.sr-pro-grid-main{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr 1fr!important}}
-      @media(max-width:760px){.sr-pro-kpis{grid-template-columns:1fr!important}.sr-estate-summary{grid-template-columns:1fr!important}.sr-room-editor{grid-template-columns:1fr!important}.sr-room-fields{grid-template-columns:1fr!important}.sr-photo-grid{grid-template-columns:1fr!important}.sr-contact-form{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr!important}}
+      @media(max-width:760px){.sr-pro-kpis{grid-template-columns:1fr!important}.sr-sim-form{grid-template-columns:1fr!important}.sr-room-row{grid-template-columns:1fr!important}.sr-estate-summary{grid-template-columns:1fr!important}.sr-room-editor{grid-template-columns:1fr!important}.sr-room-fields{grid-template-columns:1fr!important}.sr-photo-grid{grid-template-columns:1fr!important}.sr-contact-form{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr!important}}
     `}</style>
   </main>;
 }
