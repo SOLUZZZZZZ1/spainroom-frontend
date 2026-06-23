@@ -499,8 +499,51 @@ export default function DashboardFranquiciado() {
               { key:"price", label:"Precio", render:r => money(r.price) },
               { key:"features", label:"Extras", render:r => <span>{r.services ? "Servicios " : ""}{r.bath ? "· Baño " : ""}{r.balcony ? "· Balcón" : ""}</span> },
               { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Ocupada" ? "ok" : r.status === "Pendiente fotos" ? "danger" : "info"}>{r.status}</Badge> },
-              { key:"actions", label:"", render:r => <Button small onClick={() => setSelectedRoomId(r.id)}>Abrir</Button> },
+              { key:"actions", label:"", render:r => <Button small onClick={() => openRoom(r.id)}>Abrir</Button> },
             ]} rows={selectedEstate.rooms} empty="Sin habitaciones." />
+          </Card>
+
+          <Card title="Simulador de precios de habitación" icon="🧮" right={<Badge tone="ok">Visible en finca</Badge>}>
+            <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>
+              Calcula el precio final por habitación de esta finca. El inquilino solo verá el precio final con servicios incluidos.
+            </p>
+            <div className="sr-sim-form" style={{display:"grid",gridTemplateColumns:"1.2fr .8fr .7fr",gap:10,marginBottom:14}}>
+              <Field label="Finca" value={`${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}`} onChange={() => {}} />
+              <Field label="Valor vivienda" type="number" value={simHomeValue} onChange={v => setSimHomeValue(Number(v))} />
+              <Field label="Servicios €/hab." type="number" value={simServicesFee} onChange={v => setSimServicesFee(Number(v))} />
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+              <Check checked={simServicesIncluded} onChange={setSimServicesIncluded} label="+25 servicios incluidos" />
+              <Badge tone="dark">Baño privado +25</Badge>
+              <Badge tone="dark">Balcón privado +25</Badge>
+            </div>
+            <div style={{display:"grid",gap:10}}>
+              {simRooms.map((r, idx) => <div key={r.id} className="sr-room-row" style={{display:"grid",gridTemplateColumns:"145px 1fr 1fr 1fr auto",gap:10,alignItems:"end",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
+                <div>
+                  <button type="button" style={linkBtn} onClick={() => openRoom(`${selectedEstate.id}-H${String(idx + 1).padStart(2, "0")}`)}>{selectedEstate.id}-H{String(idx + 1).padStart(2, "0")}</button>
+                  <div style={{fontSize:12,color:"#64748b"}}>Precio final: {money(calculatedSimRooms[idx]?.finalPrice)}</div>
+                </div>
+                <Field label="m² habitación" type="number" value={r.m2} onChange={v => updateSimRoom(r.id, { m2:Number(v) })} />
+                <Field label="m² baño privado" type="number" value={r.bathM2} onChange={v => updateSimRoom(r.id, { bathM2:Number(v), bath:Number(v) > 0 ? true : r.bath })} />
+                <Field label="m² balcón privado" type="number" value={r.balconyM2} onChange={v => updateSimRoom(r.id, { balconyM2:Number(v), balcony:Number(v) > 0 ? true : r.balcony })} />
+                <div style={{display:"grid",gap:8}}>
+                  <Check checked={r.bath} onChange={v => updateSimRoom(r.id, { bath:v })} label="+25 baño" />
+                  <Check checked={r.balcony} onChange={v => updateSimRoom(r.id, { balcony:v })} label="+25 balcón" />
+                  <Button small danger onClick={() => removeSimRoom(r.id)}>Quitar</Button>
+                </div>
+              </div>)}
+            </div>
+            <div className="sr-sim-results" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:14}}>
+              <KPI icon="💶" label="Precio habitaciones" value={money(simGross)} hint="Precio final" />
+              <KPI icon="🔌" label="Servicios internos" value={money(simServicesCost)} hint={`${simServicesFee} €/hab.`} tone="wait" />
+              <KPI icon="👤" label="Propietario" value={money(simOwner)} hint="Liquidación" tone="ok" />
+              <KPI icon="🤝" label="Mi ingreso" value={money(simMyIncome)} hint="Cartera finca" tone="ok" />
+            </div>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}>
+              <Button secondary onClick={addSimRoom}>+ Añadir habitación</Button>
+              <Button onClick={saveSimulation}>💾 Guardar simulación</Button>
+            </div>
+            {simNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{simNotice}</div>}
           </Card>
 
           <Card title={<span id="sr-room-detail">{`Ficha habitación · ${selectedRoom?.id || "—"}`}</span>} icon="📸" right={<Badge tone={selectedRoom?.publish === "ok" ? "ok" : "wait"}>{selectedRoom?.status}</Badge>}>
