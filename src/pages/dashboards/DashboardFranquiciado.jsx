@@ -9,6 +9,17 @@ function money(n) {
   return n.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 }
 
+function loadList(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function Badge({ children, tone = "info" }) {
   const map = {
     ok: ["#ecfdf5", "#047857", "#bbf7d0"],
@@ -179,15 +190,9 @@ export default function DashboardFranquiciado() {
   const [activeTab, setActiveTab] = useState("fincas");
   const [selectedEstateId, setSelectedEstateId] = useState("SR-IMM-00001");
   const [selectedRoomId, setSelectedRoomId] = useState("SR-IMM-00001-H01");
-  const [owners, setOwners] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("SR_V2_OWNERS") || "null") || OWNERS; } catch { return OWNERS; }
-  });
-  const [tenants, setTenants] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("SR_V2_TENANTS") || "null") || TENANTS; } catch { return TENANTS; }
-  });
-  const [contacts, setContacts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("SR_V2_CONTACTS") || "null") || CONTACTS; } catch { return CONTACTS; }
-  });
+  const [owners, setOwners] = useState(() => loadList("SR_V2_OWNERS", OWNERS));
+  const [tenants, setTenants] = useState(() => loadList("SR_V2_TENANTS", TENANTS));
+  const [contacts, setContacts] = useState(() => loadList("SR_V2_CONTACTS", CONTACTS));
   const [taskList, setTaskList] = useState(() => {
     try { return JSON.parse(localStorage.getItem("SR_V2_TASKS") || "null") || TASKS; } catch { return TASKS; }
   });
@@ -315,6 +320,18 @@ export default function DashboardFranquiciado() {
     const next = [item, ...contacts];
     setContacts(next); localStorage.setItem("SR_V2_CONTACTS", JSON.stringify(next));
     setNewContact({ name:"", type:"Propietario", phone:"", email:"", zone:"", next:"" });
+  }
+
+  function restoreDemoData() {
+    setOwners(OWNERS);
+    setTenants(TENANTS);
+    setContacts(CONTACTS);
+    localStorage.setItem("SR_V2_OWNERS", JSON.stringify(OWNERS));
+    localStorage.setItem("SR_V2_TENANTS", JSON.stringify(TENANTS));
+    localStorage.setItem("SR_V2_CONTACTS", JSON.stringify(CONTACTS));
+    setEditingOwner(null);
+    setEditingTenant(null);
+    setEditingContact(null);
   }
 
   function saveRoomDraft(patch = {}) {
@@ -772,7 +789,7 @@ export default function DashboardFranquiciado() {
       </section>}
 
       {activeTab === "propietarios" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:16,alignItems:"start"}}>
-        <Card title="Propietarios" icon="👤" right={<Badge tone="info">Con fincas asociadas</Badge>}>
+        <Card title="Propietarios" icon="👤" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Con fincas asociadas</Badge><Button small secondary onClick={restoreDemoData}>Restaurar demo</Button></div>}>
           <Table columns={[
             { key:"id", label:"Código", bold:true },
             { key:"name", label:"Nombre", bold:true },
@@ -797,7 +814,7 @@ export default function DashboardFranquiciado() {
       </section>}
 
       {activeTab === "inquilinos" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:16,alignItems:"start"}}>
-        <Card title="Inquilinos" icon="👥" right={<Badge tone="info">Vinculados a habitación</Badge>}>
+        <Card title="Inquilinos" icon="👥" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Vinculados a habitación</Badge><Button small secondary onClick={restoreDemoData}>Restaurar demo</Button></div>}>
           <Table columns={[
             { key:"id", label:"Código", bold:true },
             { key:"name", label:"Nombre", bold:true },
