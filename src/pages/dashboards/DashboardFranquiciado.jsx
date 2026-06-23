@@ -199,7 +199,9 @@ export default function DashboardFranquiciado() {
   const [newTask, setNewTask] = useState({ title:"", type:"Seguimiento", estateId:"SR-IMM-00001", priority:"Media", due:"Hoy" });
   const [globalSearch, setGlobalSearch] = useState("");
   const [editingOwner, setEditingOwner] = useState(null);
+  const [ownerPanelMode, setOwnerPanelMode] = useState("view");
   const [editingTenant, setEditingTenant] = useState(null);
+  const [tenantPanelMode, setTenantPanelMode] = useState("view");
   const [editingContact, setEditingContact] = useState(null);
   const [newContact, setNewContact] = useState({ name:"", type:"Propietario", phone:"", email:"", zone:"", next:"" });
   const [roomDrafts, setRoomDrafts] = useState(() => {
@@ -337,10 +339,12 @@ export default function DashboardFranquiciado() {
   }
 
   function openEstate(id) {
+    setGlobalSearch("");
     setSelectedEstateId(id);
     const e = ESTATES.find(x => x.id === id);
     if (e?.rooms?.[0]) setSelectedRoomId(e.rooms[0].id);
     setActiveTab("fincas");
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
   }
 
   function newOwnerCode() {
@@ -353,10 +357,14 @@ export default function DashboardFranquiciado() {
 
   function createOwnerFromTab() {
     setEditingOwner({ id:newOwnerCode(), name:"", phone:"", email:"", iban:"Pendiente", contract:"Pendiente subir", status:"Pendiente", _isNew:true });
+    setOwnerPanelMode("edit");
+    setActiveTab("propietarios");
   }
 
   function createTenantFromTab() {
     setEditingTenant({ id:newTenantCode(), name:"", phone:"", email:"", room:"Pendiente asignar", status:"Documentación", _isNew:true });
+    setTenantPanelMode("edit");
+    setActiveTab("inquilinos");
   }
 
   function saveOwner() {
@@ -395,7 +403,9 @@ export default function DashboardFranquiciado() {
     localStorage.setItem("SR_V2_TENANTS", JSON.stringify(TENANTS));
     localStorage.setItem("SR_V2_CONTACTS", JSON.stringify(CONTACTS));
     setEditingOwner(null);
+    setOwnerPanelMode("view");
     setEditingTenant(null);
+    setTenantPanelMode("view");
     setEditingContact(null);
   }
 
@@ -521,6 +531,7 @@ export default function DashboardFranquiciado() {
     openTenant(tenantId);
   }
   function openRoom(roomId) {
+    setGlobalSearch("");
     const room = allRooms.find(r => r.id === roomId);
     if (room?.estateId) setSelectedEstateId(room.estateId);
     setSelectedRoomId(roomId);
@@ -529,14 +540,32 @@ export default function DashboardFranquiciado() {
   }
 
   function openOwner(ownerId) {
+    setGlobalSearch("");
     const owner = owners.find(o => o.id === ownerId);
     if (owner) setEditingOwner(owner);
+    setOwnerPanelMode("view");
+    setActiveTab("propietarios");
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
+  }
+
+  function editOwner(owner) {
+    setEditingOwner(owner);
+    setOwnerPanelMode("edit");
     setActiveTab("propietarios");
   }
 
   function openTenant(tenantId) {
+    setGlobalSearch("");
     const tenant = tenants.find(t => t.id === tenantId);
     if (tenant) setEditingTenant(tenant);
+    setTenantPanelMode("view");
+    setActiveTab("inquilinos");
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
+  }
+
+  function editTenant(tenant) {
+    setEditingTenant(tenant);
+    setTenantPanelMode("edit");
     setActiveTab("inquilinos");
   }
 
@@ -888,19 +917,36 @@ export default function DashboardFranquiciado() {
             { key:"email", label:"Email", render:o => <a href={`mailto:${o.email}`} style={linkBtn}>{o.email}</a> },
             { key:"iban", label:"IBAN" },
             { key:"fincas", label:"Fincas", render:o => <div style={{display:"grid",gap:4}}>{ESTATES.filter(e => e.ownerId === o.id).map(e => <button key={e.id} type="button" style={linkBtn} onClick={() => openEstate(e.id)}>🏠 {e.id}</button>)}</div> },
-            { key:"actions", label:"", render:o => <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><Button small onClick={() => setEditingOwner(o)}>Editar</Button></div> },
+            { key:"actions", label:"", render:o => <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><Button small onClick={() => editOwner(o)}>Editar</Button></div> },
           ]} rows={filteredOwners} empty="Sin propietarios." />
         </Card>
 
-        <Card title={editingOwner?._isNew ? "Nuevo propietario" : "Editar propietario"} icon={editingOwner?._isNew ? "➕" : "✏️"} right={editingOwner ? <Badge tone={editingOwner._isNew ? "ok" : "wait"}>{editingOwner.id}</Badge> : <Badge tone="dark">Selecciona</Badge>}>
-          {editingOwner ? <div style={{display:"grid",gap:10}}>
+        <Card title={editingOwner?._isNew ? "Nuevo propietario" : ownerPanelMode === "edit" ? "Editar propietario" : "Ficha propietario"} icon={editingOwner?._isNew ? "➕" : ownerPanelMode === "edit" ? "✏️" : "👁️"} right={editingOwner ? <Badge tone={editingOwner._isNew ? "ok" : "wait"}>{editingOwner.id}</Badge> : <Badge tone="dark">Selecciona</Badge>}>
+          {editingOwner && ownerPanelMode === "view" ? <div style={{display:"grid",gap:12}}>
+            <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12,lineHeight:1.65}}>
+              <div><strong>Código:</strong> <button type="button" style={linkBtn} onClick={() => openOwner(editingOwner.id)}>{editingOwner.id}</button></div>
+              <div><strong>Nombre:</strong> {editingOwner.name}</div>
+              <div><strong>Teléfono:</strong> <a href={`tel:${normalizePhone(editingOwner.phone)}`} style={linkBtn}>{editingOwner.phone}</a> · <a href={`https://wa.me/${normalizePhone(editingOwner.phone)}`} target="_blank" rel="noreferrer" style={linkBtn}>WhatsApp</a></div>
+              <div><strong>Email:</strong> <a href={`mailto:${editingOwner.email}`} style={linkBtn}>{editingOwner.email}</a></div>
+              <div><strong>IBAN:</strong> {editingOwner.iban}</div>
+              <div><strong>Contrato:</strong> {editingOwner.contract}</div>
+            </div>
+            <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+              <strong>🏠 Fincas asociadas</strong>
+              <div style={{display:"grid",gap:6,marginTop:8}}>
+                {ESTATES.filter(e => e.ownerId === editingOwner.id).map(e => <button key={e.id} type="button" style={linkBtn} onClick={() => openEstate(e.id)}>{e.id} · {e.city} · {e.zone}</button>)}
+                {!ESTATES.filter(e => e.ownerId === editingOwner.id).length && <span style={{color:"#64748b"}}>Sin fincas asociadas.</span>}
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button onClick={() => setOwnerPanelMode("edit")}>✏️ Editar propietario</Button><Button secondary onClick={createOwnerFromTab}>+ Nuevo propietario</Button></div>
+          </div> : editingOwner ? <div style={{display:"grid",gap:10}}>
             <Field label="Nombre" value={editingOwner.name || ""} onChange={v => setEditingOwner(o => ({...o,name:v}))} />
             <Field label="Teléfono" value={editingOwner.phone || ""} onChange={v => setEditingOwner(o => ({...o,phone:v}))} />
             <Field label="Email" value={editingOwner.email || ""} onChange={v => setEditingOwner(o => ({...o,email:v}))} />
             <Field label="IBAN" value={editingOwner.iban || ""} onChange={v => setEditingOwner(o => ({...o,iban:v}))} />
             <Field label="Estado contrato" value={editingOwner.contract || ""} onChange={v => setEditingOwner(o => ({...o,contract:v}))} />
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button onClick={saveOwner}>{editingOwner?._isNew ? "✅ Crear propietario" : "💾 Guardar propietario"}</Button><Button secondary onClick={() => setEditingOwner(null)}>Cancelar</Button></div>
-          </div> : <p style={{color:"#64748b"}}>Pulsa editar en un propietario.</p>}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button onClick={saveOwner}>{editingOwner?._isNew ? "✅ Crear propietario" : "💾 Guardar propietario"}</Button><Button secondary onClick={() => editingOwner?._isNew ? setEditingOwner(null) : setOwnerPanelMode("view")}>Cancelar</Button></div>
+          </div> : <p style={{color:"#64748b"}}>Pulsa un código o nombre para ver la ficha. Pulsa editar solo para modificar.</p>}
         </Card>
       </section>}
 
@@ -913,18 +959,46 @@ export default function DashboardFranquiciado() {
             { key:"email", label:"Email", render:t => <a href={`mailto:${t.email}`} style={linkBtn}>{t.email}</a> },
             { key:"room", label:"Habitación", render:t => t.room?.startsWith("SR-IMM") ? <button type="button" style={linkBtn} onClick={() => openRoom(t.room)}>{t.room}</button> : t.room },
             { key:"status", label:"Estado", render:t => <Badge tone={t.status === "Activo" ? "ok" : "wait"}>{t.status}</Badge> },
-            { key:"actions", label:"", render:t => <Button small onClick={() => setEditingTenant(t)}>Editar</Button> },
+            { key:"actions", label:"", render:t => <Button small onClick={() => editTenant(t)}>Editar</Button> },
           ]} rows={filteredTenants} empty="Sin inquilinos." />
         </Card>
-        <Card title={editingTenant?._isNew ? "Nuevo inquilino" : "Editar inquilino"} icon={editingTenant?._isNew ? "➕" : "✏️"} right={editingTenant ? <Badge tone={editingTenant._isNew ? "ok" : "wait"}>{editingTenant.id}</Badge> : <Badge tone="dark">Selecciona</Badge>}>
-          {editingTenant ? <div style={{display:"grid",gap:10}}>
+        <Card title={editingTenant?._isNew ? "Nuevo inquilino" : tenantPanelMode === "edit" ? "Editar inquilino" : "Ficha inquilino"} icon={editingTenant?._isNew ? "➕" : tenantPanelMode === "edit" ? "✏️" : "👁️"} right={editingTenant ? <Badge tone={editingTenant._isNew ? "ok" : "wait"}>{editingTenant.id}</Badge> : <Badge tone="dark">Selecciona</Badge>}>
+          {editingTenant && tenantPanelMode === "view" ? (() => {
+            const room = allRooms.find(r => r.id === editingTenant.room);
+            const estate = room ? ESTATES.find(e => e.id === room.estateId) : null;
+            const owner = estate ? owners.find(o => o.id === estate.ownerId) : null;
+            return <div style={{display:"grid",gap:12}}>
+              <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12,lineHeight:1.65}}>
+                <div><strong>Código:</strong> <button type="button" style={linkBtn} onClick={() => openTenant(editingTenant.id)}>{editingTenant.id}</button></div>
+                <div><strong>Nombre:</strong> {editingTenant.name}</div>
+                <div><strong>Teléfono:</strong> <a href={`tel:${normalizePhone(editingTenant.phone)}`} style={linkBtn}>{editingTenant.phone}</a> · <a href={`https://wa.me/${normalizePhone(editingTenant.phone)}`} target="_blank" rel="noreferrer" style={linkBtn}>WhatsApp</a></div>
+                <div><strong>Email:</strong> <a href={`mailto:${editingTenant.email}`} style={linkBtn}>{editingTenant.email}</a></div>
+                <div><strong>Estado:</strong> {editingTenant.status}</div>
+              </div>
+              <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12,lineHeight:1.65}}>
+                <div><strong>🚪 Habitación:</strong> {editingTenant.room?.startsWith("SR-IMM") ? <button type="button" style={linkBtn} onClick={() => openRoom(editingTenant.room)}>{editingTenant.room}</button> : editingTenant.room}</div>
+                <div><strong>🏠 Finca:</strong> {estate ? <button type="button" style={linkBtn} onClick={() => openEstate(estate.id)}>{estate.id} · {estate.city}</button> : "—"}</div>
+                <div><strong>👤 Propietario:</strong> {owner ? <button type="button" style={linkBtn} onClick={() => openOwner(owner.id)}>{owner.name}</button> : "—"}</div>
+              </div>
+              <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+                <strong>📁 Documentación</strong>
+                <div style={{display:"grid",gap:6,marginTop:8,color:"#334155",fontWeight:850}}>
+                  <div>✅ Identidad / DNI</div>
+                  <div>✅ Teléfono verificado</div>
+                  <div>✅ Contrato vinculado</div>
+                  <div>🟡 Logalty pendiente de integración real</div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button onClick={() => setTenantPanelMode("edit")}>✏️ Editar inquilino</Button><Button secondary onClick={createTenantFromTab}>+ Nuevo inquilino</Button></div>
+            </div>;
+          })() : editingTenant ? <div style={{display:"grid",gap:10}}>
             <Field label="Nombre" value={editingTenant.name || ""} onChange={v => setEditingTenant(t => ({...t,name:v}))} />
             <Field label="Teléfono" value={editingTenant.phone || ""} onChange={v => setEditingTenant(t => ({...t,phone:v}))} />
             <Field label="Email" value={editingTenant.email || ""} onChange={v => setEditingTenant(t => ({...t,email:v}))} />
             <Field label="Habitación" value={editingTenant.room || ""} onChange={v => setEditingTenant(t => ({...t,room:v}))} />
             <Field label="Estado" value={editingTenant.status || ""} onChange={v => setEditingTenant(t => ({...t,status:v}))} />
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button onClick={saveTenant}>{editingTenant?._isNew ? "✅ Crear inquilino" : "💾 Guardar inquilino"}</Button><Button secondary onClick={() => setEditingTenant(null)}>Cancelar</Button></div>
-          </div> : <p style={{color:"#64748b"}}>Pulsa editar en un inquilino.</p>}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button onClick={saveTenant}>{editingTenant?._isNew ? "✅ Crear inquilino" : "💾 Guardar inquilino"}</Button><Button secondary onClick={() => editingTenant?._isNew ? setEditingTenant(null) : setTenantPanelMode("view")}>Cancelar</Button></div>
+          </div> : <p style={{color:"#64748b"}}>Pulsa un código o nombre para ver la ficha. Pulsa editar solo para modificar.</p>}
         </Card>
       </section>}
 
