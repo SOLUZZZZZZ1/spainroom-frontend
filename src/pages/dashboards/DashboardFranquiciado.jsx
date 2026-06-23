@@ -1,6 +1,6 @@
 // src/pages/dashboards/DashboardFranquiciado.jsx
 // SpainRoom® — Dashboard Franquiciado V2 · Sin saltos automáticos de pantalla
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const blue = "#0A58CA";
 
@@ -193,6 +193,22 @@ export default function DashboardFranquiciado() {
   const [owners, setOwners] = useState(() => loadList("SR_V2_OWNERS", OWNERS));
   const [tenants, setTenants] = useState(() => loadList("SR_V2_TENANTS", TENANTS));
   const [contacts, setContacts] = useState(() => loadList("SR_V2_CONTACTS", CONTACTS));
+
+  // Protección demo: evita que Propietarios/Inquilinos queden en blanco si alguna versión anterior
+  // guardó [] en localStorage o si se guarda un registro nuevo partiendo de estado vacío.
+  useEffect(() => {
+    if (!Array.isArray(owners) || owners.length === 0) {
+      setOwners(OWNERS);
+      localStorage.setItem("SR_V2_OWNERS", JSON.stringify(OWNERS));
+    }
+  }, [owners]);
+
+  useEffect(() => {
+    if (!Array.isArray(tenants) || tenants.length === 0) {
+      setTenants(TENANTS);
+      localStorage.setItem("SR_V2_TENANTS", JSON.stringify(TENANTS));
+    }
+  }, [tenants]);
   const [taskList, setTaskList] = useState(() => {
     try { return JSON.parse(localStorage.getItem("SR_V2_TASKS") || "null") || TASKS; } catch { return TASKS; }
   });
@@ -386,20 +402,34 @@ export default function DashboardFranquiciado() {
   }
 
   function saveOwner() {
-    if (!editingOwner?.name?.trim()) return;
+    if (!editingOwner?.name?.trim()) {
+      alert("Falta el nombre del propietario.");
+      return;
+    }
     const clean = { ...editingOwner };
     delete clean._isNew;
-    const exists = owners.some(o => o.id === clean.id);
-    const next = exists ? owners.map(o => o.id === clean.id ? clean : o) : [clean, ...owners];
-    setOwners(next); localStorage.setItem("SR_V2_OWNERS", JSON.stringify(next)); setEditingOwner(null);
+    const baseOwners = Array.isArray(owners) && owners.length > 0 ? owners : OWNERS;
+    const exists = baseOwners.some(o => o.id === clean.id);
+    const next = exists ? baseOwners.map(o => o.id === clean.id ? clean : o) : [clean, ...baseOwners];
+    setOwners(next);
+    localStorage.setItem("SR_V2_OWNERS", JSON.stringify(next));
+    setEditingOwner(clean);
+    setOwnerPanelMode("view");
   }
   function saveTenant() {
-    if (!editingTenant?.name?.trim()) return;
+    if (!editingTenant?.name?.trim()) {
+      alert("Falta el nombre del inquilino.");
+      return;
+    }
     const clean = { ...editingTenant };
     delete clean._isNew;
-    const exists = tenants.some(t => t.id === clean.id);
-    const next = exists ? tenants.map(t => t.id === clean.id ? clean : t) : [clean, ...tenants];
-    setTenants(next); localStorage.setItem("SR_V2_TENANTS", JSON.stringify(next)); setEditingTenant(null);
+    const baseTenants = Array.isArray(tenants) && tenants.length > 0 ? tenants : TENANTS;
+    const exists = baseTenants.some(t => t.id === clean.id);
+    const next = exists ? baseTenants.map(t => t.id === clean.id ? clean : t) : [clean, ...baseTenants];
+    setTenants(next);
+    localStorage.setItem("SR_V2_TENANTS", JSON.stringify(next));
+    setEditingTenant(clean);
+    setTenantPanelMode("view");
   }
   function saveContact() {
     const next = contacts.map(c => c.id === editingContact.id ? editingContact : c);
@@ -957,6 +987,22 @@ export default function DashboardFranquiciado() {
               { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Ocupada" ? "ok" : r.status === "Pendiente fotos" ? "danger" : "info"}>{r.status}</Badge> },
               { key:"actions", label:"", render:r => <Button small onClick={() => openRoom(r.id)}>Abrir</Button> },
             ]} rows={selectedEstate.rooms} empty="Sin habitaciones." />
+
+            {selectedRoom && selectedRoom.estateId === selectedEstate.id && <div style={{marginTop:12,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+                <strong>👁️ Ficha rápida habitación · <button type="button" style={linkBtn} onClick={() => openRoom(selectedRoom.id)}>{selectedRoom.id}</button></strong>
+                <Badge tone={selectedRoom.status === "Ocupada" ? "ok" : selectedRoom.status === "Pendiente fotos" ? "danger" : "info"}>{selectedRoom.status}</Badge>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}} className="sr-room-fields">
+                <div style={infoBox}><strong>{selectedRoom.title}</strong><br/>Precio final: <strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/>Fotos: {roomDrafts[selectedRoom.id]?.photos?.length || selectedRoom.photos || 0}</div>
+                <div style={infoBox}>🏠 Finca:<br/><button type="button" style={linkBtn} onClick={() => openEstate(selectedRoom.estateId)}>{selectedRoom.estateId}</button><br/>👤 Propietario:<br/><button type="button" style={linkBtn} onClick={() => goOwner(selectedRoom.ownerId)}>{owners.find(o => o.id === selectedRoom.ownerId)?.name || selectedRoom.ownerId}</button></div>
+                <div style={infoBox}>👥 Inquilino:<br/>{selectedRoom.tenantId ? <button type="button" style={linkBtn} onClick={() => goTenant(selectedRoom.tenantId)}>{tenants.find(t => t.id === selectedRoom.tenantId)?.name || selectedRoom.tenantId}</button> : "Sin asignar"}<br/>Extras: {selectedRoom.services ? "Servicios " : ""}{selectedRoom.bath ? "· Baño " : ""}{selectedRoom.balcony ? "· Balcón" : ""}</div>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                <Button small onClick={() => saveRoomDraft()}>💾 Guardar ficha</Button>
+                <Button small secondary onClick={publishRoom}>🚀 Publicar si está completa</Button>
+              </div>
+            </div>}
           </Card>
 
           <Card title="Simulador de precios de habitación" icon="🧮" right={<Badge tone="ok">Visible en finca</Badge>}>
@@ -1304,6 +1350,7 @@ export default function DashboardFranquiciado() {
 const searchGroupStyle = {background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:10,display:"grid",gap:8,alignContent:"start"};
 const searchResultBtn = {display:"grid",gap:2,textAlign:"left",background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"8px 9px",cursor:"pointer",color:"#0b1220"};
 const metricLine = {display:"flex",justifyContent:"space-between",gap:12,padding:"9px 0",borderBottom:"1px solid #f1f5f9",color:"#475569"};
+const infoBox = {background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:12,color:"#334155",lineHeight:1.55};
 
 const th = {padding:"9px 7px",borderBottom:"1px solid #e2e8f0",color:"#64748b"};
 const td = {padding:"9px 7px",borderBottom:"1px solid #f1f5f9",color:"#0b1220"};
