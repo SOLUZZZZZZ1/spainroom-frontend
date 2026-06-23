@@ -221,10 +221,25 @@ export default function DashboardFranquiciado() {
     { id:4, m2:14, bathM2:0, balconyM2:0, bath:false, balcony:false },
   ]);
   const [simNotice, setSimNotice] = useState("");
+  const [estateOps, setEstateOps] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("SR_V2_ESTATE_OPS") || "{}"); } catch { return {}; }
+  });
+  const [newInventory, setNewInventory] = useState({ item:"", brand:"", model:"", status:"Bueno", photos:0 });
+  const [selectedInventoryId, setSelectedInventoryId] = useState(null);
+  const [newIncident, setNewIncident] = useState({ level:"🟡", subject:"", roomId:"", status:"Abierta", notes:"" });
+  const [selectedIncidentId, setSelectedIncidentId] = useState(null);
+  const [newCommonArea, setNewCommonArea] = useState({ area:"", description:"", photos:0 });
+  const [estateOpsNotice, setEstateOpsNotice] = useState("");
 
   const selectedEstate = ESTATES.find(e => e.id === selectedEstateId) || ESTATES[0];
   const selectedOwner = owners.find(o => o.id === selectedEstate.ownerId) || owners[0];
   const allRooms = ESTATES.flatMap(e => e.rooms.map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
+  const selectedEstateOps = estateOps[selectedEstate.id] || {};
+  const selectedCommonAreas = [...(selectedEstate.commonAreas || []), ...(selectedEstateOps.commonAreas || [])];
+  const selectedInventory = [...(selectedEstate.inventory || []), ...(selectedEstateOps.inventory || [])];
+  const selectedIncidents = [...(selectedEstate.incidents || []), ...(selectedEstateOps.incidents || [])];
+  const selectedInventoryItem = selectedInventory.find(x => x.id === selectedInventoryId) || null;
+  const selectedIncident = selectedIncidents.find(x => x.id === selectedIncidentId) || null;
   const pendingTasks = taskList.filter(t => !t.done);
   const urgentTasks = pendingTasks.filter(t => t.priority === "Alta" || t.due === "Hoy");
   const searchText = globalSearch.trim().toLowerCase();
@@ -341,6 +356,8 @@ export default function DashboardFranquiciado() {
   function openEstate(id) {
     setGlobalSearch("");
     setSelectedEstateId(id);
+    setSelectedInventoryId(null);
+    setSelectedIncidentId(null);
     const e = ESTATES.find(x => x.id === id);
     if (e?.rooms?.[0]) setSelectedRoomId(e.rooms[0].id);
     setActiveTab("fincas");
@@ -447,6 +464,67 @@ export default function DashboardFranquiciado() {
   }
   function saveSimulation() {
     setSimNotice(`Simulación guardada para ${selectedEstate.id}: ${calculatedSimRooms.length} habitación(es) · ${money(simGross)}.`);
+  }
+
+  function saveEstateOps(patch) {
+    const current = estateOps[selectedEstate.id] || {};
+    const next = { ...estateOps, [selectedEstate.id]: { ...current, ...patch } };
+    setEstateOps(next);
+    localStorage.setItem("SR_V2_ESTATE_OPS", JSON.stringify(next));
+  }
+
+  function addCommonArea() {
+    if (!newCommonArea.area.trim()) return;
+    const item = { id:`CA-${Date.now()}`, ...newCommonArea, photos:Number(newCommonArea.photos || 0) };
+    saveEstateOps({ commonAreas:[...(selectedEstateOps.commonAreas || []), item] });
+    setNewCommonArea({ area:"", description:"", photos:0 });
+    setEstateOpsNotice(`Zona común añadida a ${selectedEstate.id}.`);
+  }
+
+  function addInventoryItem() {
+    if (!newInventory.item.trim()) return;
+    const item = { id:`INV-${Date.now()}`, ...newInventory, photos:Number(newInventory.photos || 0) };
+    saveEstateOps({ inventory:[...(selectedEstateOps.inventory || []), item] });
+    setSelectedInventoryId(item.id);
+    setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0 });
+    setEstateOpsNotice(`Inventario añadido: ${item.item}.`);
+  }
+
+  function updateInventoryItem(id, patch) {
+    const isDynamic = (selectedEstateOps.inventory || []).some(x => x.id === id);
+    if (!isDynamic) return setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para editarlo.");
+    const nextInventory = (selectedEstateOps.inventory || []).map(x => x.id === id ? { ...x, ...patch } : x);
+    saveEstateOps({ inventory:nextInventory });
+    setEstateOpsNotice("Inventario actualizado.");
+  }
+
+  function addIncident() {
+    if (!newIncident.subject.trim()) return;
+    const item = { id:`INC-${Date.now()}`, date:new Date().toLocaleDateString("es-ES"), ...newIncident };
+    saveEstateOps({ incidents:[...(selectedEstateOps.incidents || []), item] });
+    setSelectedIncidentId(item.id);
+    setNewIncident({ level:"🟡", subject:"", roomId:"", status:"Abierta", notes:"" });
+    setEstateOpsNotice(`Incidencia creada: ${item.subject}.`);
+  }
+
+  function updateIncident(id, patch) {
+    const isDynamic = (selectedEstateOps.incidents || []).some(x => x.id === id);
+    if (!isDynamic) return setEstateOpsNotice("Esta incidencia demo es solo lectura. Crea una nueva para editarla.");
+    const nextIncidents = (selectedEstateOps.incidents || []).map(x => x.id === id ? { ...x, ...patch } : x);
+    saveEstateOps({ incidents:nextIncidents });
+    setEstateOpsNotice("Incidencia actualizada.");
+  }
+
+  function openIncident(id) {
+    setSelectedIncidentId(id);
+    setActiveTab("fincas");
+    setTimeout(() => document.getElementById("sr-incident-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
+  }
+
+  function openInventoryItem(id) {
+    setSelectedInventoryId(id);
+    setActiveTab("fincas");
+    setTimeout(() => document.getElementById("sr-inventory-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
   }
 
   function downloadSimulationPDF() {
@@ -762,22 +840,44 @@ export default function DashboardFranquiciado() {
             </div>
           </Card>
 
-          <Card title="Zonas comunes" icon="🏘️" right={<Badge tone="dark">Operativo franquiciado</Badge>}>
+          <Card title="Zonas comunes" icon="🏘️" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="dark">Operativo franquiciado</Badge><Button small secondary onClick={addCommonArea}>+ Añadir zona</Button></div>}>
+            <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr 2fr .5fr",gap:10,marginBottom:12}}>
+              <Field label="Zona común" value={newCommonArea.area} onChange={v => setNewCommonArea(x => ({...x,area:v}))} />
+              <Field label="Descripción" value={newCommonArea.description} onChange={v => setNewCommonArea(x => ({...x,description:v}))} />
+              <Field label="Fotos" type="number" value={newCommonArea.photos} onChange={v => setNewCommonArea(x => ({...x,photos:Number(v)}))} />
+            </div>
             <Table columns={[
               { key:"area", label:"Zona", bold:true },
               { key:"description", label:"Descripción" },
               { key:"photos", label:"Fotos" },
-            ]} rows={selectedEstate.commonAreas} empty="Sin zonas comunes." />
+            ]} rows={selectedCommonAreas} empty="Sin zonas comunes." />
           </Card>
 
-          <Card title="Inventario visible de la finca" icon="📦" right={<Badge tone="info">Para incidencias</Badge>}>
+          <Card title="Inventario visible de la finca" icon="📦" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Para incidencias</Badge><Button small secondary onClick={addInventoryItem}>+ Añadir inventario</Button></div>}>
+            <div className="sr-inventory-form" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr .8fr .5fr",gap:10,marginBottom:12}}>
+              <Field label="Elemento" value={newInventory.item} onChange={v => setNewInventory(x => ({...x,item:v}))} />
+              <Field label="Marca" value={newInventory.brand} onChange={v => setNewInventory(x => ({...x,brand:v}))} />
+              <Field label="Modelo / medida" value={newInventory.model} onChange={v => setNewInventory(x => ({...x,model:v}))} />
+              <Field label="Estado" value={newInventory.status} onChange={v => setNewInventory(x => ({...x,status:v}))} />
+              <Field label="Fotos" type="number" value={newInventory.photos} onChange={v => setNewInventory(x => ({...x,photos:Number(v)}))} />
+            </div>
             <Table columns={[
-              { key:"item", label:"Elemento", bold:true },
+              { key:"item", label:"Elemento", bold:true, render:i => <button type="button" style={linkBtn} onClick={() => openInventoryItem(i.id)}>{i.item}</button> },
               { key:"brand", label:"Marca" },
               { key:"model", label:"Modelo / medida" },
               { key:"status", label:"Estado" },
               { key:"photos", label:"Fotos" },
-            ]} rows={selectedEstate.inventory} empty="Sin inventario." />
+              { key:"actions", label:"", render:i => <Button small secondary onClick={() => openInventoryItem(i.id)}>Abrir</Button> },
+            ]} rows={selectedInventory} empty="Sin inventario." />
+            {selectedInventoryItem && <div id="sr-inventory-detail" style={{marginTop:12,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}><strong>📦 Ficha inventario · {selectedInventoryItem.id}</strong><Badge tone="dark">{selectedInventoryItem.status}</Badge></div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-room-fields">
+                <Field label="Elemento" value={selectedInventoryItem.item || ""} onChange={v => updateInventoryItem(selectedInventoryItem.id,{item:v})} />
+                <Field label="Marca" value={selectedInventoryItem.brand || ""} onChange={v => updateInventoryItem(selectedInventoryItem.id,{brand:v})} />
+                <Field label="Modelo / medida" value={selectedInventoryItem.model || ""} onChange={v => updateInventoryItem(selectedInventoryItem.id,{model:v})} />
+                <Field label="Estado" value={selectedInventoryItem.status || ""} onChange={v => updateInventoryItem(selectedInventoryItem.id,{status:v})} />
+              </div>
+            </div>}
           </Card>
 
           <Card title="Habitaciones de la finca" icon="🚪" right={<Badge tone="ok">Precio final visible</Badge>}>
@@ -898,12 +998,33 @@ export default function DashboardFranquiciado() {
             </>}
           </Card>
 
-          <Card title="Incidencias de la finca" icon="⚠️" right={<Badge tone={selectedEstate.incidents.length ? "wait" : "ok"}>{selectedEstate.incidents.length}</Badge>}>
+          <Card title="Incidencias de la finca" icon="⚠️" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone={selectedIncidents.length ? "wait" : "ok"}>{selectedIncidents.length}</Badge><Button small secondary onClick={addIncident}>+ Nueva incidencia</Button></div>}>
+            <div className="sr-incident-form" style={{display:"grid",gridTemplateColumns:".5fr 1.3fr 1fr .8fr",gap:10,marginBottom:12}}>
+              <Field label="Nivel" value={newIncident.level} onChange={v => setNewIncident(x => ({...x,level:v}))} />
+              <Field label="Asunto" value={newIncident.subject} onChange={v => setNewIncident(x => ({...x,subject:v}))} />
+              <label style={{display:"grid",gap:6}}><span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Habitación vinculada</span><select value={newIncident.roomId} onChange={e => setNewIncident(x => ({...x,roomId:e.target.value}))} style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",color:"#0b1220",fontWeight:750,background:"#fff",outline:"none"}}><option value="">Finca general</option>{selectedEstate.rooms.map(r => <option key={r.id} value={r.id}>{r.id}</option>)}</select></label>
+              <Field label="Estado" value={newIncident.status} onChange={v => setNewIncident(x => ({...x,status:v}))} />
+            </div>
+            <label style={{display:"grid",gap:6,marginBottom:12}}><span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Notas de incidencia</span><textarea value={newIncident.notes} onChange={e => setNewIncident(x => ({...x,notes:e.target.value}))} rows={3} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} /></label>
             <Table columns={[
               { key:"level", label:"Nivel" },
-              { key:"subject", label:"Asunto", bold:true },
+              { key:"subject", label:"Asunto", bold:true, render:i => <button type="button" style={linkBtn} onClick={() => openIncident(i.id)}>{i.subject}</button> },
+              { key:"roomId", label:"Habitación", render:i => i.roomId ? <button type="button" style={linkBtn} onClick={() => openRoom(i.roomId)}>{i.roomId}</button> : "Finca" },
               { key:"status", label:"Estado" },
-            ]} rows={selectedEstate.incidents} empty="Sin incidencias." />
+              { key:"actions", label:"", render:i => <Button small secondary onClick={() => openIncident(i.id)}>Abrir</Button> },
+            ]} rows={selectedIncidents} empty="Sin incidencias." />
+            {selectedIncident && <div id="sr-incident-detail" style={{marginTop:12,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}><strong>⚠️ Ficha incidencia · {selectedIncident.id}</strong><Badge tone={selectedIncident.status === "Cerrada" ? "ok" : "wait"}>{selectedIncident.status}</Badge></div>
+              <div style={{display:"grid",gridTemplateColumns:".5fr 1.5fr 1fr 1fr",gap:10}} className="sr-room-fields">
+                <Field label="Nivel" value={selectedIncident.level || ""} onChange={v => updateIncident(selectedIncident.id,{level:v})} />
+                <Field label="Asunto" value={selectedIncident.subject || ""} onChange={v => updateIncident(selectedIncident.id,{subject:v})} />
+                <Field label="Estado" value={selectedIncident.status || ""} onChange={v => updateIncident(selectedIncident.id,{status:v})} />
+                <Field label="Fecha" value={selectedIncident.date || "Demo"} onChange={() => {}} />
+              </div>
+              <div style={{marginTop:10,color:"#334155",fontWeight:850}}>Relaciones: 🏠 <button type="button" style={linkBtn} onClick={() => openEstate(selectedEstate.id)}>{selectedEstate.id}</button>{selectedIncident.roomId && <> · 🚪 <button type="button" style={linkBtn} onClick={() => openRoom(selectedIncident.roomId)}>{selectedIncident.roomId}</button></>} · 👤 <button type="button" style={linkBtn} onClick={() => goOwner(selectedEstate.ownerId)}>{selectedOwner.name}</button></div>
+              <label style={{display:"grid",gap:6,marginTop:10}}><span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Notas / seguimiento</span><textarea value={selectedIncident.notes || ""} onChange={e => updateIncident(selectedIncident.id,{notes:e.target.value})} rows={4} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} /></label>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}><Button small secondary onClick={() => updateIncident(selectedIncident.id,{status:"En seguimiento"})}>En seguimiento</Button><Button small onClick={() => updateIncident(selectedIncident.id,{status:"Cerrada"})}>Cerrar incidencia</Button></div>
+            </div>}
           </Card>
         </div>
       </section>}
@@ -1107,7 +1228,7 @@ export default function DashboardFranquiciado() {
 
     <style>{`
       @media(max-width:1180px){.sr-global-results{grid-template-columns:1fr 1fr!important}.sr-pro-kpis{grid-template-columns:1fr 1fr 1fr!important}.sr-pro-grid-main{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr 1fr!important}}
-      @media(max-width:760px){.sr-global-results{grid-template-columns:1fr!important}.sr-pro-kpis{grid-template-columns:1fr!important}.sr-sim-form{grid-template-columns:1fr!important}.sr-room-row{grid-template-columns:1fr!important}.sr-estate-summary{grid-template-columns:1fr!important}.sr-room-editor{grid-template-columns:1fr!important}.sr-room-fields{grid-template-columns:1fr!important}.sr-photo-grid{grid-template-columns:1fr!important}.sr-contact-form{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr!important}}
+      @media(max-width:760px){.sr-inventory-form{grid-template-columns:1fr!important}.sr-incident-form{grid-template-columns:1fr!important}.sr-global-results{grid-template-columns:1fr!important}.sr-pro-kpis{grid-template-columns:1fr!important}.sr-sim-form{grid-template-columns:1fr!important}.sr-room-row{grid-template-columns:1fr!important}.sr-estate-summary{grid-template-columns:1fr!important}.sr-room-editor{grid-template-columns:1fr!important}.sr-room-fields{grid-template-columns:1fr!important}.sr-photo-grid{grid-template-columns:1fr!important}.sr-contact-form{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr!important}}
     `}</style>
   </main>;
 }
