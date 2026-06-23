@@ -299,6 +299,74 @@ export default function DashboardFranquiciado() {
   function saveSimulation() {
     setSimNotice(`Simulación guardada para ${selectedEstate.id}: ${calculatedSimRooms.length} habitación(es) · ${money(simGross)}.`);
   }
+
+  function downloadSimulationPDF() {
+    const rows = calculatedSimRooms.map(r => `
+      <tr>
+        <td>${r.code}</td>
+        <td>${r.privateM2} m²</td>
+        <td>${money(r.services)}</td>
+        <td>${r.bath ? "+25 €" : "—"}</td>
+        <td>${r.balcony ? "+25 €" : "—"}</td>
+        <td><strong>${money(r.finalPrice)}</strong></td>
+      </tr>
+    `).join("");
+
+    const html = `
+      <!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Simulación SpainRoom</title>
+        <style>
+          body { font-family: Arial, sans-serif; color:#0b1220; padding:32px; }
+          .header { background:#0b65d8; color:white; padding:22px; border-radius:16px; }
+          h1 { margin:0 0 8px; font-size:28px; }
+          h2 { margin-top:22px; }
+          .grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin:18px 0; }
+          .box { border:1px solid #e2e8f0; border-radius:12px; padding:14px; }
+          .big { font-size:24px; font-weight:800; }
+          table { width:100%; border-collapse:collapse; margin-top:14px; }
+          th, td { border-bottom:1px solid #e2e8f0; padding:9px; text-align:left; }
+          .note { margin-top:18px; color:#475569; font-size:13px; line-height:1.45; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>SpainRoom® · Simulación de precios por finca</h1>
+          <div>${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}</div>
+        </div>
+
+        <h2>Propietario</h2>
+        <p><strong>${selectedOwner.name}</strong><br/>${selectedOwner.email}<br/>${selectedOwner.phone}</p>
+
+        <h2>Resultado</h2>
+        <div class="grid">
+          <div class="box"><div>Precio final habitaciones</div><div class="big">${money(simGross)}</div></div>
+          <div class="box"><div>Propietario</div><div class="big">${money(simOwner)}</div></div>
+          <div class="box"><div>Mi ingreso</div><div class="big">${money(simFranchisee)}</div></div>
+        </div>
+
+        <h2>Habitaciones</h2>
+        <table>
+          <thead><tr><th>Habitación</th><th>m² privados</th><th>Servicios</th><th>Baño</th><th>Balcón</th><th>Precio final</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+
+        <p class="note">
+          Simulación orientativa SpainRoom para propietario. El inquilino ve el precio final con servicios incluidos.
+          El desglose operativo de servicios, baño y balcón queda como criterio interno de SpainRoom.
+        </p>
+        <script>window.print();</script>
+      </body>
+      </html>
+    `;
+
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+  }
   function goOwner(ownerId) {
     const owner = owners.find(o => o.id === ownerId);
     if (owner) setEditingOwner(owner);
@@ -401,7 +469,7 @@ export default function DashboardFranquiciado() {
               <div style={{display:"grid",gap:8}}><Check checked={r.bath} onChange={v => updateSimRoom(r.id, { bath:v })} label="+25 baño" /><Check checked={r.balcony} onChange={v => updateSimRoom(r.id, { balcony:v })} label="+25 balcón" /><Button small danger onClick={() => removeSimRoom(r.id)}>Quitar</Button></div>
             </div>)}
           </div>
-          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}><Button secondary onClick={addSimRoom}>+ Añadir habitación</Button><Button onClick={saveSimulation}>💾 Guardar simulación</Button></div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}><Button secondary onClick={addSimRoom}>+ Añadir habitación</Button><Button onClick={saveSimulation}>💾 Guardar simulación</Button><Button secondary onClick={downloadSimulationPDF}>📄 Descargar PDF</Button></div>
           {simNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{simNotice}</div>}
         </Card>
         <Card title="Resultado" icon="💰" right={<Badge tone="dark">Interno</Badge>}>
