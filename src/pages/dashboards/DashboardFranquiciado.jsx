@@ -1,5 +1,5 @@
 // src/pages/dashboards/DashboardFranquiciado.jsx
-// SpainRoom® — Dashboard Franquiciado V2 · Sin saltos automáticos de pantalla
+// SpainRoom® — Dashboard Franquiciado V2 · Asociar fincas a propietario
 import React, { useState, useEffect } from "react";
 
 const blue = "#0A58CA";
@@ -190,9 +190,17 @@ export default function DashboardFranquiciado() {
   const [activeTab, setActiveTab] = useState("fincas");
   const [selectedEstateId, setSelectedEstateId] = useState("SR-IMM-00001");
   const [selectedRoomId, setSelectedRoomId] = useState("SR-IMM-00001-H01");
+  const [estates, setEstates] = useState(() => loadList("SR_V2_estates", estates));
   const [owners, setOwners] = useState(() => loadList("SR_V2_OWNERS", OWNERS));
   const [tenants, setTenants] = useState(() => loadList("SR_V2_TENANTS", TENANTS));
   const [contacts, setContacts] = useState(() => loadList("SR_V2_CONTACTS", CONTACTS));
+
+  useEffect(() => {
+    if (!Array.isArray(estates) || estates.length === 0) {
+      setEstates(ESTATES);
+      localStorage.setItem("SR_V2_ESTATES", JSON.stringify(ESTATES));
+    }
+  }, [estates]);
 
   // Protección demo: evita que Propietarios/Inquilinos queden en blanco si alguna versión anterior
   // guardó [] en localStorage o si se guarda un registro nuevo partiendo de estado vacío.
@@ -248,9 +256,9 @@ export default function DashboardFranquiciado() {
   const [selectedCommonAreaId, setSelectedCommonAreaId] = useState(null);
   const [estateOpsNotice, setEstateOpsNotice] = useState("");
 
-  const selectedEstate = ESTATES.find(e => e.id === selectedEstateId) || ESTATES[0];
+  const selectedEstate = estates.find(e => e.id === selectedEstateId) || estates[0];
   const selectedOwner = owners.find(o => o.id === selectedEstate.ownerId) || owners[0];
-  const allRooms = ESTATES.flatMap(e => e.rooms.map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
+  const allRooms = estates.flatMap(e => e.rooms.map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
   const selectedEstateOps = estateOps[selectedEstate.id] || {};
   const selectedCommonAreas = selectedEstateOps.commonAreasFull || [...(selectedEstate.commonAreas || []), ...(selectedEstateOps.commonAreas || [])];
   const selectedCommonArea = selectedCommonAreas.find(x => x.id === selectedCommonAreaId) || null;
@@ -261,18 +269,18 @@ export default function DashboardFranquiciado() {
   const pendingTasks = taskList.filter(t => !t.done);
   const urgentTasks = pendingTasks.filter(t => t.priority === "Alta" || t.due === "Hoy");
   const searchText = globalSearch.trim().toLowerCase();
-  const filteredEstates = !searchText ? ESTATES : ESTATES.filter(e => {
+  const filteredEstates = !searchText ? estates : estates.filter(e => {
     const owner = owners.find(o => o.id === e.ownerId);
     return [e.id, e.city, e.zone, e.address, owner?.name].filter(Boolean).join(" ").toLowerCase().includes(searchText);
   });
   const filteredOwners = !searchText ? owners : owners.filter(o => {
-    const linkedEstates = ESTATES.filter(e => e.ownerId === o.id)
+    const linkedEstates = estates.filter(e => e.ownerId === o.id)
       .flatMap(e => [e.id, e.city, e.zone, e.address]);
     return [o.id,o.name,o.phone,o.email,o.iban, ...linkedEstates].filter(Boolean).join(" ").toLowerCase().includes(searchText);
   });
   const filteredTenants = !searchText ? tenants : tenants.filter(t => {
     const linkedRoom = allRooms.find(r => r.id === t.room);
-    const linkedEstate = linkedRoom ? ESTATES.find(e => e.id === linkedRoom.estateId) : null;
+    const linkedEstate = linkedRoom ? estates.find(e => e.id === linkedRoom.estateId) : null;
     const linkedOwner = linkedEstate ? owners.find(o => o.id === linkedEstate.ownerId) : null;
     return [t.id,t.name,t.phone,t.email,t.room,t.status, linkedEstate?.id, linkedEstate?.city, linkedEstate?.zone, linkedOwner?.name].filter(Boolean).join(" ").toLowerCase().includes(searchText);
   });
@@ -282,24 +290,24 @@ export default function DashboardFranquiciado() {
   }
 
   const globalSearchResults = !searchText ? null : {
-    estates: ESTATES.filter(e => {
+    estates: estates.filter(e => {
       const owner = owners.find(o => o.id === e.ownerId);
       const roomsText = e.rooms.flatMap(r => [r.id, r.title, r.status, r.tenantId]).join(" ");
       return textOf([e.id, e.province, e.city, e.zone, e.address, e.status, owner?.id, owner?.name, owner?.phone, owner?.email, roomsText]).includes(searchText);
     }),
     owners: owners.filter(o => {
-      const linkedEstates = ESTATES.filter(e => e.ownerId === o.id);
+      const linkedEstates = estates.filter(e => e.ownerId === o.id);
       const linkedRooms = linkedEstates.flatMap(e => e.rooms || []);
       return textOf([o.id, o.name, o.phone, o.email, o.iban, o.contract, ...linkedEstates.flatMap(e => [e.id, e.city, e.zone, e.address, e.status]), ...linkedRooms.flatMap(r => [r.id, r.title, r.status])]).includes(searchText);
     }),
     tenants: tenants.filter(t => {
       const linkedRoom = allRooms.find(r => r.id === t.room);
-      const linkedEstate = linkedRoom ? ESTATES.find(e => e.id === linkedRoom.estateId) : null;
+      const linkedEstate = linkedRoom ? estates.find(e => e.id === linkedRoom.estateId) : null;
       const linkedOwner = linkedEstate ? owners.find(o => o.id === linkedEstate.ownerId) : null;
       return textOf([t.id, t.name, t.phone, t.email, t.room, t.status, linkedRoom?.title, linkedEstate?.id, linkedEstate?.city, linkedEstate?.zone, linkedOwner?.id, linkedOwner?.name]).includes(searchText);
     }),
     rooms: allRooms.filter(r => {
-      const estate = ESTATES.find(e => e.id === r.estateId);
+      const estate = estates.find(e => e.id === r.estateId);
       const owner = owners.find(o => o.id === r.ownerId);
       const tenant = r.tenantId ? tenants.find(t => t.id === r.tenantId) : null;
       return textOf([r.id, r.title, r.status, r.price, r.tenantId, tenant?.name, tenant?.phone, tenant?.email, estate?.id, estate?.city, estate?.zone, estate?.address, owner?.id, owner?.name]).includes(searchText);
@@ -328,7 +336,7 @@ export default function DashboardFranquiciado() {
   const simManagement = Math.round(simNet * 0.20);
   const simMyIncome = Math.round(simManagement * 0.60);
 
-  const global = ESTATES.reduce((acc, e) => {
+  const global = estates.reduce((acc, e) => {
     const liq = estateLiquidation(e);
     acc.estates += 1; acc.rooms += e.rooms.length; acc.occupied += e.rooms.filter(r => r.status === "Ocupada").length;
     acc.gross += liq.gross; acc.franchisee += liq.franchisee; acc.spainroom += liq.spainroom; acc.owner += liq.owner;
@@ -359,7 +367,7 @@ export default function DashboardFranquiciado() {
 
   function exportPortfolioCSV() {
     const header = ["Finca","Ciudad","Zona","Propietario","Habitaciones","Bruto","Propietario","Mi ingreso","Estado"];
-    const lines = ESTATES.map(e => {
+    const lines = estates.map(e => {
       const o = owners.find(x => x.id === e.ownerId);
       const liq = estateLiquidation(e);
       return [e.id,e.city,e.zone,o?.name || "",e.rooms.length,liq.gross,liq.owner,liq.franchisee,e.status].map(v => `"${String(v).replace(/"/g,'""')}"`).join(",");
@@ -376,7 +384,7 @@ export default function DashboardFranquiciado() {
     setSelectedEstateId(id);
     setSelectedInventoryId(null);
     setSelectedIncidentId(null);
-    const e = ESTATES.find(x => x.id === id);
+    const e = estates.find(x => x.id === id);
     if (e?.rooms?.[0]) setSelectedRoomId(e.rooms[0].id);
     setActiveTab("fincas");
   }
@@ -416,6 +424,56 @@ export default function DashboardFranquiciado() {
     setEditingOwner(clean);
     setOwnerPanelMode("view");
   }
+
+  function newEstateCode() {
+    const nums = (estates || []).map(e => {
+      const m = String(e.id || "").match(/SR-IMM-(\d+)/);
+      return m ? Number(m[1]) : 0;
+    });
+    const next = Math.max(0, ...nums) + 1;
+    return `SR-IMM-${String(next).padStart(5, "0")}`;
+  }
+
+  function createEstateForOwner(ownerId) {
+    const owner = owners.find(o => o.id === ownerId) || editingOwner;
+    if (!owner?.id) return;
+    const id = newEstateCode();
+    const newEstate = {
+      id,
+      province:"",
+      city:"Pendiente",
+      zone:"Pendiente",
+      address:"Pendiente",
+      ownerId:owner.id,
+      franchisee:franchisee.id,
+      status:"Borrador",
+      contractStatus:owner.contract || "Pendiente subir",
+      servicesIncluded:true,
+      servicesFee:25,
+      insurance:"Pendiente",
+      description:`Nueva finca asociada a ${owner.name || owner.id}. Pendiente completar dirección, fotos, contrato e inventario.`,
+      commonAreas:[],
+      inventory:[],
+      rooms:[],
+      incidents:[],
+    };
+    const next = [newEstate, ...(Array.isArray(estates) && estates.length ? estates : ESTATES)];
+    setEstates(next);
+    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(next));
+    setSelectedEstateId(id);
+    setEditingOwner(owner);
+    setOwnerPanelMode("view");
+  }
+
+  function assignEstateToOwner(estateId, ownerId) {
+    if (!estateId || !ownerId) return;
+    const next = (Array.isArray(estates) && estates.length ? estates : ESTATES).map(e => e.id === estateId ? { ...e, ownerId } : e);
+    setEstates(next);
+    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(next));
+    setSelectedEstateId(estateId);
+    setOwnerPanelMode("view");
+  }
+
   function saveTenant() {
     if (!editingTenant?.name?.trim()) {
       alert("Falta el nombre del inquilino.");
@@ -447,9 +505,11 @@ export default function DashboardFranquiciado() {
     setOwners(OWNERS);
     setTenants(TENANTS);
     setContacts(CONTACTS);
+    setEstates(ESTATES);
     localStorage.setItem("SR_V2_OWNERS", JSON.stringify(OWNERS));
     localStorage.setItem("SR_V2_TENANTS", JSON.stringify(TENANTS));
     localStorage.setItem("SR_V2_CONTACTS", JSON.stringify(CONTACTS));
+    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(ESTATES));
     setEditingOwner(null);
     setOwnerPanelMode("view");
     setEditingTenant(null);
@@ -858,7 +918,7 @@ export default function DashboardFranquiciado() {
               </div>
               <div>🏦 {selectedOwner.iban}</div>
               <div>📄 Contrato: {selectedEstate.contractStatus}</div>
-              <div><strong>🏠 Mis fincas:</strong> {ESTATES.filter(e => e.ownerId === selectedOwner.id).map(e => <button key={e.id} type="button" style={{...linkBtn, marginLeft:8}} onClick={() => openEstate(e.id)}>{e.id}</button>)}</div>
+              <div><strong>🏠 Mis fincas:</strong> {estates.filter(e => e.ownerId === selectedOwner.id).map(e => <button key={e.id} type="button" style={{...linkBtn, marginLeft:8}} onClick={() => openEstate(e.id)}>{e.id}</button>)}</div>
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
               <Button small secondary onClick={() => { setEditingOwner(selectedOwner); setActiveTab("propietarios"); }}>Editar propietario</Button>
@@ -1151,7 +1211,7 @@ export default function DashboardFranquiciado() {
             { key:"phone", label:"Teléfono", render:o => <a href={`tel:${normalizePhone(o.phone)}`} style={linkBtn}>{o.phone}</a> },
             { key:"email", label:"Email", render:o => <a href={`mailto:${o.email}`} style={linkBtn}>{o.email}</a> },
             { key:"iban", label:"IBAN" },
-            { key:"fincas", label:"Fincas", render:o => <div style={{display:"grid",gap:4}}>{ESTATES.filter(e => e.ownerId === o.id).map(e => <button key={e.id} type="button" style={linkBtn} onClick={() => openEstate(e.id)}>🏠 {e.id}</button>)}</div> },
+            { key:"fincas", label:"Fincas", render:o => <div style={{display:"grid",gap:4}}>{estates.filter(e => e.ownerId === o.id).map(e => <button key={e.id} type="button" style={linkBtn} onClick={() => openEstate(e.id)}>🏠 {e.id}</button>)}</div> },
             { key:"actions", label:"", render:o => <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><Button small onClick={() => editOwner(o)}>Editar</Button></div> },
           ]} rows={filteredOwners} empty="Sin propietarios." />
         </Card>
@@ -1169,11 +1229,21 @@ export default function DashboardFranquiciado() {
             <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
               <strong>🏠 Fincas asociadas</strong>
               <div style={{display:"grid",gap:6,marginTop:8}}>
-                {ESTATES.filter(e => e.ownerId === editingOwner.id).map(e => <button key={e.id} type="button" style={linkBtn} onClick={() => openEstate(e.id)}>{e.id} · {e.city} · {e.zone}</button>)}
-                {!ESTATES.filter(e => e.ownerId === editingOwner.id).length && <span style={{color:"#64748b"}}>Sin fincas asociadas.</span>}
+                {estates.filter(e => e.ownerId === editingOwner.id).map(e => <button key={e.id} type="button" style={linkBtn} onClick={() => openEstate(e.id)}>{e.id} · {e.city} · {e.zone}</button>)}
+                {!estates.filter(e => e.ownerId === editingOwner.id).length && <span style={{color:"#64748b"}}>Sin fincas asociadas.</span>}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8,marginTop:12,alignItems:"end"}}>
+                <label style={{display:"grid",gap:6}}>
+                  <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Asociar finca existente</span>
+                  <select defaultValue="" onChange={e => { assignEstateToOwner(e.target.value, editingOwner.id); e.target.value=""; }} style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",color:"#0b1220",fontWeight:750,background:"#fff",outline:"none"}}>
+                    <option value="" disabled>Seleccionar finca...</option>
+                    {estates.filter(e => e.ownerId !== editingOwner.id).map(e => <option key={e.id} value={e.id}>{e.id} · {e.city} · {e.zone} · propietario actual: {owners.find(o => o.id === e.ownerId)?.name || e.ownerId}</option>)}
+                  </select>
+                </label>
+                <Button small secondary onClick={() => createEstateForOwner(editingOwner.id)}>+ Nueva finca</Button>
               </div>
             </div>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button onClick={() => setOwnerPanelMode("edit")}>✏️ Editar propietario</Button><Button secondary onClick={createOwnerFromTab}>+ Nuevo propietario</Button></div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button onClick={() => setOwnerPanelMode("edit")}>✏️ Editar propietario</Button><Button secondary onClick={createOwnerFromTab}>+ Nuevo propietario</Button>{editingOwner && <Button secondary onClick={() => createEstateForOwner(editingOwner.id)}>+ Nueva finca</Button>}</div>
           </div> : editingOwner ? <div style={{display:"grid",gap:10}}>
             <Field label="Nombre" value={editingOwner.name || ""} onChange={v => setEditingOwner(o => ({...o,name:v}))} />
             <Field label="Teléfono" value={editingOwner.phone || ""} onChange={v => setEditingOwner(o => ({...o,phone:v}))} />
@@ -1200,7 +1270,7 @@ export default function DashboardFranquiciado() {
         <Card title={editingTenant?._isNew ? "Nuevo inquilino" : tenantPanelMode === "edit" ? "Editar inquilino" : "Ficha inquilino"} icon={editingTenant?._isNew ? "➕" : tenantPanelMode === "edit" ? "✏️" : "👁️"} right={editingTenant ? <Badge tone={editingTenant._isNew ? "ok" : "wait"}>{editingTenant.id}</Badge> : <Badge tone="dark">Selecciona</Badge>}>
           {editingTenant && tenantPanelMode === "view" ? (() => {
             const room = allRooms.find(r => r.id === editingTenant.room);
-            const estate = room ? ESTATES.find(e => e.id === room.estateId) : null;
+            const estate = room ? estates.find(e => e.id === room.estateId) : null;
             const owner = estate ? owners.find(o => o.id === estate.ownerId) : null;
             return <div style={{display:"grid",gap:12}}>
               <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12,lineHeight:1.65}}>
@@ -1320,7 +1390,7 @@ export default function DashboardFranquiciado() {
           { key:"franchisee", label:"Mi ingreso", render:e => money(estateLiquidation(e).franchisee) },
           { key:"spainroom", label:"Gestión central", render:e => money(estateLiquidation(e).spainroom) },
           { key:"actions", label:"", render:e => <Button small secondary onClick={() => openEstate(e.id)}>Abrir finca</Button> },
-        ]} rows={ESTATES} empty="Sin liquidaciones." />
+        ]} rows={estates} empty="Sin liquidaciones." />
       </Card>}
 
       <Card title="Academia SpainRoom" icon="📚" right={<Badge tone="dark">Manual abierto</Badge>}>
