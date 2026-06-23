@@ -190,7 +190,7 @@ export default function DashboardFranquiciado() {
   const [activeTab, setActiveTab] = useState("fincas");
   const [selectedEstateId, setSelectedEstateId] = useState("SR-IMM-00001");
   const [selectedRoomId, setSelectedRoomId] = useState("SR-IMM-00001-H01");
-  const [estates, setEstates] = useState(() => loadList("SR_V2_estates", estates));
+  const [estates, setEstates] = useState(() => loadList("SR_V2_estates", ESTATES));
   const [owners, setOwners] = useState(() => loadList("SR_V2_OWNERS", OWNERS));
   const [tenants, setTenants] = useState(() => loadList("SR_V2_TENANTS", TENANTS));
   const [contacts, setContacts] = useState(() => loadList("SR_V2_CONTACTS", CONTACTS));
