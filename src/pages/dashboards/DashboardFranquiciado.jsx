@@ -1,5 +1,5 @@
 // src/pages/dashboards/DashboardFranquiciado.jsx
-// SpainRoom® — Dashboard Franquiciado V2 · Fincas como expediente maestro
+// SpainRoom® — Dashboard Franquiciado V2 · Sin saltos automáticos de pantalla
 import React, { useState } from "react";
 
 const blue = "#0A58CA";
@@ -228,14 +228,16 @@ export default function DashboardFranquiciado() {
   const [selectedInventoryId, setSelectedInventoryId] = useState(null);
   const [newIncident, setNewIncident] = useState({ level:"🟡", subject:"", roomId:"", status:"Abierta", notes:"" });
   const [selectedIncidentId, setSelectedIncidentId] = useState(null);
-  const [newCommonArea, setNewCommonArea] = useState({ area:"", description:"", photos:0 });
+  const [newCommonArea, setNewCommonArea] = useState({ area:"", description:"", photos:0, photoFiles:[] });
+  const [selectedCommonAreaId, setSelectedCommonAreaId] = useState(null);
   const [estateOpsNotice, setEstateOpsNotice] = useState("");
 
   const selectedEstate = ESTATES.find(e => e.id === selectedEstateId) || ESTATES[0];
   const selectedOwner = owners.find(o => o.id === selectedEstate.ownerId) || owners[0];
   const allRooms = ESTATES.flatMap(e => e.rooms.map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
   const selectedEstateOps = estateOps[selectedEstate.id] || {};
-  const selectedCommonAreas = [...(selectedEstate.commonAreas || []), ...(selectedEstateOps.commonAreas || [])];
+  const selectedCommonAreas = selectedEstateOps.commonAreasFull || [...(selectedEstate.commonAreas || []), ...(selectedEstateOps.commonAreas || [])];
+  const selectedCommonArea = selectedCommonAreas.find(x => x.id === selectedCommonAreaId) || null;
   const selectedInventory = [...(selectedEstate.inventory || []), ...(selectedEstateOps.inventory || [])];
   const selectedIncidents = [...(selectedEstate.incidents || []), ...(selectedEstateOps.incidents || [])];
   const selectedInventoryItem = selectedInventory.find(x => x.id === selectedInventoryId) || null;
@@ -361,7 +363,6 @@ export default function DashboardFranquiciado() {
     const e = ESTATES.find(x => x.id === id);
     if (e?.rooms?.[0]) setSelectedRoomId(e.rooms[0].id);
     setActiveTab("fincas");
-    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
   }
 
   function newOwnerCode() {
@@ -473,12 +474,49 @@ export default function DashboardFranquiciado() {
     localStorage.setItem("SR_V2_ESTATE_OPS", JSON.stringify(next));
   }
 
+  function persistCommonAreas(list, notice = "Zonas comunes actualizadas.") {
+    saveEstateOps({ commonAreasFull:list });
+    setEstateOpsNotice(notice);
+  }
+
   function addCommonArea() {
     if (!newCommonArea.area.trim()) return;
-    const item = { id:`CA-${Date.now()}`, ...newCommonArea, photos:Number(newCommonArea.photos || 0) };
-    saveEstateOps({ commonAreas:[...(selectedEstateOps.commonAreas || []), item] });
-    setNewCommonArea({ area:"", description:"", photos:0 });
-    setEstateOpsNotice(`Zona común añadida a ${selectedEstate.id}.`);
+    const item = {
+      id:`CA-${Date.now()}`,
+      area:newCommonArea.area,
+      description:newCommonArea.description,
+      photos:Number(newCommonArea.photos || 0) + (newCommonArea.photoFiles?.length || 0),
+      photoFiles:newCommonArea.photoFiles || [],
+    };
+    const next = [...selectedCommonAreas, item];
+    persistCommonAreas(next, `Zona común añadida a ${selectedEstate.id}: ${item.area}.`);
+    setSelectedCommonAreaId(item.id);
+    setNewCommonArea({ area:"", description:"", photos:0, photoFiles:[] });
+  }
+
+  function updateCommonArea(id, patch) {
+    const next = selectedCommonAreas.map(x => x.id === id ? { ...x, ...patch } : x);
+    persistCommonAreas(next, "Zona común actualizada.");
+  }
+
+  function openCommonArea(id) {
+    setSelectedCommonAreaId(id);
+    setActiveTab("fincas");
+  }
+
+  function handleCommonAreaPhotos(id, files) {
+    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
+    if (!uploaded.length) return;
+    const item = selectedCommonAreas.find(x => x.id === id);
+    const previous = item?.photoFiles || [];
+    updateCommonArea(id, { photoFiles:[...previous, ...uploaded], photos:Number(item?.photos || 0) + uploaded.length });
+    setEstateOpsNotice(`${uploaded.length} foto(s) añadida(s) a ${item?.area || "zona común"}.`);
+  }
+
+  function handleNewCommonAreaPhotos(files) {
+    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
+    if (!uploaded.length) return;
+    setNewCommonArea(x => ({ ...x, photoFiles:[...(x.photoFiles || []), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
   }
 
   function addInventoryItem() {
@@ -518,13 +556,11 @@ export default function DashboardFranquiciado() {
   function openIncident(id) {
     setSelectedIncidentId(id);
     setActiveTab("fincas");
-    setTimeout(() => document.getElementById("sr-incident-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
   }
 
   function openInventoryItem(id) {
     setSelectedInventoryId(id);
     setActiveTab("fincas");
-    setTimeout(() => document.getElementById("sr-inventory-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
   }
 
   function downloadSimulationPDF() {
@@ -614,7 +650,6 @@ export default function DashboardFranquiciado() {
     if (room?.estateId) setSelectedEstateId(room.estateId);
     setSelectedRoomId(roomId);
     setActiveTab("fincas");
-    setTimeout(() => document.getElementById("sr-room-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
   }
 
   function openOwner(ownerId) {
@@ -623,7 +658,6 @@ export default function DashboardFranquiciado() {
     if (owner) setEditingOwner(owner);
     setOwnerPanelMode("view");
     setActiveTab("propietarios");
-    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
   }
 
   function editOwner(owner) {
@@ -638,7 +672,6 @@ export default function DashboardFranquiciado() {
     if (tenant) setEditingTenant(tenant);
     setTenantPanelMode("view");
     setActiveTab("inquilinos");
-    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 50);
   }
 
   function editTenant(tenant) {
@@ -841,16 +874,51 @@ export default function DashboardFranquiciado() {
           </Card>
 
           <Card title="Zonas comunes" icon="🏘️" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="dark">Operativo franquiciado</Badge><Button small secondary onClick={addCommonArea}>+ Añadir zona</Button></div>}>
-            <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr 2fr .5fr",gap:10,marginBottom:12}}>
+            <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr 2fr .5fr auto",gap:10,marginBottom:12,alignItems:"end"}}>
               <Field label="Zona común" value={newCommonArea.area} onChange={v => setNewCommonArea(x => ({...x,area:v}))} />
               <Field label="Descripción" value={newCommonArea.description} onChange={v => setNewCommonArea(x => ({...x,description:v}))} />
               <Field label="Fotos" type="number" value={newCommonArea.photos} onChange={v => setNewCommonArea(x => ({...x,photos:Number(v)}))} />
+              <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"10px 12px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",whiteSpace:"nowrap"}}>
+                📸 Subir fotos
+                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleNewCommonAreaPhotos(e.target.files)} />
+              </label>
             </div>
+            {(newCommonArea.photoFiles || []).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas: {(newCommonArea.photoFiles || []).length}</div>}
             <Table columns={[
-              { key:"area", label:"Zona", bold:true },
+              { key:"area", label:"Zona", bold:true, render:z => <button type="button" style={linkBtn} onClick={() => openCommonArea(z.id)}>{z.area}</button> },
               { key:"description", label:"Descripción" },
-              { key:"photos", label:"Fotos" },
+              { key:"photos", label:"Fotos", render:z => Number(z.photos || 0) },
+              { key:"actions", label:"", render:z => <Button small secondary onClick={() => openCommonArea(z.id)}>Abrir / editar</Button> },
             ]} rows={selectedCommonAreas} empty="Sin zonas comunes." />
+            {selectedCommonArea && <div id="sr-common-area-detail" style={{marginTop:12,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
+                <strong>🏘️ Ficha zona común · {selectedCommonArea.id}</strong>
+                <Badge tone="info">{Number(selectedCommonArea.photos || 0)} foto(s)</Badge>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 2fr .5fr",gap:10,marginBottom:12}} className="sr-room-fields">
+                <Field label="Zona" value={selectedCommonArea.area || ""} onChange={v => updateCommonArea(selectedCommonArea.id,{area:v})} />
+                <Field label="Descripción" value={selectedCommonArea.description || ""} onChange={v => updateCommonArea(selectedCommonArea.id,{description:v})} />
+                <Field label="Fotos" type="number" value={selectedCommonArea.photos || 0} onChange={v => updateCommonArea(selectedCommonArea.id,{photos:Number(v)})} />
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+                <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer"}}>
+                  + Subir fotos a esta zona
+                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleCommonAreaPhotos(selectedCommonArea.id, e.target.files)} />
+                </label>
+                <Button small secondary onClick={() => setSelectedCommonAreaId(null)}>Cerrar ficha</Button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-photo-grid">
+                {(selectedCommonArea.photoFiles || []).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                  <div style={{height:92,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24,overflow:"hidden"}}>
+                    {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
+                  </div>
+                  <div style={{fontWeight:900,marginTop:8}}>Foto {idx + 1}</div>
+                  <div style={{color:"#64748b",fontSize:12,wordBreak:"break-word"}}>{photo.name}</div>
+                </div>)}
+                {!(selectedCommonArea.photoFiles || []).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas en esta prueba. La zona indica {selectedCommonArea.photos || 0} foto(s) registradas.</div>}
+              </div>
+            </div>}
+            {estateOpsNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{estateOpsNotice}</div>}
           </Card>
 
           <Card title="Inventario visible de la finca" icon="📦" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Para incidencias</Badge><Button small secondary onClick={addInventoryItem}>+ Añadir inventario</Button></div>}>
