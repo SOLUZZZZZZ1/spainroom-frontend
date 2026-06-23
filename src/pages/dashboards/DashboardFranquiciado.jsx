@@ -238,8 +238,41 @@ export default function DashboardFranquiciado() {
   const filteredTenants = !searchText ? tenants : tenants.filter(t => {
     const linkedRoom = allRooms.find(r => r.id === t.room);
     const linkedEstate = linkedRoom ? ESTATES.find(e => e.id === linkedRoom.estateId) : null;
-    return [t.id,t.name,t.phone,t.email,t.room,t.status, linkedEstate?.id, linkedEstate?.city, linkedEstate?.zone].filter(Boolean).join(" ").toLowerCase().includes(searchText);
+    const linkedOwner = linkedEstate ? owners.find(o => o.id === linkedEstate.ownerId) : null;
+    return [t.id,t.name,t.phone,t.email,t.room,t.status, linkedEstate?.id, linkedEstate?.city, linkedEstate?.zone, linkedOwner?.name].filter(Boolean).join(" ").toLowerCase().includes(searchText);
   });
+
+  function textOf(parts) {
+    return parts.filter(Boolean).join(" ").toLowerCase();
+  }
+
+  const globalSearchResults = !searchText ? null : {
+    estates: ESTATES.filter(e => {
+      const owner = owners.find(o => o.id === e.ownerId);
+      const roomsText = e.rooms.flatMap(r => [r.id, r.title, r.status, r.tenantId]).join(" ");
+      return textOf([e.id, e.province, e.city, e.zone, e.address, e.status, owner?.id, owner?.name, owner?.phone, owner?.email, roomsText]).includes(searchText);
+    }),
+    owners: owners.filter(o => {
+      const linkedEstates = ESTATES.filter(e => e.ownerId === o.id);
+      const linkedRooms = linkedEstates.flatMap(e => e.rooms || []);
+      return textOf([o.id, o.name, o.phone, o.email, o.iban, o.contract, ...linkedEstates.flatMap(e => [e.id, e.city, e.zone, e.address, e.status]), ...linkedRooms.flatMap(r => [r.id, r.title, r.status])]).includes(searchText);
+    }),
+    tenants: tenants.filter(t => {
+      const linkedRoom = allRooms.find(r => r.id === t.room);
+      const linkedEstate = linkedRoom ? ESTATES.find(e => e.id === linkedRoom.estateId) : null;
+      const linkedOwner = linkedEstate ? owners.find(o => o.id === linkedEstate.ownerId) : null;
+      return textOf([t.id, t.name, t.phone, t.email, t.room, t.status, linkedRoom?.title, linkedEstate?.id, linkedEstate?.city, linkedEstate?.zone, linkedOwner?.id, linkedOwner?.name]).includes(searchText);
+    }),
+    rooms: allRooms.filter(r => {
+      const estate = ESTATES.find(e => e.id === r.estateId);
+      const owner = owners.find(o => o.id === r.ownerId);
+      const tenant = r.tenantId ? tenants.find(t => t.id === r.tenantId) : null;
+      return textOf([r.id, r.title, r.status, r.price, r.tenantId, tenant?.name, tenant?.phone, tenant?.email, estate?.id, estate?.city, estate?.zone, estate?.address, owner?.id, owner?.name]).includes(searchText);
+    }),
+    contacts: contacts.filter(c => textOf([c.id, c.name, c.type, c.phone, c.email, c.zone, c.next]).includes(searchText)),
+  };
+  const globalSearchCount = globalSearchResults ? Object.values(globalSearchResults).reduce((sum, rows) => sum + rows.length, 0) : 0;
+
   const selectedRoom = allRooms.find(r => r.id === selectedRoomId) || selectedEstate.rooms[0];
   const selectedTenant = selectedRoom?.tenantId ? tenants.find(t => t.id === selectedRoom.tenantId) : null;
   const selectedLiq = estateLiquidation(selectedEstate);
@@ -482,19 +515,29 @@ export default function DashboardFranquiciado() {
     w.document.close();
   }
   function goOwner(ownerId) {
+    openOwner(ownerId);
+  }
+  function goTenant(tenantId) {
+    openTenant(tenantId);
+  }
+  function openRoom(roomId) {
+    const room = allRooms.find(r => r.id === roomId);
+    if (room?.estateId) setSelectedEstateId(room.estateId);
+    setSelectedRoomId(roomId);
+    setActiveTab("fincas");
+    setTimeout(() => document.getElementById("sr-room-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
+  }
+
+  function openOwner(ownerId) {
     const owner = owners.find(o => o.id === ownerId);
     if (owner) setEditingOwner(owner);
     setActiveTab("propietarios");
   }
-  function goTenant(tenantId) {
+
+  function openTenant(tenantId) {
     const tenant = tenants.find(t => t.id === tenantId);
     if (tenant) setEditingTenant(tenant);
     setActiveTab("inquilinos");
-  }
-  function openRoom(roomId) {
-    setSelectedRoomId(roomId);
-    setActiveTab("fincas");
-    setTimeout(() => document.getElementById("sr-room-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
   }
 
   const linkBtn = { background:"transparent", border:0, color:blue, cursor:"pointer", fontWeight:950, padding:0, textDecoration:"underline" };
@@ -532,9 +575,25 @@ export default function DashboardFranquiciado() {
       </section>
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12,alignItems:"center"}}>
-        <input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} placeholder="Buscar finca, propietario, ciudad, email..." style={{flex:"1 1 320px",border:"1px solid #cbd5e1",borderRadius:14,padding:"11px 12px",fontWeight:850,outline:"none"}} />
+        <input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} placeholder="Buscar finca, propietario, ciudad, email, habitación o teléfono..." style={{flex:"1 1 320px",border:"1px solid #cbd5e1",borderRadius:14,padding:"11px 12px",fontWeight:850,outline:"none"}} />
+        {globalSearch && <Button secondary onClick={() => setGlobalSearch("")}>Limpiar</Button>}
         <Button secondary onClick={exportPortfolioCSV}>⬇️ Exportar cartera</Button>
       </div>
+
+      {globalSearch && <section style={{background:"#fff",border:"1px solid #dbeafe",borderRadius:18,padding:14,marginBottom:14,boxShadow:"0 8px 24px rgba(15,23,42,.06)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",marginBottom:10,flexWrap:"wrap"}}>
+          <strong style={{fontSize:17}}>🔎 Resultados globales: “{globalSearch}”</strong>
+          <Badge tone={globalSearchCount ? "ok" : "danger"}>{globalSearchCount} resultado(s)</Badge>
+        </div>
+        {globalSearchCount === 0 ? <div style={{color:"#64748b",fontWeight:800,padding:10}}>No hay resultados. Prueba con nombre, código, ciudad, teléfono, email o habitación.</div> :
+          <div className="sr-global-results" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
+            <div style={searchGroupStyle}><strong>🏠 Fincas</strong>{globalSearchResults.estates.map(e => <button key={e.id} type="button" style={searchResultBtn} onClick={() => openEstate(e.id)}><b>{e.id}</b><span>{e.city} · {e.zone}</span></button>)}</div>
+            <div style={searchGroupStyle}><strong>👤 Propietarios</strong>{globalSearchResults.owners.map(o => <button key={o.id} type="button" style={searchResultBtn} onClick={() => openOwner(o.id)}><b>{o.name}</b><span>{o.id}</span></button>)}</div>
+            <div style={searchGroupStyle}><strong>👥 Inquilinos</strong>{globalSearchResults.tenants.map(t => <button key={t.id} type="button" style={searchResultBtn} onClick={() => openTenant(t.id)}><b>{t.name}</b><span>{t.id} · {t.room}</span></button>)}</div>
+            <div style={searchGroupStyle}><strong>🚪 Habitaciones</strong>{globalSearchResults.rooms.map(r => <button key={r.id} type="button" style={searchResultBtn} onClick={() => openRoom(r.id)}><b>{r.id}</b><span>{r.title}</span></button>)}</div>
+            <div style={searchGroupStyle}><strong>📞 Contactos</strong>{globalSearchResults.contacts.map(c => <button key={c.id} type="button" style={searchResultBtn} onClick={() => { setEditingContact(c); setActiveTab("contactos"); }}><b>{c.name}</b><span>{c.type} · {c.zone}</span></button>)}</div>
+          </div>}
+      </section>}
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
         <button type="button" style={tabStyle("negocio")} onClick={() => setActiveTab("negocio")}>📊 Mi negocio</button>
@@ -823,13 +882,13 @@ export default function DashboardFranquiciado() {
       {activeTab === "propietarios" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:16,alignItems:"start"}}>
         <Card title="Propietarios" icon="👤" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Con fincas asociadas</Badge><Button small onClick={createOwnerFromTab}>+ Nuevo propietario</Button><Button small secondary onClick={restoreDemoData}>Restaurar demo</Button></div>}>
           <Table columns={[
-            { key:"id", label:"Código", bold:true },
-            { key:"name", label:"Nombre", bold:true },
-            { key:"phone", label:"Teléfono" },
-            { key:"email", label:"Email" },
+            { key:"id", label:"Código", bold:true, render:o => <button type="button" style={linkBtn} onClick={() => openOwner(o.id)}>{o.id}</button> },
+            { key:"name", label:"Nombre", bold:true, render:o => <button type="button" style={linkBtn} onClick={() => openOwner(o.id)}>{o.name}</button> },
+            { key:"phone", label:"Teléfono", render:o => <a href={`tel:${normalizePhone(o.phone)}`} style={linkBtn}>{o.phone}</a> },
+            { key:"email", label:"Email", render:o => <a href={`mailto:${o.email}`} style={linkBtn}>{o.email}</a> },
             { key:"iban", label:"IBAN" },
-            { key:"fincas", label:"Fincas", render:o => ESTATES.filter(e => e.ownerId === o.id).length },
-            { key:"actions", label:"", render:o => <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><Button small onClick={() => setEditingOwner(o)}>Editar</Button><Button small secondary onClick={() => { const e = ESTATES.find(x => x.ownerId === o.id); if (e) openEstate(e.id); }}>Ver fincas</Button></div> },
+            { key:"fincas", label:"Fincas", render:o => <div style={{display:"grid",gap:4}}>{ESTATES.filter(e => e.ownerId === o.id).map(e => <button key={e.id} type="button" style={linkBtn} onClick={() => openEstate(e.id)}>🏠 {e.id}</button>)}</div> },
+            { key:"actions", label:"", render:o => <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><Button small onClick={() => setEditingOwner(o)}>Editar</Button></div> },
           ]} rows={filteredOwners} empty="Sin propietarios." />
         </Card>
 
@@ -848,11 +907,11 @@ export default function DashboardFranquiciado() {
       {activeTab === "inquilinos" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1.05fr .95fr",gap:16,alignItems:"start"}}>
         <Card title="Inquilinos" icon="👥" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Vinculados a habitación</Badge><Button small onClick={createTenantFromTab}>+ Nuevo inquilino</Button><Button small secondary onClick={restoreDemoData}>Restaurar demo</Button></div>}>
           <Table columns={[
-            { key:"id", label:"Código", bold:true },
-            { key:"name", label:"Nombre", bold:true },
-            { key:"phone", label:"Teléfono" },
-            { key:"email", label:"Email" },
-            { key:"room", label:"Habitación" },
+            { key:"id", label:"Código", bold:true, render:t => <button type="button" style={linkBtn} onClick={() => openTenant(t.id)}>{t.id}</button> },
+            { key:"name", label:"Nombre", bold:true, render:t => <button type="button" style={linkBtn} onClick={() => openTenant(t.id)}>{t.name}</button> },
+            { key:"phone", label:"Teléfono", render:t => <a href={`tel:${normalizePhone(t.phone)}`} style={linkBtn}>{t.phone}</a> },
+            { key:"email", label:"Email", render:t => <a href={`mailto:${t.email}`} style={linkBtn}>{t.email}</a> },
+            { key:"room", label:"Habitación", render:t => t.room?.startsWith("SR-IMM") ? <button type="button" style={linkBtn} onClick={() => openRoom(t.room)}>{t.room}</button> : t.room },
             { key:"status", label:"Estado", render:t => <Badge tone={t.status === "Activo" ? "ok" : "wait"}>{t.status}</Badge> },
             { key:"actions", label:"", render:t => <Button small onClick={() => setEditingTenant(t)}>Editar</Button> },
           ]} rows={filteredTenants} empty="Sin inquilinos." />
@@ -973,12 +1032,14 @@ export default function DashboardFranquiciado() {
     </div>
 
     <style>{`
-      @media(max-width:1180px){.sr-pro-kpis{grid-template-columns:1fr 1fr 1fr!important}.sr-pro-grid-main{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr 1fr!important}}
-      @media(max-width:760px){.sr-pro-kpis{grid-template-columns:1fr!important}.sr-sim-form{grid-template-columns:1fr!important}.sr-room-row{grid-template-columns:1fr!important}.sr-estate-summary{grid-template-columns:1fr!important}.sr-room-editor{grid-template-columns:1fr!important}.sr-room-fields{grid-template-columns:1fr!important}.sr-photo-grid{grid-template-columns:1fr!important}.sr-contact-form{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr!important}}
+      @media(max-width:1180px){.sr-global-results{grid-template-columns:1fr 1fr!important}.sr-pro-kpis{grid-template-columns:1fr 1fr 1fr!important}.sr-pro-grid-main{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr 1fr!important}}
+      @media(max-width:760px){.sr-global-results{grid-template-columns:1fr!important}.sr-pro-kpis{grid-template-columns:1fr!important}.sr-sim-form{grid-template-columns:1fr!important}.sr-room-row{grid-template-columns:1fr!important}.sr-estate-summary{grid-template-columns:1fr!important}.sr-room-editor{grid-template-columns:1fr!important}.sr-room-fields{grid-template-columns:1fr!important}.sr-photo-grid{grid-template-columns:1fr!important}.sr-contact-form{grid-template-columns:1fr!important}.sr-help-grid{grid-template-columns:1fr!important}}
     `}</style>
   </main>;
 }
 
+const searchGroupStyle = {background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:10,display:"grid",gap:8,alignContent:"start"};
+const searchResultBtn = {display:"grid",gap:2,textAlign:"left",background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"8px 9px",cursor:"pointer",color:"#0b1220"};
 const metricLine = {display:"flex",justifyContent:"space-between",gap:12,padding:"9px 0",borderBottom:"1px solid #f1f5f9",color:"#475569"};
 
 const th = {padding:"9px 7px",borderBottom:"1px solid #e2e8f0",color:"#64748b"};
