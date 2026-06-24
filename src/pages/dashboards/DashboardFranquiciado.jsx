@@ -259,7 +259,7 @@ export default function DashboardFranquiciado() {
   const [estateOps, setEstateOps] = useState(() => {
     try { return JSON.parse(localStorage.getItem("SR_V2_ESTATE_OPS") || "{}"); } catch { return {}; }
   });
-  const [newInventory, setNewInventory] = useState({ item:"", brand:"", model:"", status:"Bueno", photos:0 });
+  const [newInventory, setNewInventory] = useState({ item:"", brand:"", model:"", status:"Bueno", photos:0, photoFiles:[] });
   const [selectedInventoryId, setSelectedInventoryId] = useState(null);
   const [newIncident, setNewIncident] = useState({ level:"🟡", subject:"", roomId:"", status:"Abierta", notes:"" });
   const [selectedIncidentId, setSelectedIncidentId] = useState(null);
@@ -307,12 +307,12 @@ export default function DashboardFranquiciado() {
   const globalSearchResults = !searchText ? null : {
     estates: estates.filter(e => {
       const owner = owners.find(o => o.id === e.ownerId);
-      const roomsText = e.rooms.flatMap(r => [r.id, r.title, r.status, r.tenantId]).join(" ");
+      const roomsText = safeArray(e.rooms).flatMap(r => [r.id, r.title, r.status, r.tenantId]).join(" ");
       return textOf([e.id, e.province, e.city, e.zone, e.address, e.status, owner?.id, owner?.name, owner?.phone, owner?.email, roomsText]).includes(searchText);
     }),
     owners: owners.filter(o => {
       const linkedEstates = estates.filter(e => e.ownerId === o.id);
-      const linkedRooms = linkedEstates.flatMap(e => e.rooms || []);
+      const linkedRooms = linkedEstates.flatMap(e => safeArray(e.rooms));
       return textOf([o.id, o.name, o.phone, o.email, o.iban, o.contract, ...linkedEstates.flatMap(e => [e.id, e.city, e.zone, e.address, e.status]), ...linkedRooms.flatMap(r => [r.id, r.title, r.status])]).includes(searchText);
     }),
     tenants: tenants.filter(t => {
@@ -411,7 +411,7 @@ export default function DashboardFranquiciado() {
     const lines = estates.map(e => {
       const o = owners.find(x => x.id === e.ownerId);
       const liq = estateLiquidation(e);
-      return [e.id,e.city,e.zone,o?.name || "",e.rooms.length,liq.gross,liq.owner,liq.franchisee,e.status].map(v => `"${String(v).replace(/"/g,'""')}"`).join(",");
+      return [e.id,e.city,e.zone,o?.name || "",safeArray(e.rooms).length,liq.gross,liq.owner,liq.franchisee,e.status].map(v => `"${String(v).replace(/"/g,'""')}"`).join(",");
     });
     const blob = new Blob([[header.join(","), ...lines].join("\n")], { type:"text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -559,10 +559,31 @@ export default function DashboardFranquiciado() {
   }
 
   function saveRoomDraft(patch = {}) {
+    if (!selectedRoom?.id) return;
     const key = selectedRoom.id;
     const current = roomDrafts[key] || {};
-    const next = {...roomDrafts, [key]: {...selectedRoom, ...current, ...patch, savedAt:new Date().toLocaleString("es-ES")}};
-    setRoomDrafts(next); localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next)); setRoomNotice(`Ficha guardada: ${key}`);
+    const savedRoom = { ...selectedRoom, ...current, ...patch, savedAt:new Date().toLocaleString("es-ES") };
+    const nextDrafts = { ...roomDrafts, [key]: savedRoom };
+    const nextEstates = safeArray(estates).map(e => {
+      if (e.id !== selectedEstate.id) return e;
+      return {
+        ...e,
+        rooms: safeArray(e.rooms).map(r => r.id === key ? {
+          ...r,
+          title: savedRoom.title ?? r.title,
+          price: Number(savedRoom.price ?? r.price ?? 0),
+          status: savedRoom.status ?? r.status,
+          description: savedRoom.description ?? r.description,
+          photos: safeArray(savedRoom.photos).length || Number(r.photos || 0),
+          publish: savedRoom.publish ?? r.publish,
+        } : r),
+      };
+    });
+    setRoomDrafts(nextDrafts);
+    setEstates(nextEstates);
+    localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(nextDrafts));
+    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    setRoomNotice(`Ficha guardada: ${key}`);
   }
 
   function handlePhotos(files) {
@@ -691,19 +712,49 @@ export default function DashboardFranquiciado() {
 
   function addInventoryItem() {
     if (!newInventory.item.trim()) return;
-    const item = { id:`INV-${Date.now()}`, ...newInventory, photos:Number(newInventory.photos || 0) };
-    saveEstateOps({ inventory:[...(selectedEstateOps.inventory || []), item] });
+    const item = {
+      id:`INV-${Date.now()}`,
+      ...newInventory,
+      photoFiles:safeArray(newInventory.photoFiles),
+      photos:Number(newInventory.photos || 0) + safeArray(newInventory.photoFiles).length,
+    };
+    saveEstateOps({ inventory:[...safeArray(selectedEstateOps.inventory), item] });
     setSelectedInventoryId(item.id);
-    setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0 });
-    setEstateOpsNotice(`Inventario añadido: ${item.item}.`);
+    setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0, photoFiles:[] });
+    setEstateOpsNotice(`Inventario guardado: ${item.item}.`);
   }
 
   function updateInventoryItem(id, patch) {
-    const isDynamic = (selectedEstateOps.inventory || []).some(x => x.id === id);
+    const isDynamic = safeArray(selectedEstateOps.inventory).some(x => x.id === id);
     if (!isDynamic) return setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para editarlo.");
-    const nextInventory = (selectedEstateOps.inventory || []).map(x => x.id === id ? { ...x, ...patch } : x);
+    const nextInventory = safeArray(selectedEstateOps.inventory).map(x => x.id === id ? { ...x, ...patch } : x);
     saveEstateOps({ inventory:nextInventory });
     setEstateOpsNotice("Inventario actualizado.");
+  }
+
+  function handleNewInventoryPhotos(files) {
+    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
+    if (!uploaded.length) return;
+    setNewInventory(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
+    setEstateOpsNotice(`${uploaded.length} foto(s) preparadas para inventario.`);
+  }
+
+  function handleInventoryPhotos(id, files) {
+    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
+    if (!uploaded.length) return;
+    const item = selectedInventory.find(x => x.id === id);
+    if (!safeArray(selectedEstateOps.inventory).some(x => x.id === id)) return setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para editarlo.");
+    const previous = safeArray(item?.photoFiles);
+    updateInventoryItem(id, { photoFiles:[...previous, ...uploaded], photos:Number(item?.photos || 0) + uploaded.length });
+    setEstateOpsNotice(`${uploaded.length} foto(s) añadida(s) a ${item?.item || "inventario"}.`);
+  }
+
+  function saveInventoryItem(id) {
+    const item = selectedInventory.find(x => x.id === id);
+    if (!item) return;
+    if (!safeArray(selectedEstateOps.inventory).some(x => x.id === id)) return setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para editarlo.");
+    updateInventoryItem(id, { savedAt:new Date().toLocaleString("es-ES") });
+    setEstateOpsNotice(`Inventario guardado: ${item.item}.`);
   }
 
   function addIncident() {
@@ -1013,6 +1064,9 @@ export default function DashboardFranquiciado() {
               <Check checked={!!verification.electricity} onChange={v => updateEstateDetails({verification:{...verification, electricity:v}})} label="Instalación eléctrica revisada" />
               <Check checked={!!verification.gas} onChange={v => updateEstateDetails({verification:{...verification, gas:v}})} label="Gas / caldera revisado si existe" />
             </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
+              <Button small onClick={() => updateEstateDetails({verification:{...verification, savedAt:new Date().toLocaleString("es-ES")}})}>💾 Guardar verificación</Button>
+            </div>
           </Card>
 
           <Card title="Contrato propietario" icon="📄" right={<Badge tone={selectedEstate.contractStatus === "Declarado correcto" ? "ok" : "wait"}>{selectedEstate.contractStatus}</Badge>}>
@@ -1021,6 +1075,9 @@ export default function DashboardFranquiciado() {
               <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{display:"none"}} onChange={e => { const f=e.target.files?.[0]; if(f){ setContractFileName(f.name); setRoomNotice(`Contrato recibido: ${f.name}`); } }} />
             </label>
             {contractFileName && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>Archivo: {contractFileName}</div>}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+              <Button small secondary onClick={() => setRoomNotice(contractFileName ? `Contrato guardado: ${contractFileName}` : "Primero sube el contrato.")}>💾 Guardar contrato</Button>
+            </div>
             <div style={{display:"grid",gap:8,marginTop:12}}>
               <Check checked={checks.sameModel} onChange={v => setChecks(c => ({...c,sameModel:v}))} label="Es el modelo SpainRoom remitido" />
               <Check checked={checks.noChanges} onChange={v => setChecks(c => ({...c,noChanges:v}))} label="No contiene modificaciones ni añadidos" />
@@ -1089,14 +1146,20 @@ export default function DashboardFranquiciado() {
               <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Observaciones internas</span>
               <textarea value={estateObservations} onChange={e => updateEstateDetails({observations:e.target.value})} rows={3} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} />
             </label>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <Button onClick={() => updateEstateDetails({ savedAt:new Date().toLocaleString("es-ES") })}>💾 Guardar datos inmueble</Button>
+            </div>
           </Card>
 
           <Card title="Fotos inmueble" icon="📸" right={<Badge tone={estatePhotos.length ? "ok" : "wait"}>{estatePhotos.length} foto(s)</Badge>}>
             <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>Fotos generales: fachada, portal, escalera, entrada, calle, entorno y transporte cercano. Salón y cocina van en zonas comunes.</p>
-            <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"10px 13px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",marginBottom:12}}>
-              + Subir fotos inmueble
-              <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleEstatePhotos(e.target.files)} />
-            </label>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+              <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"10px 13px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer"}}>
+                + Subir fotos inmueble
+                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleEstatePhotos(e.target.files)} />
+              </label>
+              <Button secondary onClick={() => updateEstateDetails({ photos:estatePhotos, photosSavedAt:new Date().toLocaleString("es-ES") })}>💾 Guardar fotos inmueble</Button>
+            </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-photo-grid">
               {estatePhotos.map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
                 <div style={{height:92,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24,overflow:"hidden"}}>
@@ -1180,7 +1243,7 @@ export default function DashboardFranquiciado() {
                   + Subir fotos a esta zona
                   <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleCommonAreaPhotos(selectedCommonArea.id, e.target.files)} />
                 </label>
-                <Button small secondary onClick={() => setSelectedCommonAreaId(null)}>Cerrar ficha</Button>
+                <Button small onClick={() => updateCommonArea(selectedCommonArea.id,{savedAt:new Date().toLocaleString("es-ES")})}>💾 Guardar zona</Button><Button small secondary onClick={() => setSelectedCommonAreaId(null)}>Cerrar ficha</Button>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-photo-grid">
                 {(selectedCommonArea.photoFiles || []).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
@@ -1196,14 +1259,20 @@ export default function DashboardFranquiciado() {
             {estateOpsNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{estateOpsNotice}</div>}
           </Card>
 
-          <Card title="Inventario visible de la finca" icon="📦" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Para incidencias</Badge><Button small secondary onClick={addInventoryItem}>+ Añadir inventario</Button></div>}>
-            <div className="sr-inventory-form" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr .8fr .5fr",gap:10,marginBottom:12}}>
+          <Card title="Inventario visible de la finca" icon="📦" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Para incidencias</Badge></div>}>
+            <div className="sr-inventory-form" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr .8fr .5fr auto auto",gap:10,marginBottom:12,alignItems:"end"}}>
               <Field label="Elemento" value={newInventory.item} onChange={v => setNewInventory(x => ({...x,item:v}))} />
               <Field label="Marca" value={newInventory.brand} onChange={v => setNewInventory(x => ({...x,brand:v}))} />
               <Field label="Modelo / medida" value={newInventory.model} onChange={v => setNewInventory(x => ({...x,model:v}))} />
               <Field label="Estado" value={newInventory.status} onChange={v => setNewInventory(x => ({...x,status:v}))} />
               <Field label="Fotos" type="number" value={newInventory.photos} onChange={v => setNewInventory(x => ({...x,photos:Number(v)}))} />
+              <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"10px 12px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",whiteSpace:"nowrap"}}>
+                📸 Subir fotos
+                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleNewInventoryPhotos(e.target.files)} />
+              </label>
+              <Button onClick={addInventoryItem}>💾 Guardar inventario</Button>
             </div>
+            {safeArray(newInventory.photoFiles).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas inventario: {safeArray(newInventory.photoFiles).length}</div>}
             <Table columns={[
               { key:"item", label:"Elemento", bold:true, render:i => <button type="button" style={linkBtn} onClick={() => openInventoryItem(i.id)}>{i.item}</button> },
               { key:"brand", label:"Marca" },
@@ -1219,6 +1288,23 @@ export default function DashboardFranquiciado() {
                 <Field label="Marca" value={selectedInventoryItem.brand || ""} onChange={v => updateInventoryItem(selectedInventoryItem.id,{brand:v})} />
                 <Field label="Modelo / medida" value={selectedInventoryItem.model || ""} onChange={v => updateInventoryItem(selectedInventoryItem.id,{model:v})} />
                 <Field label="Estado" value={selectedInventoryItem.status || ""} onChange={v => updateInventoryItem(selectedInventoryItem.id,{status:v})} />
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer"}}>
+                  📸 Subir fotos inventario
+                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleInventoryPhotos(selectedInventoryItem.id, e.target.files)} />
+                </label>
+                <Button small onClick={() => saveInventoryItem(selectedInventoryItem.id)}>💾 Guardar inventario</Button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:10}} className="sr-photo-grid">
+                {safeArray(selectedInventoryItem.photoFiles).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                  <div style={{height:92,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24,overflow:"hidden"}}>
+                    {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
+                  </div>
+                  <div style={{fontWeight:900,marginTop:8}}>Foto {idx + 1}</div>
+                  <div style={{color:"#64748b",fontSize:12,wordBreak:"break-word"}}>{photo.name}</div>
+                </div>)}
+                {!safeArray(selectedInventoryItem.photoFiles).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas de este elemento.</div>}
               </div>
             </div>}
           </Card>
@@ -1305,10 +1391,13 @@ export default function DashboardFranquiciado() {
               <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12,marginBottom:12}}>
                 <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",marginBottom:10}}>
                   <strong>Fotos de la habitación</strong>
-                  <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer"}}>
-                    + Subir fotos
-                    <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handlePhotos(e.target.files)} />
-                  </label>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer"}}>
+                      + Subir fotos
+                      <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handlePhotos(e.target.files)} />
+                    </label>
+                    <Button small secondary onClick={() => saveRoomDraft({ photos:safeArray(roomDrafts[selectedRoom.id]?.photos) })}>💾 Guardar fotos</Button>
+                  </div>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-photo-grid">
                   {safeArray(roomDrafts[selectedRoom.id]?.photos).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
