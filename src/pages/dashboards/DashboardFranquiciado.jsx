@@ -1,5 +1,5 @@
 // src/pages/dashboards/DashboardFranquiciado.jsx
-// SpainRoom® — Dashboard Franquiciado V2 · Asociar fincas a propietario
+// SpainRoom® — Dashboard Franquiciado V3 · Guía de alta finca
 import React, { useState, useEffect } from "react";
 
 const blue = "#0A58CA";
@@ -20,8 +20,14 @@ function loadList(key, fallback) {
   }
 }
 
-function asArray(value) {
+
+function safeArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function isFilled(value) {
+  const text = String(value ?? "").trim();
+  return !!text && !["pendiente", "—", "null", "undefined"].includes(text.toLowerCase());
 }
 
 function Badge({ children, tone = "info" }) {
@@ -180,9 +186,9 @@ const TASKS = [
 ];
 
 function estateLiquidation(estate) {
-  const estateRooms = asArray(estate.rooms);
-  const gross = estateRooms.reduce((sum, r) => sum + Number(r.price || 0), 0);
-  const services = estate.servicesIncluded ? estateRooms.length * estate.servicesFee : 0;
+  const rooms = safeArray(estate.rooms);
+  const gross = rooms.reduce((sum, r) => sum + Number(r.price || 0), 0);
+  const services = estate.servicesIncluded ? rooms.length * estate.servicesFee : 0;
   const net = Math.max(0, gross - services);
   const owner = Math.round(net * 0.80);
   const management = Math.round(net * 0.20);
@@ -195,7 +201,7 @@ export default function DashboardFranquiciado() {
   const [activeTab, setActiveTab] = useState("fincas");
   const [selectedEstateId, setSelectedEstateId] = useState("SR-IMM-00001");
   const [selectedRoomId, setSelectedRoomId] = useState("SR-IMM-00001-H01");
-  const [estates, setEstates] = useState(() => loadList("SR_V2_estates", ESTATES));
+  const [estates, setEstates] = useState(() => loadList("SR_V2_ESTATES", ESTATES));
   const [owners, setOwners] = useState(() => loadList("SR_V2_OWNERS", OWNERS));
   const [tenants, setTenants] = useState(() => loadList("SR_V2_TENANTS", TENANTS));
   const [contacts, setContacts] = useState(() => loadList("SR_V2_CONTACTS", CONTACTS));
@@ -263,23 +269,16 @@ export default function DashboardFranquiciado() {
 
   const selectedEstate = estates.find(e => e.id === selectedEstateId) || estates[0];
   const selectedOwner = owners.find(o => o.id === selectedEstate.ownerId) || owners[0];
-  const allRooms = asArray(estates).flatMap(e => asArray(e.rooms).map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
+  const selectedEstateRooms = safeArray(selectedEstate?.rooms);
+  const allRooms = safeArray(estates).flatMap(e => safeArray(e.rooms).map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
   const selectedEstateOps = estateOps[selectedEstate.id] || {};
+  const selectedEstateDetails = selectedEstateOps.estateDetails || {};
   const selectedCommonAreas = Array.isArray(selectedEstateOps.commonAreasFull)
     ? selectedEstateOps.commonAreasFull
-    : [
-        ...asArray(selectedEstate.commonAreas),
-        ...asArray(selectedEstateOps.commonAreas),
-      ];
+    : [...safeArray(selectedEstate.commonAreas), ...safeArray(selectedEstateOps.commonAreas)];
   const selectedCommonArea = selectedCommonAreas.find(x => x.id === selectedCommonAreaId) || null;
-  const selectedInventory = [
-    ...asArray(selectedEstate.inventory),
-    ...asArray(selectedEstateOps.inventory),
-  ];
-  const selectedIncidents = [
-    ...asArray(selectedEstate.incidents),
-    ...asArray(selectedEstateOps.incidents),
-  ];
+  const selectedInventory = [...safeArray(selectedEstate.inventory), ...safeArray(selectedEstateOps.inventory)];
+  const selectedIncidents = [...safeArray(selectedEstate.incidents), ...safeArray(selectedEstateOps.incidents)];
   const selectedInventoryItem = selectedInventory.find(x => x.id === selectedInventoryId) || null;
   const selectedIncident = selectedIncidents.find(x => x.id === selectedIncidentId) || null;
   const pendingTasks = taskList.filter(t => !t.done);
@@ -308,12 +307,12 @@ export default function DashboardFranquiciado() {
   const globalSearchResults = !searchText ? null : {
     estates: estates.filter(e => {
       const owner = owners.find(o => o.id === e.ownerId);
-      const roomsText = asArray(e.rooms).flatMap(r => [r.id, r.title, r.status, r.tenantId]).join(" ");
+      const roomsText = e.rooms.flatMap(r => [r.id, r.title, r.status, r.tenantId]).join(" ");
       return textOf([e.id, e.province, e.city, e.zone, e.address, e.status, owner?.id, owner?.name, owner?.phone, owner?.email, roomsText]).includes(searchText);
     }),
     owners: owners.filter(o => {
       const linkedEstates = estates.filter(e => e.ownerId === o.id);
-      const linkedRooms = linkedEstates.flatMap(e => asArray(e.rooms));
+      const linkedRooms = linkedEstates.flatMap(e => e.rooms || []);
       return textOf([o.id, o.name, o.phone, o.email, o.iban, o.contract, ...linkedEstates.flatMap(e => [e.id, e.city, e.zone, e.address, e.status]), ...linkedRooms.flatMap(r => [r.id, r.title, r.status])]).includes(searchText);
     }),
     tenants: tenants.filter(t => {
@@ -332,9 +331,35 @@ export default function DashboardFranquiciado() {
   };
   const globalSearchCount = globalSearchResults ? Object.values(globalSearchResults).reduce((sum, rows) => sum + rows.length, 0) : 0;
 
-  const selectedRoom = allRooms.find(r => r.id === selectedRoomId) || asArray(selectedEstate.rooms)[0];
+  const selectedRoomCandidate = allRooms.find(r => r.id === selectedRoomId);
+  const selectedRoom = selectedRoomCandidate?.estateId === selectedEstate.id
+    ? selectedRoomCandidate
+    : (selectedEstateRooms[0] || null);
   const selectedTenant = selectedRoom?.tenantId ? tenants.find(t => t.id === selectedRoom.tenantId) : null;
   const selectedLiq = estateLiquidation(selectedEstate);
+  const estateCity = selectedEstateDetails.city ?? selectedEstate.city;
+  const estateZone = selectedEstateDetails.zone ?? selectedEstate.zone;
+  const estateAddress = selectedEstateDetails.address ?? selectedEstate.address;
+  const estateDescription = selectedEstateDetails.description ?? selectedEstate.description;
+  const estateTransport = selectedEstateDetails.transport ?? "";
+  const estateServicesNearby = selectedEstateDetails.servicesNearby ?? "";
+  const estateObservations = selectedEstateDetails.observations ?? "";
+  const estatePhotos = safeArray(selectedEstateDetails.photos);
+  const verification = selectedEstateDetails.verification || {};
+  const guideSteps = [
+    { key:"owner", label:"Propietario", done:!!selectedOwner?.id },
+    { key:"estate", label:"Datos inmueble", done:isFilled(estateCity) && isFilled(estateZone) && isFilled(estateAddress) },
+    { key:"photos", label:"Fotos inmueble", done:estatePhotos.length > 0 },
+    { key:"rooms", label:"Habitaciones", done:selectedEstateRooms.length > 0 },
+    { key:"common", label:"Zonas comunes", done:selectedCommonAreas.length > 0 },
+    { key:"inventory", label:"Inventario", done:selectedInventory.length > 0 },
+    { key:"verification", label:"Verificación", done:!!verification.cedula && !!verification.energy },
+    { key:"contract", label:"Contrato", done:selectedEstate.contractStatus === "Declarado correcto" || selectedOwner.contract === "Declarado correcto" },
+  ];
+  const completedGuideSteps = guideSteps.filter(x => x.done).length;
+  const guideProgress = Math.round((completedGuideSteps / guideSteps.length) * 100);
+  const nextGuideStep = guideSteps.find(x => !x.done);
+
   const simMaxMonthlyRent = simHomeValue * 0.0052;
   const simTotalPrivateM2 = simRooms.reduce((sum, r) => sum + Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0), 0);
   const simEuroM2 = simTotalPrivateM2 > 0 ? simMaxMonthlyRent / simTotalPrivateM2 : 0;
@@ -354,8 +379,7 @@ export default function DashboardFranquiciado() {
 
   const global = estates.reduce((acc, e) => {
     const liq = estateLiquidation(e);
-    const estateRooms = asArray(e.rooms);
-    acc.estates += 1; acc.rooms += estateRooms.length; acc.occupied += estateRooms.filter(r => r.status === "Ocupada").length;
+    acc.estates += 1; acc.rooms += safeArray(e.rooms).length; acc.occupied += safeArray(e.rooms).filter(r => r.status === "Ocupada").length;
     acc.gross += liq.gross; acc.franchisee += liq.franchisee; acc.spainroom += liq.spainroom; acc.owner += liq.owner;
     return acc;
   }, { estates:0, rooms:0, occupied:0, gross:0, franchisee:0, spainroom:0, owner:0 });
@@ -402,7 +426,7 @@ export default function DashboardFranquiciado() {
     setSelectedInventoryId(null);
     setSelectedIncidentId(null);
     const e = estates.find(x => x.id === id);
-    if (e?.rooms?.[0]) setSelectedRoomId(e.rooms[0].id);
+    if (safeArray(e?.rooms)[0]) setSelectedRoomId(safeArray(e.rooms)[0].id);
     setActiveTab("fincas");
   }
 
@@ -535,23 +559,9 @@ export default function DashboardFranquiciado() {
   }
 
   function saveRoomDraft(patch = {}) {
-    if (!selectedRoom?.id) return;
     const key = selectedRoom.id;
     const current = roomDrafts[key] || {};
-    const currentPhotos = asArray(current.photos);
-    const patchPhotos = Array.isArray(patch.photos) ? patch.photos : currentPhotos;
-    const cleanSelectedRoom = { ...selectedRoom };
-    delete cleanSelectedRoom.photos;
-    const next = {
-      ...roomDrafts,
-      [key]: {
-        ...cleanSelectedRoom,
-        ...current,
-        ...patch,
-        photos: patchPhotos,
-        savedAt:new Date().toLocaleString("es-ES"),
-      },
-    };
+    const next = {...roomDrafts, [key]: {...selectedRoom, ...current, ...patch, savedAt:new Date().toLocaleString("es-ES")}};
     setRoomDrafts(next); localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next)); setRoomNotice(`Ficha guardada: ${key}`);
   }
 
@@ -560,13 +570,13 @@ export default function DashboardFranquiciado() {
     if (!uploaded.length) return;
     const key = selectedRoom.id;
     const current = roomDrafts[key] || {};
-    const next = {...roomDrafts, [key]: {...current, photos:[...asArray(current.photos), ...uploaded]}};
+    const next = {...roomDrafts, [key]: {...current, photos:[...safeArray(current.photos), ...uploaded]}};
     setRoomDrafts(next); localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next)); setRoomNotice(`${uploaded.length} foto(s) añadida(s).`);
   }
 
   function publishRoom() {
     const draft = roomDrafts[selectedRoom.id] || {};
-    const photoCount = asArray(draft.photos).length || selectedRoom.photos || 0;
+    const photoCount = draft.photos?.length || selectedRoom.photos || 0;
     if (selectedOwner.iban === "Pendiente") return setRoomNotice("Falta IBAN propietario.");
     if (selectedEstate.contractStatus !== "Declarado correcto") return setRoomNotice("Falta contrato propietario declarado correcto.");
     if (!photoCount) return setRoomNotice("Faltan fotos.");
@@ -629,7 +639,7 @@ export default function DashboardFranquiciado() {
     const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
     if (!uploaded.length) return;
     const item = selectedCommonAreas.find(x => x.id === id);
-    const previous = asArray(item?.photoFiles);
+    const previous = item?.photoFiles || [];
     updateCommonArea(id, { photoFiles:[...previous, ...uploaded], photos:Number(item?.photos || 0) + uploaded.length });
     setEstateOpsNotice(`${uploaded.length} foto(s) añadida(s) a ${item?.area || "zona común"}.`);
   }
@@ -637,22 +647,61 @@ export default function DashboardFranquiciado() {
   function handleNewCommonAreaPhotos(files) {
     const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
     if (!uploaded.length) return;
-    setNewCommonArea(x => ({ ...x, photoFiles:[...asArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
+    setNewCommonArea(x => ({ ...x, photoFiles:[...(x.photoFiles || []), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
+  }
+
+  function updateEstateDetails(patch) {
+    const currentDetails = selectedEstateOps.estateDetails || {};
+    saveEstateOps({ estateDetails:{ ...currentDetails, ...patch } });
+    setEstateOpsNotice("Datos del inmueble actualizados.");
+  }
+
+  function handleEstatePhotos(files) {
+    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
+    if (!uploaded.length) return;
+    const currentDetails = selectedEstateOps.estateDetails || {};
+    updateEstateDetails({ photos:[...safeArray(currentDetails.photos), ...uploaded] });
+    setEstateOpsNotice(`${uploaded.length} foto(s) general(es) añadida(s) a ${selectedEstate.id}.`);
+  }
+
+  function addRealRoom() {
+    const currentRooms = safeArray(selectedEstate.rooms);
+    const nextNumber = currentRooms.length + 1;
+    const roomId = `${selectedEstate.id}-H${String(nextNumber).padStart(2, "0")}`;
+    const item = {
+      id:roomId,
+      title:`Habitación ${nextNumber}`,
+      price:0,
+      basePrice:0,
+      bath:false,
+      balcony:false,
+      services:true,
+      status:"Pendiente datos",
+      tenantId:null,
+      photos:0,
+      publish:"danger",
+      incidents:"🟢",
+    };
+    const nextEstates = safeArray(estates).map(e => e.id === selectedEstate.id ? { ...e, rooms:[...currentRooms, item] } : e);
+    setEstates(nextEstates);
+    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    setSelectedRoomId(roomId);
+    setEstateOpsNotice(`Habitación real creada: ${roomId}.`);
   }
 
   function addInventoryItem() {
     if (!newInventory.item.trim()) return;
     const item = { id:`INV-${Date.now()}`, ...newInventory, photos:Number(newInventory.photos || 0) };
-    saveEstateOps({ inventory:[...asArray(selectedEstateOps.inventory), item] });
+    saveEstateOps({ inventory:[...(selectedEstateOps.inventory || []), item] });
     setSelectedInventoryId(item.id);
     setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0 });
     setEstateOpsNotice(`Inventario añadido: ${item.item}.`);
   }
 
   function updateInventoryItem(id, patch) {
-    const isDynamic = asArray(selectedEstateOps.inventory).some(x => x.id === id);
+    const isDynamic = (selectedEstateOps.inventory || []).some(x => x.id === id);
     if (!isDynamic) return setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para editarlo.");
-    const nextInventory = asArray(selectedEstateOps.inventory).map(x => x.id === id ? { ...x, ...patch } : x);
+    const nextInventory = (selectedEstateOps.inventory || []).map(x => x.id === id ? { ...x, ...patch } : x);
     saveEstateOps({ inventory:nextInventory });
     setEstateOpsNotice("Inventario actualizado.");
   }
@@ -660,16 +709,16 @@ export default function DashboardFranquiciado() {
   function addIncident() {
     if (!newIncident.subject.trim()) return;
     const item = { id:`INC-${Date.now()}`, date:new Date().toLocaleDateString("es-ES"), ...newIncident };
-    saveEstateOps({ incidents:[...asArray(selectedEstateOps.incidents), item] });
+    saveEstateOps({ incidents:[...(selectedEstateOps.incidents || []), item] });
     setSelectedIncidentId(item.id);
     setNewIncident({ level:"🟡", subject:"", roomId:"", status:"Abierta", notes:"" });
     setEstateOpsNotice(`Incidencia creada: ${item.subject}.`);
   }
 
   function updateIncident(id, patch) {
-    const isDynamic = asArray(selectedEstateOps.incidents).some(x => x.id === id);
+    const isDynamic = (selectedEstateOps.incidents || []).some(x => x.id === id);
     if (!isDynamic) return setEstateOpsNotice("Esta incidencia demo es solo lectura. Crea una nueva para editarla.");
-    const nextIncidents = asArray(selectedEstateOps.incidents).map(x => x.id === id ? { ...x, ...patch } : x);
+    const nextIncidents = (selectedEstateOps.incidents || []).map(x => x.id === id ? { ...x, ...patch } : x);
     saveEstateOps({ incidents:nextIncidents });
     setEstateOpsNotice("Incidencia actualizada.");
   }
@@ -821,7 +870,7 @@ export default function DashboardFranquiciado() {
           </div>
           <div style={{background:"rgba(255,255,255,.14)",border:"1px solid rgba(255,255,255,.24)",borderRadius:18,padding:14,minWidth:270}}>
             <div style={{fontWeight:950,marginBottom:8}}>🏠 Expediente activo</div>
-            <div style={{fontSize:14,lineHeight:1.5,color:"rgba(255,255,255,.92)"}}>{selectedEstate.id}<br/>{selectedEstate.city} · {selectedEstate.zone}<br/>Propietario: {selectedOwner.name}</div>
+            <div style={{fontSize:14,lineHeight:1.5,color:"rgba(255,255,255,.92)"}}>{selectedEstate.id}<br/>{estateCity} · {estateZone}<br/>Propietario: {selectedOwner.name}</div>
           </div>
         </div>
       </section>
@@ -956,6 +1005,16 @@ export default function DashboardFranquiciado() {
             </div>
           </Card>
 
+          <Card title="Verificación inmueble" icon="🛡️" right={<Badge tone={verification.cedula && verification.energy ? "ok" : "wait"}>Antes de publicar</Badge>}>
+            <div style={{display:"grid",gap:8}}>
+              <Check checked={!!verification.cedula} onChange={v => updateEstateDetails({verification:{...verification, cedula:v}})} label="Cédula de habitabilidad comprobada" />
+              <Check checked={!!verification.energy} onChange={v => updateEstateDetails({verification:{...verification, energy:v}})} label="Certificado de eficiencia energética" />
+              <Check checked={!!verification.insurance} onChange={v => updateEstateDetails({verification:{...verification, insurance:v}})} label="Seguro vivienda / responsabilidad civil" />
+              <Check checked={!!verification.electricity} onChange={v => updateEstateDetails({verification:{...verification, electricity:v}})} label="Instalación eléctrica revisada" />
+              <Check checked={!!verification.gas} onChange={v => updateEstateDetails({verification:{...verification, gas:v}})} label="Gas / caldera revisado si existe" />
+            </div>
+          </Card>
+
           <Card title="Contrato propietario" icon="📄" right={<Badge tone={selectedEstate.contractStatus === "Declarado correcto" ? "ok" : "wait"}>{selectedEstate.contractStatus}</Badge>}>
             <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"10px 13px",fontWeight:950,color:blue,background:"#f8fafc",cursor:"pointer"}}>
               Subir contrato firmado
@@ -974,9 +1033,9 @@ export default function DashboardFranquiciado() {
         </div>
 
         <div style={{display:"grid",gap:16}}>
-          <Card title={`${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}`} icon="📁" right={<Badge tone="info">{selectedEstate.franchisee}</Badge>}>
+          <Card title={`${selectedEstate.id} · ${estateCity} · ${estateZone}`} icon="📁" right={<Badge tone="info">{selectedEstate.franchisee}</Badge>}>
             <div className="sr-estate-summary" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:12}}>
-              <KPI icon="🚪" label="Habitaciones" value={asArray(selectedEstate.rooms).length} hint={`${asArray(selectedEstate.rooms).filter(r => r.status === "Ocupada").length} ocupadas`} tone="ok" />
+              <KPI icon="🚪" label="Habitaciones" value={selectedEstateRooms.length} hint={`${selectedEstateRooms.filter(r => r.status === "Ocupada").length} ocupadas`} tone="ok" />
               <KPI icon="💶" label="Bruto finca" value={money(selectedLiq.gross)} hint="Precio final" />
               <KPI icon="🔌" label="Servicios internos" value={money(selectedLiq.services)} hint={`${selectedEstate.servicesFee} €/hab.`} tone="wait" />
               <KPI icon="👤" label="Propietario" value={money(selectedLiq.owner)} hint="Liquidación finca" tone="ok" />
@@ -994,6 +1053,101 @@ export default function DashboardFranquiciado() {
             </div>
           </Card>
 
+          <Card title="Guía SpainRoom" icon="🐕" right={<Badge tone={guideProgress >= 100 ? "ok" : "wait"}>Progreso {guideProgress}%</Badge>}>
+            <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:12}}>
+                <div>
+                  <strong>Objetivo: publicar la finca</strong>
+                  <div style={{color:"#64748b",fontSize:13,marginTop:4}}>Finca no publicada = finca inexistente. Si no existe, no se alquila.</div>
+                </div>
+                <Badge tone={nextGuideStep ? "wait" : "ok"}>{nextGuideStep ? `Siguiente: ${nextGuideStep.label}` : "Lista para publicar"}</Badge>
+              </div>
+              <div style={{height:10,background:"#e2e8f0",borderRadius:999,overflow:"hidden",marginBottom:12}}>
+                <div style={{width:`${guideProgress}%`,height:"100%",background:blue,borderRadius:999}} />
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}} className="sr-help-grid">
+                {guideSteps.map(step => <div key={step.key} style={{background:step.done ? "#ecfdf5" : "#fff",border:`1px solid ${step.done ? "#bbf7d0" : "#e2e8f0"}`,borderRadius:13,padding:"9px 10px",fontWeight:900,color:step.done ? "#047857" : "#475569"}}>{step.done ? "✅" : "☐"} {step.label}</div>)}
+              </div>
+              {nextGuideStep && <div style={{marginTop:12,background:"#fffbeb",border:"1px solid #fde68a",borderRadius:14,padding:12,color:"#92400e",fontWeight:900}}>👉 Siguiente acción recomendada: {nextGuideStep.label}</div>}
+            </div>
+          </Card>
+
+          <Card title="Datos inmueble" icon="🏠" right={<Badge tone={isFilled(estateCity) && isFilled(estateAddress) ? "ok" : "wait"}>Ficha del inmueble</Badge>}>
+            <div className="sr-room-fields" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
+              <Field label="Provincia" value={selectedEstateDetails.province ?? selectedEstate.province ?? ""} onChange={v => updateEstateDetails({province:v})} />
+              <Field label="Ciudad" value={estateCity || ""} onChange={v => updateEstateDetails({city:v})} />
+              <Field label="Zona" value={estateZone || ""} onChange={v => updateEstateDetails({zone:v})} />
+              <Field label="Dirección" value={estateAddress || ""} onChange={v => updateEstateDetails({address:v})} />
+              <Field label="Transporte público" value={estateTransport} onChange={v => updateEstateDetails({transport:v})} />
+              <Field label="Servicios cercanos" value={estateServicesNearby} onChange={v => updateEstateDetails({servicesNearby:v})} />
+            </div>
+            <label style={{display:"grid",gap:6,marginBottom:12}}>
+              <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Descripción general / situación</span>
+              <textarea value={estateDescription || ""} onChange={e => updateEstateDetails({description:e.target.value})} rows={4} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} />
+            </label>
+            <label style={{display:"grid",gap:6,marginBottom:12}}>
+              <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Observaciones internas</span>
+              <textarea value={estateObservations} onChange={e => updateEstateDetails({observations:e.target.value})} rows={3} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} />
+            </label>
+          </Card>
+
+          <Card title="Fotos inmueble" icon="📸" right={<Badge tone={estatePhotos.length ? "ok" : "wait"}>{estatePhotos.length} foto(s)</Badge>}>
+            <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>Fotos generales: fachada, portal, escalera, entrada, calle, entorno y transporte cercano. Salón y cocina van en zonas comunes.</p>
+            <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"10px 13px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",marginBottom:12}}>
+              + Subir fotos inmueble
+              <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleEstatePhotos(e.target.files)} />
+            </label>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-photo-grid">
+              {estatePhotos.map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                <div style={{height:92,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24,overflow:"hidden"}}>
+                  {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
+                </div>
+                <div style={{fontWeight:900,marginTop:8}}>Foto inmueble {idx + 1}</div>
+                <div style={{color:"#64748b",fontSize:12,wordBreak:"break-word"}}>{photo.name}</div>
+              </div>)}
+              {!estatePhotos.length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos generales del inmueble.</div>}
+            </div>
+          </Card>
+
+          <Card title="Habitaciones de la finca" icon="🚪" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="ok">Precio final visible</Badge><Button small onClick={addRealRoom}>+ Nueva habitación</Button></div>}>
+            <Table columns={[
+              { key:"id", label:"Habitación", bold:true, render:r => <button type="button" style={linkBtn} onClick={() => openRoom(r.id)}>{r.id}</button> },
+              { key:"title", label:"Título" },
+              { key:"price", label:"Precio", render:r => money(r.price) },
+              { key:"features", label:"Extras", render:r => <span>{r.services ? "Servicios " : ""}{r.bath ? "· Baño " : ""}{r.balcony ? "· Balcón" : ""}</span> },
+              { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Ocupada" ? "ok" : r.status === "Pendiente fotos" ? "danger" : "info"}>{r.status}</Badge> },
+              { key:"actions", label:"", render:r => <Button small onClick={() => openRoom(r.id)}>Abrir</Button> },
+            ]} rows={selectedEstateRooms} empty="Sin habitaciones." />
+
+            {selectedRoom && selectedRoom.estateId === selectedEstate.id && <div style={{marginTop:12,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+                <strong>👁️ Ficha rápida habitación · <button type="button" style={linkBtn} onClick={() => openRoom(selectedRoom.id)}>{selectedRoom.id}</button></strong>
+                <Badge tone={selectedRoom.status === "Ocupada" ? "ok" : selectedRoom.status === "Pendiente fotos" ? "danger" : "info"}>{selectedRoom.status}</Badge>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}} className="sr-room-fields">
+                <div style={infoBox}><strong>{selectedRoom.title}</strong><br/>Precio final: <strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/>Fotos: {safeArray(roomDrafts[selectedRoom.id]?.photos).length || selectedRoom.photos || 0}</div>
+                <div style={infoBox}>🏠 Finca:<br/><button type="button" style={linkBtn} onClick={() => openEstate(selectedRoom.estateId)}>{selectedRoom.estateId}</button><br/>👤 Propietario:<br/><button type="button" style={linkBtn} onClick={() => goOwner(selectedRoom.ownerId)}>{owners.find(o => o.id === selectedRoom.ownerId)?.name || selectedRoom.ownerId}</button></div>
+                <div style={infoBox}>👥 Inquilino:<br/>{selectedRoom.tenantId ? <button type="button" style={linkBtn} onClick={() => goTenant(selectedRoom.tenantId)}>{tenants.find(t => t.id === selectedRoom.tenantId)?.name || selectedRoom.tenantId}</button> : "Sin asignar"}<br/>Extras: {selectedRoom.services ? "Servicios " : ""}{selectedRoom.bath ? "· Baño " : ""}{selectedRoom.balcony ? "· Balcón" : ""}</div>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",fontSize:13}}>
+                  📸 Subir fotos
+                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handlePhotos(e.target.files)} />
+                </label>
+                <Button small onClick={() => saveRoomDraft()}>💾 Guardar ficha</Button>
+                <Button small secondary onClick={publishRoom}>🚀 Publicar si está completa</Button>
+              </div>
+              {safeArray(roomDrafts[selectedRoom.id]?.photos).length > 0 && <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:10}} className="sr-photo-grid">
+                {safeArray(roomDrafts[selectedRoom.id]?.photos).slice(0,4).map((photo, idx) => <div key={`quick-${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:8}}>
+                  <div style={{height:72,borderRadius:10,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",overflow:"hidden"}}>
+                    {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
+                  </div>
+                  <div style={{color:"#64748b",fontSize:11,marginTop:5,wordBreak:"break-word"}}>{photo.name}</div>
+                </div>)}
+              </div>}
+            </div>}
+          </Card>
+
           <Card title="Zonas comunes" icon="🏘️" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="dark">Operativo franquiciado</Badge><Button small secondary onClick={addCommonArea}>+ Añadir zona</Button></div>}>
             <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr 2fr .5fr auto",gap:10,marginBottom:12,alignItems:"end"}}>
               <Field label="Zona común" value={newCommonArea.area} onChange={v => setNewCommonArea(x => ({...x,area:v}))} />
@@ -1004,7 +1158,7 @@ export default function DashboardFranquiciado() {
                 <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleNewCommonAreaPhotos(e.target.files)} />
               </label>
             </div>
-            {asArray(newCommonArea.photoFiles).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas: {asArray(newCommonArea.photoFiles).length}</div>}
+            {(newCommonArea.photoFiles || []).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas: {(newCommonArea.photoFiles || []).length}</div>}
             <Table columns={[
               { key:"area", label:"Zona", bold:true, render:z => <button type="button" style={linkBtn} onClick={() => openCommonArea(z.id)}>{z.area}</button> },
               { key:"description", label:"Descripción" },
@@ -1029,14 +1183,14 @@ export default function DashboardFranquiciado() {
                 <Button small secondary onClick={() => setSelectedCommonAreaId(null)}>Cerrar ficha</Button>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-photo-grid">
-                {asArray(selectedCommonArea.photoFiles).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                {(selectedCommonArea.photoFiles || []).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
                   <div style={{height:92,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24,overflow:"hidden"}}>
                     {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
                   </div>
                   <div style={{fontWeight:900,marginTop:8}}>Foto {idx + 1}</div>
                   <div style={{color:"#64748b",fontSize:12,wordBreak:"break-word"}}>{photo.name}</div>
                 </div>)}
-                {!asArray(selectedCommonArea.photoFiles).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas en esta prueba. La zona indica {selectedCommonArea.photos || 0} foto(s) registradas.</div>}
+                {!(selectedCommonArea.photoFiles || []).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas en esta prueba. La zona indica {selectedCommonArea.photos || 0} foto(s) registradas.</div>}
               </div>
             </div>}
             {estateOpsNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{estateOpsNotice}</div>}
@@ -1066,45 +1220,6 @@ export default function DashboardFranquiciado() {
                 <Field label="Modelo / medida" value={selectedInventoryItem.model || ""} onChange={v => updateInventoryItem(selectedInventoryItem.id,{model:v})} />
                 <Field label="Estado" value={selectedInventoryItem.status || ""} onChange={v => updateInventoryItem(selectedInventoryItem.id,{status:v})} />
               </div>
-            </div>}
-          </Card>
-
-          <Card title="Habitaciones de la finca" icon="🚪" right={<Badge tone="ok">Precio final visible</Badge>}>
-            <Table columns={[
-              { key:"id", label:"Habitación", bold:true, render:r => <button type="button" style={linkBtn} onClick={() => openRoom(r.id)}>{r.id}</button> },
-              { key:"title", label:"Título" },
-              { key:"price", label:"Precio", render:r => money(r.price) },
-              { key:"features", label:"Extras", render:r => <span>{r.services ? "Servicios " : ""}{r.bath ? "· Baño " : ""}{r.balcony ? "· Balcón" : ""}</span> },
-              { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Ocupada" ? "ok" : r.status === "Pendiente fotos" ? "danger" : "info"}>{r.status}</Badge> },
-              { key:"actions", label:"", render:r => <Button small onClick={() => openRoom(r.id)}>Abrir</Button> },
-            ]} rows={asArray(selectedEstate.rooms)} empty="Sin habitaciones." />
-
-            {selectedRoom && selectedRoom.estateId === selectedEstate.id && <div style={{marginTop:12,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
-                <strong>👁️ Ficha rápida habitación · <button type="button" style={linkBtn} onClick={() => openRoom(selectedRoom.id)}>{selectedRoom.id}</button></strong>
-                <Badge tone={selectedRoom.status === "Ocupada" ? "ok" : selectedRoom.status === "Pendiente fotos" ? "danger" : "info"}>{selectedRoom.status}</Badge>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}} className="sr-room-fields">
-                <div style={infoBox}><strong>{selectedRoom.title}</strong><br/>Precio final: <strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/>Fotos: {asArray(roomDrafts[selectedRoom.id]?.photos).length || selectedRoom.photos || 0}</div>
-                <div style={infoBox}>🏠 Finca:<br/><button type="button" style={linkBtn} onClick={() => openEstate(selectedRoom.estateId)}>{selectedRoom.estateId}</button><br/>👤 Propietario:<br/><button type="button" style={linkBtn} onClick={() => goOwner(selectedRoom.ownerId)}>{owners.find(o => o.id === selectedRoom.ownerId)?.name || selectedRoom.ownerId}</button></div>
-                <div style={infoBox}>👥 Inquilino:<br/>{selectedRoom.tenantId ? <button type="button" style={linkBtn} onClick={() => goTenant(selectedRoom.tenantId)}>{tenants.find(t => t.id === selectedRoom.tenantId)?.name || selectedRoom.tenantId}</button> : "Sin asignar"}<br/>Extras: {selectedRoom.services ? "Servicios " : ""}{selectedRoom.bath ? "· Baño " : ""}{selectedRoom.balcony ? "· Balcón" : ""}</div>
-              </div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
-                <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",fontSize:13}}>
-                  📸 Subir fotos
-                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handlePhotos(e.target.files)} />
-                </label>
-                <Button small onClick={() => saveRoomDraft()}>💾 Guardar ficha</Button>
-                <Button small secondary onClick={publishRoom}>🚀 Publicar si está completa</Button>
-              </div>
-              {asArray(roomDrafts[selectedRoom.id]?.photos).length > 0 && <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:10}} className="sr-photo-grid">
-                {asArray(roomDrafts[selectedRoom.id]?.photos).slice(0,4).map((photo, idx) => <div key={`quick-${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:8}}>
-                  <div style={{height:72,borderRadius:10,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",overflow:"hidden"}}>
-                    {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
-                  </div>
-                  <div style={{color:"#64748b",fontSize:11,marginTop:5,wordBreak:"break-word"}}>{photo.name}</div>
-                </div>)}
-              </div>}
             </div>}
           </Card>
 
@@ -1167,7 +1282,7 @@ export default function DashboardFranquiciado() {
                 <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
                   <strong>Completitud publicación</strong>
                   <div style={{display:"grid",gap:6,marginTop:8}}>
-                    <div>Fotos: {(asArray(roomDrafts[selectedRoom.id]?.photos).length || selectedRoom.photos) > 0 ? "✅" : "❌"}</div>
+                    <div>Fotos: {(safeArray(roomDrafts[selectedRoom.id]?.photos).length || selectedRoom.photos) > 0 ? "✅" : "❌"}</div>
                     <div>Descripción: ✅</div>
                     <div>Propietario: ✅</div>
                     <div>Contrato: {selectedEstate.contractStatus === "Declarado correcto" ? "✅" : "❌"}</div>
@@ -1196,14 +1311,14 @@ export default function DashboardFranquiciado() {
                   </label>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-photo-grid">
-                  {asArray(roomDrafts[selectedRoom.id]?.photos).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                  {safeArray(roomDrafts[selectedRoom.id]?.photos).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
                     <div style={{height:92,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24,overflow:"hidden"}}>
                       {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
                     </div>
                     <div style={{fontWeight:900,marginTop:8}}>Foto {idx + 1}</div>
                     <div style={{color:"#64748b",fontSize:12,wordBreak:"break-word"}}>{photo.name}</div>
                   </div>)}
-                  {!asArray(roomDrafts[selectedRoom.id]?.photos).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas en esta prueba. La habitación indica {selectedRoom.photos} foto(s) registradas en demo.</div>}
+                  {!safeArray(roomDrafts[selectedRoom.id]?.photos).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas en esta prueba. La habitación indica {selectedRoom.photos} foto(s) registradas en demo.</div>}
                 </div>
               </div>
 
@@ -1219,7 +1334,7 @@ export default function DashboardFranquiciado() {
             <div className="sr-incident-form" style={{display:"grid",gridTemplateColumns:".5fr 1.3fr 1fr .8fr",gap:10,marginBottom:12}}>
               <Field label="Nivel" value={newIncident.level} onChange={v => setNewIncident(x => ({...x,level:v}))} />
               <Field label="Asunto" value={newIncident.subject} onChange={v => setNewIncident(x => ({...x,subject:v}))} />
-              <label style={{display:"grid",gap:6}}><span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Habitación vinculada</span><select value={newIncident.roomId} onChange={e => setNewIncident(x => ({...x,roomId:e.target.value}))} style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",color:"#0b1220",fontWeight:750,background:"#fff",outline:"none"}}><option value="">Finca general</option>{asArray(selectedEstate.rooms).map(r => <option key={r.id} value={r.id}>{r.id}</option>)}</select></label>
+              <label style={{display:"grid",gap:6}}><span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Habitación vinculada</span><select value={newIncident.roomId} onChange={e => setNewIncident(x => ({...x,roomId:e.target.value}))} style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",color:"#0b1220",fontWeight:750,background:"#fff",outline:"none"}}><option value="">Finca general</option>{selectedEstateRooms.map(r => <option key={r.id} value={r.id}>{r.id}</option>)}</select></label>
               <Field label="Estado" value={newIncident.status} onChange={v => setNewIncident(x => ({...x,status:v}))} />
             </div>
             <label style={{display:"grid",gap:6,marginBottom:12}}><span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Notas de incidencia</span><textarea value={newIncident.notes} onChange={e => setNewIncident(x => ({...x,notes:e.target.value}))} rows={3} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} /></label>
