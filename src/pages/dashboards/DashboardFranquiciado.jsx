@@ -20,6 +20,10 @@ function loadList(key, fallback) {
   }
 }
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 function Badge({ children, tone = "info" }) {
   const map = {
     ok: ["#ecfdf5", "#047857", "#bbf7d0"],
@@ -176,8 +180,9 @@ const TASKS = [
 ];
 
 function estateLiquidation(estate) {
-  const gross = estate.rooms.reduce((sum, r) => sum + Number(r.price || 0), 0);
-  const services = estate.servicesIncluded ? estate.rooms.length * estate.servicesFee : 0;
+  const estateRooms = asArray(estate.rooms);
+  const gross = estateRooms.reduce((sum, r) => sum + Number(r.price || 0), 0);
+  const services = estate.servicesIncluded ? estateRooms.length * estate.servicesFee : 0;
   const net = Math.max(0, gross - services);
   const owner = Math.round(net * 0.80);
   const management = Math.round(net * 0.20);
@@ -258,12 +263,23 @@ export default function DashboardFranquiciado() {
 
   const selectedEstate = estates.find(e => e.id === selectedEstateId) || estates[0];
   const selectedOwner = owners.find(o => o.id === selectedEstate.ownerId) || owners[0];
-  const allRooms = estates.flatMap(e => e.rooms.map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
+  const allRooms = asArray(estates).flatMap(e => asArray(e.rooms).map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
   const selectedEstateOps = estateOps[selectedEstate.id] || {};
-  const selectedCommonAreas = selectedEstateOps.commonAreasFull || [...(selectedEstate.commonAreas || []), ...(selectedEstateOps.commonAreas || [])];
+  const selectedCommonAreas = Array.isArray(selectedEstateOps.commonAreasFull)
+    ? selectedEstateOps.commonAreasFull
+    : [
+        ...asArray(selectedEstate.commonAreas),
+        ...asArray(selectedEstateOps.commonAreas),
+      ];
   const selectedCommonArea = selectedCommonAreas.find(x => x.id === selectedCommonAreaId) || null;
-  const selectedInventory = [...(selectedEstate.inventory || []), ...(selectedEstateOps.inventory || [])];
-  const selectedIncidents = [...(selectedEstate.incidents || []), ...(selectedEstateOps.incidents || [])];
+  const selectedInventory = [
+    ...asArray(selectedEstate.inventory),
+    ...asArray(selectedEstateOps.inventory),
+  ];
+  const selectedIncidents = [
+    ...asArray(selectedEstate.incidents),
+    ...asArray(selectedEstateOps.incidents),
+  ];
   const selectedInventoryItem = selectedInventory.find(x => x.id === selectedInventoryId) || null;
   const selectedIncident = selectedIncidents.find(x => x.id === selectedIncidentId) || null;
   const pendingTasks = taskList.filter(t => !t.done);
@@ -292,12 +308,12 @@ export default function DashboardFranquiciado() {
   const globalSearchResults = !searchText ? null : {
     estates: estates.filter(e => {
       const owner = owners.find(o => o.id === e.ownerId);
-      const roomsText = e.rooms.flatMap(r => [r.id, r.title, r.status, r.tenantId]).join(" ");
+      const roomsText = asArray(e.rooms).flatMap(r => [r.id, r.title, r.status, r.tenantId]).join(" ");
       return textOf([e.id, e.province, e.city, e.zone, e.address, e.status, owner?.id, owner?.name, owner?.phone, owner?.email, roomsText]).includes(searchText);
     }),
     owners: owners.filter(o => {
       const linkedEstates = estates.filter(e => e.ownerId === o.id);
-      const linkedRooms = linkedEstates.flatMap(e => e.rooms || []);
+      const linkedRooms = linkedEstates.flatMap(e => asArray(e.rooms));
       return textOf([o.id, o.name, o.phone, o.email, o.iban, o.contract, ...linkedEstates.flatMap(e => [e.id, e.city, e.zone, e.address, e.status]), ...linkedRooms.flatMap(r => [r.id, r.title, r.status])]).includes(searchText);
     }),
     tenants: tenants.filter(t => {
@@ -316,7 +332,7 @@ export default function DashboardFranquiciado() {
   };
   const globalSearchCount = globalSearchResults ? Object.values(globalSearchResults).reduce((sum, rows) => sum + rows.length, 0) : 0;
 
-  const selectedRoom = allRooms.find(r => r.id === selectedRoomId) || selectedEstate.rooms[0];
+  const selectedRoom = allRooms.find(r => r.id === selectedRoomId) || asArray(selectedEstate.rooms)[0];
   const selectedTenant = selectedRoom?.tenantId ? tenants.find(t => t.id === selectedRoom.tenantId) : null;
   const selectedLiq = estateLiquidation(selectedEstate);
   const simMaxMonthlyRent = simHomeValue * 0.0052;
@@ -338,7 +354,8 @@ export default function DashboardFranquiciado() {
 
   const global = estates.reduce((acc, e) => {
     const liq = estateLiquidation(e);
-    acc.estates += 1; acc.rooms += e.rooms.length; acc.occupied += e.rooms.filter(r => r.status === "Ocupada").length;
+    const estateRooms = asArray(e.rooms);
+    acc.estates += 1; acc.rooms += estateRooms.length; acc.occupied += estateRooms.filter(r => r.status === "Ocupada").length;
     acc.gross += liq.gross; acc.franchisee += liq.franchisee; acc.spainroom += liq.spainroom; acc.owner += liq.owner;
     return acc;
   }, { estates:0, rooms:0, occupied:0, gross:0, franchisee:0, spainroom:0, owner:0 });
@@ -518,9 +535,23 @@ export default function DashboardFranquiciado() {
   }
 
   function saveRoomDraft(patch = {}) {
+    if (!selectedRoom?.id) return;
     const key = selectedRoom.id;
     const current = roomDrafts[key] || {};
-    const next = {...roomDrafts, [key]: {...selectedRoom, ...current, ...patch, savedAt:new Date().toLocaleString("es-ES")}};
+    const currentPhotos = asArray(current.photos);
+    const patchPhotos = Array.isArray(patch.photos) ? patch.photos : currentPhotos;
+    const cleanSelectedRoom = { ...selectedRoom };
+    delete cleanSelectedRoom.photos;
+    const next = {
+      ...roomDrafts,
+      [key]: {
+        ...cleanSelectedRoom,
+        ...current,
+        ...patch,
+        photos: patchPhotos,
+        savedAt:new Date().toLocaleString("es-ES"),
+      },
+    };
     setRoomDrafts(next); localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next)); setRoomNotice(`Ficha guardada: ${key}`);
   }
 
@@ -529,13 +560,13 @@ export default function DashboardFranquiciado() {
     if (!uploaded.length) return;
     const key = selectedRoom.id;
     const current = roomDrafts[key] || {};
-    const next = {...roomDrafts, [key]: {...current, photos:[...(current.photos || []), ...uploaded]}};
+    const next = {...roomDrafts, [key]: {...current, photos:[...asArray(current.photos), ...uploaded]}};
     setRoomDrafts(next); localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next)); setRoomNotice(`${uploaded.length} foto(s) añadida(s).`);
   }
 
   function publishRoom() {
     const draft = roomDrafts[selectedRoom.id] || {};
-    const photoCount = draft.photos?.length || selectedRoom.photos || 0;
+    const photoCount = asArray(draft.photos).length || selectedRoom.photos || 0;
     if (selectedOwner.iban === "Pendiente") return setRoomNotice("Falta IBAN propietario.");
     if (selectedEstate.contractStatus !== "Declarado correcto") return setRoomNotice("Falta contrato propietario declarado correcto.");
     if (!photoCount) return setRoomNotice("Faltan fotos.");
@@ -598,7 +629,7 @@ export default function DashboardFranquiciado() {
     const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
     if (!uploaded.length) return;
     const item = selectedCommonAreas.find(x => x.id === id);
-    const previous = item?.photoFiles || [];
+    const previous = asArray(item?.photoFiles);
     updateCommonArea(id, { photoFiles:[...previous, ...uploaded], photos:Number(item?.photos || 0) + uploaded.length });
     setEstateOpsNotice(`${uploaded.length} foto(s) añadida(s) a ${item?.area || "zona común"}.`);
   }
@@ -606,22 +637,22 @@ export default function DashboardFranquiciado() {
   function handleNewCommonAreaPhotos(files) {
     const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
     if (!uploaded.length) return;
-    setNewCommonArea(x => ({ ...x, photoFiles:[...(x.photoFiles || []), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
+    setNewCommonArea(x => ({ ...x, photoFiles:[...asArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
   }
 
   function addInventoryItem() {
     if (!newInventory.item.trim()) return;
     const item = { id:`INV-${Date.now()}`, ...newInventory, photos:Number(newInventory.photos || 0) };
-    saveEstateOps({ inventory:[...(selectedEstateOps.inventory || []), item] });
+    saveEstateOps({ inventory:[...asArray(selectedEstateOps.inventory), item] });
     setSelectedInventoryId(item.id);
     setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0 });
     setEstateOpsNotice(`Inventario añadido: ${item.item}.`);
   }
 
   function updateInventoryItem(id, patch) {
-    const isDynamic = (selectedEstateOps.inventory || []).some(x => x.id === id);
+    const isDynamic = asArray(selectedEstateOps.inventory).some(x => x.id === id);
     if (!isDynamic) return setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para editarlo.");
-    const nextInventory = (selectedEstateOps.inventory || []).map(x => x.id === id ? { ...x, ...patch } : x);
+    const nextInventory = asArray(selectedEstateOps.inventory).map(x => x.id === id ? { ...x, ...patch } : x);
     saveEstateOps({ inventory:nextInventory });
     setEstateOpsNotice("Inventario actualizado.");
   }
@@ -629,16 +660,16 @@ export default function DashboardFranquiciado() {
   function addIncident() {
     if (!newIncident.subject.trim()) return;
     const item = { id:`INC-${Date.now()}`, date:new Date().toLocaleDateString("es-ES"), ...newIncident };
-    saveEstateOps({ incidents:[...(selectedEstateOps.incidents || []), item] });
+    saveEstateOps({ incidents:[...asArray(selectedEstateOps.incidents), item] });
     setSelectedIncidentId(item.id);
     setNewIncident({ level:"🟡", subject:"", roomId:"", status:"Abierta", notes:"" });
     setEstateOpsNotice(`Incidencia creada: ${item.subject}.`);
   }
 
   function updateIncident(id, patch) {
-    const isDynamic = (selectedEstateOps.incidents || []).some(x => x.id === id);
+    const isDynamic = asArray(selectedEstateOps.incidents).some(x => x.id === id);
     if (!isDynamic) return setEstateOpsNotice("Esta incidencia demo es solo lectura. Crea una nueva para editarla.");
-    const nextIncidents = (selectedEstateOps.incidents || []).map(x => x.id === id ? { ...x, ...patch } : x);
+    const nextIncidents = asArray(selectedEstateOps.incidents).map(x => x.id === id ? { ...x, ...patch } : x);
     saveEstateOps({ incidents:nextIncidents });
     setEstateOpsNotice("Incidencia actualizada.");
   }
@@ -945,7 +976,7 @@ export default function DashboardFranquiciado() {
         <div style={{display:"grid",gap:16}}>
           <Card title={`${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}`} icon="📁" right={<Badge tone="info">{selectedEstate.franchisee}</Badge>}>
             <div className="sr-estate-summary" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:12}}>
-              <KPI icon="🚪" label="Habitaciones" value={selectedEstate.rooms.length} hint={`${selectedEstate.rooms.filter(r => r.status === "Ocupada").length} ocupadas`} tone="ok" />
+              <KPI icon="🚪" label="Habitaciones" value={asArray(selectedEstate.rooms).length} hint={`${asArray(selectedEstate.rooms).filter(r => r.status === "Ocupada").length} ocupadas`} tone="ok" />
               <KPI icon="💶" label="Bruto finca" value={money(selectedLiq.gross)} hint="Precio final" />
               <KPI icon="🔌" label="Servicios internos" value={money(selectedLiq.services)} hint={`${selectedEstate.servicesFee} €/hab.`} tone="wait" />
               <KPI icon="👤" label="Propietario" value={money(selectedLiq.owner)} hint="Liquidación finca" tone="ok" />
@@ -973,7 +1004,7 @@ export default function DashboardFranquiciado() {
                 <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleNewCommonAreaPhotos(e.target.files)} />
               </label>
             </div>
-            {(newCommonArea.photoFiles || []).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas: {(newCommonArea.photoFiles || []).length}</div>}
+            {asArray(newCommonArea.photoFiles).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas: {asArray(newCommonArea.photoFiles).length}</div>}
             <Table columns={[
               { key:"area", label:"Zona", bold:true, render:z => <button type="button" style={linkBtn} onClick={() => openCommonArea(z.id)}>{z.area}</button> },
               { key:"description", label:"Descripción" },
@@ -998,14 +1029,14 @@ export default function DashboardFranquiciado() {
                 <Button small secondary onClick={() => setSelectedCommonAreaId(null)}>Cerrar ficha</Button>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-photo-grid">
-                {(selectedCommonArea.photoFiles || []).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                {asArray(selectedCommonArea.photoFiles).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
                   <div style={{height:92,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24,overflow:"hidden"}}>
                     {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
                   </div>
                   <div style={{fontWeight:900,marginTop:8}}>Foto {idx + 1}</div>
                   <div style={{color:"#64748b",fontSize:12,wordBreak:"break-word"}}>{photo.name}</div>
                 </div>)}
-                {!(selectedCommonArea.photoFiles || []).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas en esta prueba. La zona indica {selectedCommonArea.photos || 0} foto(s) registradas.</div>}
+                {!asArray(selectedCommonArea.photoFiles).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas en esta prueba. La zona indica {selectedCommonArea.photos || 0} foto(s) registradas.</div>}
               </div>
             </div>}
             {estateOpsNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{estateOpsNotice}</div>}
@@ -1046,7 +1077,7 @@ export default function DashboardFranquiciado() {
               { key:"features", label:"Extras", render:r => <span>{r.services ? "Servicios " : ""}{r.bath ? "· Baño " : ""}{r.balcony ? "· Balcón" : ""}</span> },
               { key:"status", label:"Estado", render:r => <Badge tone={r.status === "Ocupada" ? "ok" : r.status === "Pendiente fotos" ? "danger" : "info"}>{r.status}</Badge> },
               { key:"actions", label:"", render:r => <Button small onClick={() => openRoom(r.id)}>Abrir</Button> },
-            ]} rows={selectedEstate.rooms} empty="Sin habitaciones." />
+            ]} rows={asArray(selectedEstate.rooms)} empty="Sin habitaciones." />
 
             {selectedRoom && selectedRoom.estateId === selectedEstate.id && <div style={{marginTop:12,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
               <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
@@ -1054,7 +1085,7 @@ export default function DashboardFranquiciado() {
                 <Badge tone={selectedRoom.status === "Ocupada" ? "ok" : selectedRoom.status === "Pendiente fotos" ? "danger" : "info"}>{selectedRoom.status}</Badge>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}} className="sr-room-fields">
-                <div style={infoBox}><strong>{selectedRoom.title}</strong><br/>Precio final: <strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/>Fotos: {roomDrafts[selectedRoom.id]?.photos?.length || selectedRoom.photos || 0}</div>
+                <div style={infoBox}><strong>{selectedRoom.title}</strong><br/>Precio final: <strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/>Fotos: {asArray(roomDrafts[selectedRoom.id]?.photos).length || selectedRoom.photos || 0}</div>
                 <div style={infoBox}>🏠 Finca:<br/><button type="button" style={linkBtn} onClick={() => openEstate(selectedRoom.estateId)}>{selectedRoom.estateId}</button><br/>👤 Propietario:<br/><button type="button" style={linkBtn} onClick={() => goOwner(selectedRoom.ownerId)}>{owners.find(o => o.id === selectedRoom.ownerId)?.name || selectedRoom.ownerId}</button></div>
                 <div style={infoBox}>👥 Inquilino:<br/>{selectedRoom.tenantId ? <button type="button" style={linkBtn} onClick={() => goTenant(selectedRoom.tenantId)}>{tenants.find(t => t.id === selectedRoom.tenantId)?.name || selectedRoom.tenantId}</button> : "Sin asignar"}<br/>Extras: {selectedRoom.services ? "Servicios " : ""}{selectedRoom.bath ? "· Baño " : ""}{selectedRoom.balcony ? "· Balcón" : ""}</div>
               </div>
@@ -1066,8 +1097,8 @@ export default function DashboardFranquiciado() {
                 <Button small onClick={() => saveRoomDraft()}>💾 Guardar ficha</Button>
                 <Button small secondary onClick={publishRoom}>🚀 Publicar si está completa</Button>
               </div>
-              {(roomDrafts[selectedRoom.id]?.photos || []).length > 0 && <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:10}} className="sr-photo-grid">
-                {(roomDrafts[selectedRoom.id]?.photos || []).slice(0,4).map((photo, idx) => <div key={`quick-${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:8}}>
+              {asArray(roomDrafts[selectedRoom.id]?.photos).length > 0 && <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:10}} className="sr-photo-grid">
+                {asArray(roomDrafts[selectedRoom.id]?.photos).slice(0,4).map((photo, idx) => <div key={`quick-${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:8}}>
                   <div style={{height:72,borderRadius:10,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",overflow:"hidden"}}>
                     {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
                   </div>
@@ -1136,7 +1167,7 @@ export default function DashboardFranquiciado() {
                 <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
                   <strong>Completitud publicación</strong>
                   <div style={{display:"grid",gap:6,marginTop:8}}>
-                    <div>Fotos: {(roomDrafts[selectedRoom.id]?.photos?.length || selectedRoom.photos) > 0 ? "✅" : "❌"}</div>
+                    <div>Fotos: {(asArray(roomDrafts[selectedRoom.id]?.photos).length || selectedRoom.photos) > 0 ? "✅" : "❌"}</div>
                     <div>Descripción: ✅</div>
                     <div>Propietario: ✅</div>
                     <div>Contrato: {selectedEstate.contractStatus === "Declarado correcto" ? "✅" : "❌"}</div>
@@ -1165,14 +1196,14 @@ export default function DashboardFranquiciado() {
                   </label>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}} className="sr-photo-grid">
-                  {(roomDrafts[selectedRoom.id]?.photos || []).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
+                  {asArray(roomDrafts[selectedRoom.id]?.photos).map((photo, idx) => <div key={`${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:10}}>
                     <div style={{height:92,borderRadius:12,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",fontSize:24,overflow:"hidden"}}>
                       {photo.url ? <img src={photo.url} alt={photo.name} style={{width:"100%",height:"100%",objectFit:"cover"}} /> : "🖼️"}
                     </div>
                     <div style={{fontWeight:900,marginTop:8}}>Foto {idx + 1}</div>
                     <div style={{color:"#64748b",fontSize:12,wordBreak:"break-word"}}>{photo.name}</div>
                   </div>)}
-                  {!(roomDrafts[selectedRoom.id]?.photos || []).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas en esta prueba. La habitación indica {selectedRoom.photos} foto(s) registradas en demo.</div>}
+                  {!asArray(roomDrafts[selectedRoom.id]?.photos).length && <div style={{gridColumn:"1/-1",color:"#64748b",padding:12}}>Todavía no hay fotos subidas en esta prueba. La habitación indica {selectedRoom.photos} foto(s) registradas en demo.</div>}
                 </div>
               </div>
 
@@ -1188,7 +1219,7 @@ export default function DashboardFranquiciado() {
             <div className="sr-incident-form" style={{display:"grid",gridTemplateColumns:".5fr 1.3fr 1fr .8fr",gap:10,marginBottom:12}}>
               <Field label="Nivel" value={newIncident.level} onChange={v => setNewIncident(x => ({...x,level:v}))} />
               <Field label="Asunto" value={newIncident.subject} onChange={v => setNewIncident(x => ({...x,subject:v}))} />
-              <label style={{display:"grid",gap:6}}><span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Habitación vinculada</span><select value={newIncident.roomId} onChange={e => setNewIncident(x => ({...x,roomId:e.target.value}))} style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",color:"#0b1220",fontWeight:750,background:"#fff",outline:"none"}}><option value="">Finca general</option>{selectedEstate.rooms.map(r => <option key={r.id} value={r.id}>{r.id}</option>)}</select></label>
+              <label style={{display:"grid",gap:6}}><span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Habitación vinculada</span><select value={newIncident.roomId} onChange={e => setNewIncident(x => ({...x,roomId:e.target.value}))} style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",color:"#0b1220",fontWeight:750,background:"#fff",outline:"none"}}><option value="">Finca general</option>{asArray(selectedEstate.rooms).map(r => <option key={r.id} value={r.id}>{r.id}</option>)}</select></label>
               <Field label="Estado" value={newIncident.status} onChange={v => setNewIncident(x => ({...x,status:v}))} />
             </div>
             <label style={{display:"grid",gap:6,marginBottom:12}}><span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Notas de incidencia</span><textarea value={newIncident.notes} onChange={e => setNewIncident(x => ({...x,notes:e.target.value}))} rows={3} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} /></label>
