@@ -30,6 +30,17 @@ function isFilled(value) {
   return !!text && !["pendiente", "—", "null", "undefined"].includes(text.toLowerCase());
 }
 
+function readImageFiles(files, onDone) {
+  const list = Array.from(files || []);
+  if (!list.length) return;
+  Promise.all(list.map(file => new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name:file.name, url:reader.result });
+    reader.onerror = () => resolve({ name:file.name, url:"" });
+    reader.readAsDataURL(file);
+  }))).then(onDone);
+}
+
 function Badge({ children, tone = "info" }) {
   const map = {
     ok: ["#ecfdf5", "#047857", "#bbf7d0"],
@@ -266,6 +277,7 @@ export default function DashboardFranquiciado() {
   const [newCommonArea, setNewCommonArea] = useState({ area:"", description:"", photos:0, photoFiles:[] });
   const [selectedCommonAreaId, setSelectedCommonAreaId] = useState(null);
   const [estateOpsNotice, setEstateOpsNotice] = useState("");
+  const [flowNotice, setFlowNotice] = useState("");
 
   const selectedEstate = estates.find(e => e.id === selectedEstateId) || estates[0];
   const selectedOwner = owners.find(o => o.id === selectedEstate.ownerId) || owners[0];
@@ -359,6 +371,7 @@ export default function DashboardFranquiciado() {
   const completedGuideSteps = guideSteps.filter(x => x.done).length;
   const guideProgress = Math.round((completedGuideSteps / guideSteps.length) * 100);
   const nextGuideStep = guideSteps.find(x => !x.done);
+  const lastNotice = flowNotice || estateOpsNotice || roomNotice || simNotice;
 
   const simMaxMonthlyRent = simHomeValue * 0.0052;
   const simTotalPrivateM2 = simRooms.reduce((sum, r) => sum + Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0), 0);
@@ -575,15 +588,20 @@ export default function DashboardFranquiciado() {
     localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next));
     localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
     setRoomNotice(`✅ Ficha de habitación guardada correctamente: ${key}`);
+    setFlowNotice(`✅ Ficha de habitación guardada correctamente: ${key}`);
   }
 
   function handlePhotos(files) {
-    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
-    if (!uploaded.length) return;
-    const key = selectedRoom.id;
-    const current = roomDrafts[key] || {};
-    const next = {...roomDrafts, [key]: {...current, photos:[...safeArray(current.photos), ...uploaded]}};
-    setRoomDrafts(next); localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next)); setRoomNotice(`📸 ${uploaded.length} foto(s) añadida(s). Pulse 💾 Guardar ficha para unirlas al expediente.`);
+    if (!selectedRoom?.id) return;
+    readImageFiles(files, (uploaded) => {
+      const key = selectedRoom.id;
+      const current = roomDrafts[key] || {};
+      const next = {...roomDrafts, [key]: {...current, photos:[...safeArray(current.photos), ...uploaded]}};
+      setRoomDrafts(next);
+      localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next));
+      setRoomNotice(`📸 ${uploaded.length} foto(s) añadida(s). Por favor, pulse 💾 Guardar ficha para unirlas al expediente.`);
+      setFlowNotice(`📸 Fotos añadidas a ${key}. Por favor, guarde la ficha de habitación.`);
+    });
   }
 
   function publishRoom() {
@@ -607,7 +625,21 @@ export default function DashboardFranquiciado() {
     setSimRooms(rows => rows.length <= 1 ? rows : rows.filter(r => r.id !== id));
   }
   function saveSimulation() {
-    setSimNotice(`Simulación guardada para ${selectedEstate.id}: ${calculatedSimRooms.length} habitación(es) · ${money(simGross)}.`);
+    const saved = {
+      estateId:selectedEstate.id,
+      ownerId:selectedEstate.ownerId,
+      homeValue:simHomeValue,
+      servicesIncluded:simServicesIncluded,
+      servicesFee:simServicesFee,
+      rooms:calculatedSimRooms,
+      gross:simGross,
+      owner:simOwner,
+      franchisee:simMyIncome,
+      savedAt:new Date().toLocaleString("es-ES"),
+    };
+    saveEstateOps({ simulation:saved });
+    setSimNotice(`✅ Simulación guardada para ${selectedEstate.id}: ${calculatedSimRooms.length} habitación(es) · ${money(simGross)}.`);
+    setFlowNotice(`✅ Simulación guardada en el expediente ${selectedEstate.id}.`);
   }
 
   function saveEstateOps(patch) {
@@ -645,21 +677,24 @@ export default function DashboardFranquiciado() {
   function openCommonArea(id) {
     setSelectedCommonAreaId(id);
     setActiveTab("fincas");
+    setTimeout(() => document.getElementById("sr-common-area-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
   }
 
   function handleCommonAreaPhotos(id, files) {
-    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
-    if (!uploaded.length) return;
-    const item = selectedCommonAreas.find(x => x.id === id);
-    const previous = item?.photoFiles || [];
-    updateCommonArea(id, { photoFiles:[...previous, ...uploaded], photos:Number(item?.photos || 0) + uploaded.length });
-    setEstateOpsNotice(`${uploaded.length} foto(s) añadida(s) a ${item?.area || "zona común"}.`);
+    readImageFiles(files, (uploaded) => {
+      const item = selectedCommonAreas.find(x => x.id === id);
+      const previous = item?.photoFiles || [];
+      updateCommonArea(id, { photoFiles:[...previous, ...uploaded], photos:Number(item?.photos || 0) + uploaded.length });
+      setEstateOpsNotice(`📸 ${uploaded.length} foto(s) añadida(s) a ${item?.area || "zona común"}. Por favor, guarde la zona común.`);
+      setFlowNotice(`📸 Fotos añadidas a zona común. Por favor, guarde la zona común.`);
+    });
   }
 
   function handleNewCommonAreaPhotos(files) {
-    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
-    if (!uploaded.length) return;
-    setNewCommonArea(x => ({ ...x, photoFiles:[...(x.photoFiles || []), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
+    readImageFiles(files, (uploaded) => {
+      setNewCommonArea(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
+      setFlowNotice(`📸 Fotos preparadas. Por favor, guarde la zona común.`);
+    });
   }
 
   function updateEstateDetails(patch) {
@@ -669,22 +704,25 @@ export default function DashboardFranquiciado() {
   }
 
   function handleEstatePhotos(files) {
-    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
-    if (!uploaded.length) return;
-    const currentDetails = selectedEstateOps.estateDetails || {};
-    updateEstateDetails({ photos:[...safeArray(currentDetails.photos), ...uploaded] });
-    setEstateOpsNotice(`${uploaded.length} foto(s) general(es) añadida(s) a ${selectedEstate.id}.`);
+    readImageFiles(files, (uploaded) => {
+      const currentDetails = selectedEstateOps.estateDetails || {};
+      updateEstateDetails({ photos:[...safeArray(currentDetails.photos), ...uploaded] });
+      setEstateOpsNotice(`📸 ${uploaded.length} foto(s) general(es) añadida(s) a ${selectedEstate.id}. Por favor, guarde las fotos del inmueble.`);
+      setFlowNotice(`📸 Fotos añadidas al inmueble. Por favor, guarde las fotos del inmueble.`);
+    });
   }
 
   function saveEstateDetailsBlock() {
     updateEstateDetails({ savedAt:new Date().toLocaleString("es-ES") });
     setEstateOpsNotice(`✅ Datos inmueble guardados correctamente en ${selectedEstate.id}.`);
+    setFlowNotice(`✅ Datos inmueble guardados correctamente en ${selectedEstate.id}.`);
   }
 
   function saveEstatePhotosBlock() {
     const currentDetails = selectedEstateOps.estateDetails || {};
     updateEstateDetails({ photos:safeArray(currentDetails.photos), photosSavedAt:new Date().toLocaleString("es-ES") });
     setEstateOpsNotice(`✅ Fotos del inmueble guardadas correctamente en ${selectedEstate.id}.`);
+    setFlowNotice(`✅ Fotos del inmueble guardadas correctamente en ${selectedEstate.id}.`);
   }
 
   function saveCommonAreaBlock(id) {
@@ -697,25 +735,54 @@ export default function DashboardFranquiciado() {
   }
 
   function handleNewInventoryPhotos(files) {
-    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
-    if (!uploaded.length) return;
-    setNewInventory(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
-    setEstateOpsNotice(`📸 ${uploaded.length} foto(s) preparada(s). Pulse 💾 Guardar inventario.`);
+    readImageFiles(files, (uploaded) => {
+      setNewInventory(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
+      setEstateOpsNotice(`📸 ${uploaded.length} foto(s) preparada(s). Por favor, pulse 💾 Guardar inventario.`);
+      setFlowNotice(`📸 Fotos preparadas. Por favor, guarde el inventario.`);
+    });
   }
 
   function handleInventoryPhotos(id, files) {
-    const uploaded = Array.from(files || []).map(file => ({ name:file.name, url:URL.createObjectURL(file) }));
-    if (!uploaded.length) return;
-    const dynamicInventory = safeArray(selectedEstateOps.inventory);
-    const exists = dynamicInventory.some(x => x.id === id);
-    if (!exists) return setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para subir fotos.");
-    const nextInventory = dynamicInventory.map(x => x.id === id ? { ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length } : x);
-    persistInventory(nextInventory, `📸 ${uploaded.length} foto(s) añadida(s). Pulse 💾 Guardar inventario para cerrar el bloque.`);
+    readImageFiles(files, (uploaded) => {
+      const dynamicInventory = safeArray(selectedEstateOps.inventory);
+      const exists = dynamicInventory.some(x => x.id === id);
+      if (!exists) { setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para subir fotos."); return; }
+      const nextInventory = dynamicInventory.map(x => x.id === id ? { ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length } : x);
+      persistInventory(nextInventory, `📸 ${uploaded.length} foto(s) añadida(s). Por favor, pulse 💾 Guardar inventario para cerrar el bloque.`);
+      setFlowNotice(`📸 Fotos añadidas al inventario. Por favor, guarde el inventario.`);
+    });
   }
 
   function saveInventoryBlock(id) {
     const dynamicInventory = safeArray(selectedEstateOps.inventory);
     persistInventory(dynamicInventory, id ? `✅ Inventario guardado correctamente en ${selectedEstate.id}.` : `✅ Inventario de la finca guardado correctamente en ${selectedEstate.id}.`);
+  }
+
+  function sendEstateToSimulator() {
+    const rooms = safeArray(selectedEstate.rooms);
+    if (!rooms.length) {
+      const msg = "🐕 Por favor, cree primero las habitaciones de la finca antes de enviarla al simulador.";
+      setEstateOpsNotice(msg);
+      setFlowNotice(msg);
+      setActiveTab("fincas");
+      setTimeout(() => document.getElementById("sr-rooms-block")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
+      return;
+    }
+    setSimRooms(rooms.map((r, idx) => ({
+      id:idx + 1,
+      m2:Number(r.m2 || r.privateM2 || 0),
+      bathM2:Number(r.bathM2 || 0),
+      balconyM2:Number(r.balconyM2 || 0),
+      bath:!!r.bath,
+      balcony:!!r.balcony,
+    })));
+    setSimServicesIncluded(selectedEstate.servicesIncluded !== false);
+    setSimServicesFee(Number(selectedEstate.servicesFee || 25));
+    const msg = `✅ ${selectedEstate.id} enviada al simulador con ${rooms.length} habitación(es).`;
+    setSimNotice(msg);
+    setFlowNotice(msg);
+    setActiveTab("simulador");
+    setTimeout(() => document.getElementById("sr-simulator-card")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
   }
 
   function applySimulationToEstate() {
@@ -755,6 +822,7 @@ export default function DashboardFranquiciado() {
     saveEstateOps({ valuation:{ homeValue:simHomeValue, rooms:calculatedSimRooms, gross:simGross, owner:simOwner, franchisee:simMyIncome, appliedAt:new Date().toLocaleString("es-ES") } });
     setSelectedRoomId(valuedRooms[0]?.id || selectedRoomId);
     setSimNotice(`✅ Valoración aplicada al expediente ${selectedEstate.id}. Habitaciones valoradas: ${valuedRooms.length}.`);
+    setFlowNotice(`✅ Valoración aplicada al expediente ${selectedEstate.id}. Habitaciones valoradas: ${valuedRooms.length}.`);
     setEstateOpsNotice(`✅ Valoración aplicada al expediente ${selectedEstate.id}.`);
     setActiveTab("fincas");
   }
@@ -768,6 +836,9 @@ export default function DashboardFranquiciado() {
       title:`Habitación ${nextNumber}`,
       price:0,
       basePrice:0,
+      m2:0,
+      bathM2:0,
+      balconyM2:0,
       bath:false,
       balcony:false,
       services:true,
@@ -824,6 +895,7 @@ export default function DashboardFranquiciado() {
   function openInventoryItem(id) {
     setSelectedInventoryId(id);
     setActiveTab("fincas");
+    setTimeout(() => document.getElementById("sr-inventory-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
   }
 
   function downloadSimulationPDF() {
@@ -1009,6 +1081,10 @@ export default function DashboardFranquiciado() {
         <button type="button" style={tabStyle("tareas")} onClick={() => setActiveTab("tareas")}>✅ Tareas</button>
       </div>
 
+      {lastNotice && <div style={{background:lastNotice.includes("✅") ? "#ecfdf5" : "#fffbeb",border:`1px solid ${lastNotice.includes("✅") ? "#bbf7d0" : "#fde68a"}`,color:lastNotice.includes("✅") ? "#047857" : "#92400e",borderRadius:16,padding:"12px 14px",fontWeight:950,marginBottom:16,boxShadow:"0 8px 20px rgba(15,23,42,.05)"}}>
+        {lastNotice}
+      </div>}
+
       {activeTab === "negocio" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
         <Card title="Mi negocio" icon="💰" right={<Badge tone="ok">Cartera activa</Badge>}>
           <div style={{display:"grid",gap:10}}>
@@ -1126,7 +1202,7 @@ export default function DashboardFranquiciado() {
         </div>
 
         <div style={{display:"grid",gap:16}}>
-          <Card title={`${selectedEstate.id} · ${estateCity} · ${estateZone}`} icon="📁" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">{selectedEstate.franchisee}</Badge><Button small secondary onClick={() => setActiveTab("simulador")}>🧮 Enviar al simulador</Button></div>}><div id="sr-estate-master" />
+          <Card title={`${selectedEstate.id} · ${estateCity} · ${estateZone}`} icon="📁" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">{selectedEstate.franchisee}</Badge><Button small secondary onClick={sendEstateToSimulator}>🧮 Enviar al simulador</Button></div>}><div id="sr-estate-master" />
             <div className="sr-estate-summary" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:12}}>
               <KPI icon="🚪" label="Habitaciones" value={selectedEstateRooms.length} hint={`${selectedEstateRooms.filter(r => r.status === "Ocupada").length} ocupadas`} tone="ok" />
               <KPI icon="💶" label="Bruto finca" value={money(selectedLiq.gross)} hint="Precio final" />
@@ -1209,6 +1285,7 @@ export default function DashboardFranquiciado() {
             </div>
           </Card>
 
+          <div id="sr-rooms-block" />
           <Card title="Habitaciones de la finca" icon="🚪" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="ok">Precio final visible</Badge><Button small onClick={addRealRoom}>+ Nueva habitación</Button></div>}>
             <Table columns={[
               { key:"id", label:"Habitación", bold:true, render:r => <button type="button" style={linkBtn} onClick={() => openRoom(r.id)}>{r.id}</button> },
@@ -1225,8 +1302,8 @@ export default function DashboardFranquiciado() {
                 <Badge tone={selectedRoom.status === "Ocupada" ? "ok" : selectedRoom.status === "Pendiente fotos" ? "danger" : "info"}>{selectedRoom.status}</Badge>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}} className="sr-room-fields">
-                <div style={infoBox}><strong>{selectedRoom.title}</strong><br/>Precio final: <strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/>Fotos: {safeArray(roomDrafts[selectedRoom.id]?.photos).length || selectedRoom.photos || 0}</div>
-                <div style={infoBox}>🏠 Finca:<br/><button type="button" style={linkBtn} onClick={() => openEstate(selectedRoom.estateId || selectedEstate.id)}>{selectedRoom.estateId || selectedEstate.id}</button><br/>👤 Propietario:<br/><button type="button" style={linkBtn} onClick={() => goOwner(selectedRoom.ownerId)}>{owners.find(o => o.id === selectedRoom.ownerId)?.name || selectedRoom.ownerId}</button></div>
+                <div style={infoBox}><strong>{selectedRoom.title}</strong><br/>m² habitación: <strong>{roomDrafts[selectedRoom.id]?.m2 ?? selectedRoom.m2 ?? selectedRoom.privateM2 ?? 0}</strong><br/>Precio final: <strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/>Fotos: {safeArray(roomDrafts[selectedRoom.id]?.photos).length || selectedRoom.photos || 0}</div>
+                <div style={infoBox}>🏠 Finca:<br/><button type="button" style={linkBtn} onClick={() => openEstate(selectedRoom.estateId || selectedEstate.id)}>{selectedRoom.estateId || selectedEstate.id}</button><br/>👤 Propietario:<br/><button type="button" style={linkBtn} onClick={() => goOwner(selectedRoom.ownerId || selectedEstate.ownerId)}>{owners.find(o => o.id === (selectedRoom.ownerId || selectedEstate.ownerId))?.name || selectedRoom.ownerId || selectedEstate.ownerId}</button></div>
                 <div style={infoBox}>👥 Inquilino:<br/>{selectedRoom.tenantId ? <button type="button" style={linkBtn} onClick={() => goTenant(selectedRoom.tenantId)}>{tenants.find(t => t.id === selectedRoom.tenantId)?.name || selectedRoom.tenantId}</button> : "Sin asignar"}<br/>Extras: {selectedRoom.services ? "Servicios " : ""}{selectedRoom.bath ? "· Baño " : ""}{selectedRoom.balcony ? "· Balcón" : ""}</div>
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
@@ -1348,6 +1425,7 @@ export default function DashboardFranquiciado() {
             </div>}
           </Card>
 
+          <div id="sr-simulator-card" />
           <Card title="Simulador de precios de habitación" icon="🧮" right={<Badge tone="ok">Visible en finca</Badge>}>
             <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>
               Calcula el precio final por habitación de esta finca. El inquilino solo verá el precio final con servicios incluidos.
@@ -1420,8 +1498,11 @@ export default function DashboardFranquiciado() {
 
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}} className="sr-room-fields">
                 <Field label="Título público" value={roomDrafts[selectedRoom.id]?.title ?? selectedRoom.title} onChange={v => saveRoomDraft({title:v})} />
-                <Field label="Precio final" type="number" value={roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price} onChange={v => saveRoomDraft({price:Number(v)})} />
+                <Field label="m² habitación" type="number" value={roomDrafts[selectedRoom.id]?.m2 ?? selectedRoom.m2 ?? selectedRoom.privateM2 ?? 0} onChange={v => saveRoomDraft({m2:Number(v)})} />
                 <Field label="Estado" value={roomDrafts[selectedRoom.id]?.status ?? selectedRoom.status} onChange={v => saveRoomDraft({status:v})} />
+                <Field label="m² baño privado" type="number" value={roomDrafts[selectedRoom.id]?.bathM2 ?? selectedRoom.bathM2 ?? 0} onChange={v => saveRoomDraft({bathM2:Number(v), bath:Number(v) > 0})} />
+                <Field label="m² balcón privado" type="number" value={roomDrafts[selectedRoom.id]?.balconyM2 ?? selectedRoom.balconyM2 ?? 0} onChange={v => saveRoomDraft({balconyM2:Number(v), balcony:Number(v) > 0})} />
+                <div style={infoBox}>Precio final:<br/><strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/><span style={{color:"#64748b",fontSize:12}}>Lo asigna la valoración SpainRoom.</span></div>
               </div>
 
               <label style={{display:"grid",gap:6,marginBottom:12}}>
