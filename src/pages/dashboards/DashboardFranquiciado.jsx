@@ -1,5 +1,5 @@
 // src/pages/dashboards/DashboardFranquiciado.jsx
-// SpainRoom® — Dashboard Franquiciado V3.5 · Valoración de finca + expediente
+// SpainRoom® — Dashboard Franquiciado V3.6 · Edición completa + confirmaciones
 import React, { useState, useEffect } from "react";
 
 const blue = "#0A58CA";
@@ -575,6 +575,15 @@ export default function DashboardFranquiciado() {
     setEditingContact(null);
   }
 
+  function updateRoomDraftLocal(patch = {}) {
+    if (!selectedRoom?.id) return;
+    const key = selectedRoom.id;
+    const current = roomDrafts[key] || {};
+    const next = { ...roomDrafts, [key]: { ...current, ...patch } };
+    setRoomDrafts(next);
+    localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next));
+  }
+
   function saveRoomDraft(patch = {}) {
     if (!selectedRoom?.id) return;
     const key = selectedRoom.id;
@@ -680,7 +689,8 @@ export default function DashboardFranquiciado() {
       photoFiles:newCommonArea.photoFiles || [],
     };
     const next = [...selectedCommonAreas, item];
-    persistCommonAreas(next, `Zona común añadida a ${selectedEstate.id}: ${item.area}.`);
+    persistCommonAreas(next, `✅ Zona común guardada correctamente en ${selectedEstate.id}: ${item.area}.`);
+    setFlowNotice(`✅ Zona común guardada correctamente en ${selectedEstate.id}: ${item.area}.`);
     setSelectedCommonAreaId(item.id);
     setNewCommonArea({ area:"", description:"", photos:0, photoFiles:[] });
   }
@@ -742,7 +752,9 @@ export default function DashboardFranquiciado() {
   }
 
   function saveCommonAreaBlock(id) {
-    persistCommonAreas(selectedCommonAreas, id ? `✅ Zona común guardada correctamente en ${selectedEstate.id}.` : `✅ Zonas comunes guardadas correctamente en ${selectedEstate.id}.`);
+    const msg = id ? `✅ Zona común guardada correctamente en ${selectedEstate.id}.` : `✅ Zonas comunes guardadas correctamente en ${selectedEstate.id}.`;
+    persistCommonAreas(selectedCommonAreas, msg);
+    setFlowNotice(msg);
   }
 
   function persistInventory(list, notice = "Inventario actualizado.") {
@@ -771,7 +783,9 @@ export default function DashboardFranquiciado() {
 
   function saveInventoryBlock(id) {
     const dynamicInventory = safeArray(selectedEstateOps.inventory);
-    persistInventory(dynamicInventory, id ? `✅ Inventario guardado correctamente en ${selectedEstate.id}.` : `✅ Inventario de la finca guardado correctamente en ${selectedEstate.id}.`);
+    const msg = id ? `✅ Inventario guardado correctamente en ${selectedEstate.id}.` : `✅ Inventario de la finca guardado correctamente en ${selectedEstate.id}.`;
+    persistInventory(dynamicInventory, msg);
+    setFlowNotice(msg);
   }
 
   function sendEstateToSimulator() {
@@ -1344,6 +1358,22 @@ export default function DashboardFranquiciado() {
                 <div style={infoBox}><strong>{selectedRoom.title}</strong><br/>m² habitación: <strong>{roomDrafts[selectedRoom.id]?.m2 ?? selectedRoom.m2 ?? selectedRoom.privateM2 ?? 0}</strong><br/>Precio final: <strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/>Fotos: {safeArray(roomDrafts[selectedRoom.id]?.photos).length || selectedRoom.photos || 0}</div>
                 <div style={infoBox}>🏠 Finca:<br/><button type="button" style={linkBtn} onClick={() => openEstate(selectedRoom.estateId || selectedEstate.id)}>{selectedRoom.estateId || selectedEstate.id}</button><br/>👤 Propietario:<br/><button type="button" style={linkBtn} onClick={() => goOwner(selectedRoom.ownerId || selectedEstate.ownerId)}>{owners.find(o => o.id === (selectedRoom.ownerId || selectedEstate.ownerId))?.name || selectedRoom.ownerId || selectedEstate.ownerId}</button></div>
                 <div style={infoBox}>👥 Inquilino:<br/>{selectedRoom.tenantId ? <button type="button" style={linkBtn} onClick={() => goTenant(selectedRoom.tenantId)}>{tenants.find(t => t.id === selectedRoom.tenantId)?.name || selectedRoom.tenantId}</button> : "Sin asignar"}<br/>Extras: {selectedRoom.services ? "Servicios " : ""}{selectedRoom.bath ? "· Baño " : ""}{selectedRoom.balcony ? "· Balcón" : ""}</div>
+              </div>
+              <div style={{marginTop:12,background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+                <div style={{fontWeight:950,marginBottom:8}}>✏️ Editar datos rápidos de habitación</div>
+                <div style={{display:"grid",gridTemplateColumns:"1.2fr .6fr .6fr .6fr 1fr",gap:10}} className="sr-room-fields">
+                  <Field label="Título" value={roomDrafts[selectedRoom.id]?.title ?? selectedRoom.title ?? ""} onChange={v => updateRoomDraftLocal({title:v})} />
+                  <Field label="m² habitación" type="number" value={roomDrafts[selectedRoom.id]?.m2 ?? selectedRoom.m2 ?? 0} onChange={v => updateRoomDraftLocal({m2:Number(v)})} />
+                  <Field label="m² baño" type="number" value={roomDrafts[selectedRoom.id]?.bathM2 ?? selectedRoom.bathM2 ?? 0} onChange={v => updateRoomDraftLocal({bathM2:Number(v), bath:Number(v)>0 || !!(roomDrafts[selectedRoom.id]?.bath ?? selectedRoom.bath)})} />
+                  <Field label="m² balcón" type="number" value={roomDrafts[selectedRoom.id]?.balconyM2 ?? selectedRoom.balconyM2 ?? 0} onChange={v => updateRoomDraftLocal({balconyM2:Number(v), balcony:Number(v)>0 || !!(roomDrafts[selectedRoom.id]?.balcony ?? selectedRoom.balcony)})} />
+                  <Field label="Estado" value={roomDrafts[selectedRoom.id]?.status ?? selectedRoom.status ?? "Pendiente datos"} onChange={v => updateRoomDraftLocal({status:v})} />
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                  <Check checked={!!(roomDrafts[selectedRoom.id]?.services ?? selectedRoom.services)} onChange={v => updateRoomDraftLocal({services:v})} label="Servicios incluidos" />
+                  <Check checked={!!(roomDrafts[selectedRoom.id]?.bath ?? selectedRoom.bath)} onChange={v => updateRoomDraftLocal({bath:v})} label="Baño privado" />
+                  <Check checked={!!(roomDrafts[selectedRoom.id]?.balcony ?? selectedRoom.balcony)} onChange={v => updateRoomDraftLocal({balcony:v})} label="Balcón privado" />
+                  <Badge tone="dark">Precio final lo calcula Valoración de finca</Badge>
+                </div>
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
                 <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",fontSize:13}}>
