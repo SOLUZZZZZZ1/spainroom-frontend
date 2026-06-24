@@ -1,5 +1,5 @@
 // src/pages/dashboards/DashboardFranquiciado.jsx
-// SpainRoom® — Dashboard Franquiciado V3 · Guía de alta finca
+// SpainRoom® — Dashboard Franquiciado V3.5 · Valoración de finca + expediente
 import React, { useState, useEffect } from "react";
 
 const blue = "#0A58CA";
@@ -358,6 +358,8 @@ export default function DashboardFranquiciado() {
   const estateObservations = selectedEstateDetails.observations ?? "";
   const estatePhotos = safeArray(selectedEstateDetails.photos);
   const verification = selectedEstateDetails.verification || {};
+  const selectedValuations = safeArray(selectedEstateOps.valuations);
+  const latestValuation = selectedValuations[0] || selectedEstate.valuation || selectedEstateOps.valuation || null;
   const guideSteps = [
     { key:"owner", label:"Propietario", done:!!selectedOwner?.id },
     { key:"estate", label:"Datos inmueble", done:isFilled(estateCity) && isFilled(estateZone) && isFilled(estateAddress) },
@@ -577,11 +579,25 @@ export default function DashboardFranquiciado() {
     if (!selectedRoom?.id) return;
     const key = selectedRoom.id;
     const current = roomDrafts[key] || {};
-    const merged = { ...selectedRoom, ...current, ...patch, savedAt:new Date().toLocaleString("es-ES") };
+    const merged = {
+      ...selectedRoom,
+      ...current,
+      ...patch,
+      photos:safeArray(patch.photos ?? current.photos ?? selectedRoom.photosFiles),
+      savedAt:new Date().toLocaleString("es-ES"),
+    };
     const next = { ...roomDrafts, [key]: merged };
     const nextEstates = safeArray(estates).map(e => ({
       ...e,
-      rooms: safeArray(e.rooms).map(r => r.id === key ? { ...r, ...merged, photos:safeArray(merged.photos).length || r.photos || 0 } : r)
+      rooms: safeArray(e.rooms).map(r => r.id === key ? {
+        ...r,
+        ...merged,
+        m2:Number(merged.m2 ?? merged.privateM2 ?? r.m2 ?? 0),
+        bathM2:Number(merged.bathM2 ?? r.bathM2 ?? 0),
+        balconyM2:Number(merged.balconyM2 ?? r.balconyM2 ?? 0),
+        photosFiles:safeArray(merged.photos),
+        photos:safeArray(merged.photos).length || Number(merged.photos || r.photos || 0),
+      } : r)
     }));
     setRoomDrafts(next);
     setEstates(nextEstates);
@@ -596,7 +612,7 @@ export default function DashboardFranquiciado() {
     readImageFiles(files, (uploaded) => {
       const key = selectedRoom.id;
       const current = roomDrafts[key] || {};
-      const next = {...roomDrafts, [key]: {...current, photos:[...safeArray(current.photos), ...uploaded]}};
+      const next = {...roomDrafts, [key]: {...current, photos:[...safeArray(current.photos || selectedRoom.photosFiles), ...uploaded]}};
       setRoomDrafts(next);
       localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next));
       setRoomNotice(`📸 ${uploaded.length} foto(s) añadida(s). Por favor, pulse 💾 Guardar ficha para unirlas al expediente.`);
@@ -638,8 +654,8 @@ export default function DashboardFranquiciado() {
       savedAt:new Date().toLocaleString("es-ES"),
     };
     saveEstateOps({ simulation:saved });
-    setSimNotice(`✅ Simulación guardada para ${selectedEstate.id}: ${calculatedSimRooms.length} habitación(es) · ${money(simGross)}.`);
-    setFlowNotice(`✅ Simulación guardada en el expediente ${selectedEstate.id}.`);
+    setSimNotice(`✅ Valoración guardada para ${selectedEstate.id}: ${calculatedSimRooms.length} habitación(es) · ${money(simGross)}.`);
+    setFlowNotice(`✅ Valoración guardada en el expediente ${selectedEstate.id}.`);
   }
 
   function saveEstateOps(patch) {
@@ -761,7 +777,7 @@ export default function DashboardFranquiciado() {
   function sendEstateToSimulator() {
     const rooms = safeArray(selectedEstate.rooms);
     if (!rooms.length) {
-      const msg = "🐕 Por favor, cree primero las habitaciones de la finca antes de enviarla al simulador.";
+      const msg = "🐕 Por favor, cree primero las habitaciones de la finca antes de calcular la valoración.";
       setEstateOpsNotice(msg);
       setFlowNotice(msg);
       setActiveTab("fincas");
@@ -778,53 +794,76 @@ export default function DashboardFranquiciado() {
     })));
     setSimServicesIncluded(selectedEstate.servicesIncluded !== false);
     setSimServicesFee(Number(selectedEstate.servicesFee || 25));
-    const msg = `✅ ${selectedEstate.id} enviada al simulador con ${rooms.length} habitación(es).`;
+    const msg = `✅ ${selectedEstate.id} enviada a valoración con ${rooms.length} habitación(es).`;
     setSimNotice(msg);
     setFlowNotice(msg);
     setActiveTab("simulador");
-    setTimeout(() => document.getElementById("sr-simulator-card")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
+    setTimeout(() => document.getElementById("sr-valuation-card")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
   }
 
   function applySimulationToEstate() {
+    if (!calculatedSimRooms.length) {
+      const msg = "🐕 Por favor, añada habitaciones antes de guardar la valoración en el expediente.";
+      setSimNotice(msg); setFlowNotice(msg); return;
+    }
+    const appliedAt = new Date().toLocaleString("es-ES");
     const valuedRooms = calculatedSimRooms.map((r, idx) => {
       const roomId = `${selectedEstate.id}-H${String(idx + 1).padStart(2, "0")}`;
       const existing = selectedEstateRooms.find(x => x.id === roomId) || {};
+      const existingDraft = roomDrafts[roomId] || {};
       return {
         ...existing,
+        ...existingDraft,
         id:roomId,
-        title:existing.title || `Habitación ${idx + 1}`,
-        m2:Number(r.m2 || 0),
-        bathM2:Number(r.bathM2 || 0),
-        balconyM2:Number(r.balconyM2 || 0),
+        title:existingDraft.title || existing.title || `Habitación ${idx + 1}`,
+        m2:Number(r.m2 || existingDraft.m2 || existing.m2 || 0),
+        bathM2:Number(r.bathM2 || existingDraft.bathM2 || existing.bathM2 || 0),
+        balconyM2:Number(r.balconyM2 || existingDraft.balconyM2 || existing.balconyM2 || 0),
         privateM2:r.privateM2,
         price:r.finalPrice,
         basePrice:Math.max(0, r.finalPrice - r.supplement),
         bath:!!r.bath,
         balcony:!!r.balcony,
         services:simServicesIncluded,
-        status:existing.status || "Pendiente fotos",
+        status:existing.status && existing.status !== "Pendiente datos" ? existing.status : "Pendiente fotos",
         tenantId:existing.tenantId || null,
-        photos:existing.photos || 0,
+        photosFiles:safeArray(existingDraft.photos || existing.photosFiles),
+        photos:safeArray(existingDraft.photos || existing.photosFiles).length || Number(existing.photos || 0),
         publish:existing.publish || "danger",
         incidents:existing.incidents || "🟢",
-        valuedAt:new Date().toLocaleString("es-ES"),
+        valuedAt:appliedAt,
       };
     });
+    const valuationRecord = {
+      id:`VAL-${Date.now()}`,
+      estateId:selectedEstate.id,
+      ownerId:selectedEstate.ownerId,
+      homeValue:simHomeValue,
+      servicesIncluded:simServicesIncluded,
+      servicesFee:simServicesFee,
+      rooms:calculatedSimRooms,
+      gross:simGross,
+      owner:simOwner,
+      franchisee:simMyIncome,
+      appliedAt,
+      status:"Guardada en expediente",
+    };
     const nextEstates = safeArray(estates).map(e => e.id === selectedEstate.id ? {
       ...e,
       rooms:valuedRooms,
       servicesIncluded:simServicesIncluded,
       servicesFee:simServicesFee,
-      valuation:{ homeValue:simHomeValue, gross:simGross, owner:simOwner, franchisee:simMyIncome, appliedAt:new Date().toLocaleString("es-ES") }
+      valuation:valuationRecord
     } : e);
     setEstates(nextEstates);
     localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
-    saveEstateOps({ valuation:{ homeValue:simHomeValue, rooms:calculatedSimRooms, gross:simGross, owner:simOwner, franchisee:simMyIncome, appliedAt:new Date().toLocaleString("es-ES") } });
+    saveEstateOps({ valuation:valuationRecord, valuations:[valuationRecord, ...safeArray(selectedEstateOps.valuations)] });
     setSelectedRoomId(valuedRooms[0]?.id || selectedRoomId);
-    setSimNotice(`✅ Valoración aplicada al expediente ${selectedEstate.id}. Habitaciones valoradas: ${valuedRooms.length}.`);
-    setFlowNotice(`✅ Valoración aplicada al expediente ${selectedEstate.id}. Habitaciones valoradas: ${valuedRooms.length}.`);
-    setEstateOpsNotice(`✅ Valoración aplicada al expediente ${selectedEstate.id}.`);
+    setSimNotice(`✅ Valoración guardada en el expediente ${selectedEstate.id}. Habitaciones valoradas: ${valuedRooms.length}.`);
+    setFlowNotice(`✅ Valoración guardada en el expediente ${selectedEstate.id}. Habitaciones valoradas: ${valuedRooms.length}.`);
+    setEstateOpsNotice(`✅ Valoración guardada en el expediente ${selectedEstate.id}.`);
     setActiveTab("fincas");
+    setTimeout(() => document.getElementById("sr-rooms-block")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
   }
 
   function addRealRoom() {
@@ -915,7 +954,7 @@ export default function DashboardFranquiciado() {
       <html>
       <head>
         <meta charset="utf-8" />
-        <title>Simulación SpainRoom</title>
+        <title>Valoración SpainRoom</title>
         <style>
           body { font-family: Arial, sans-serif; color:#0b1220; padding:32px; }
           .header { background:#0b65d8; color:white; padding:22px; border-radius:16px; }
@@ -940,7 +979,7 @@ export default function DashboardFranquiciado() {
           <button class="primary" onclick="window.print()">Descargar PDF</button>
         </div>
         <div class="header">
-          <h1>SpainRoom® · Simulación de precios por finca</h1>
+          <h1>SpainRoom® · Valoración de finca</h1>
           <div>${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}</div>
         </div>
 
@@ -960,7 +999,7 @@ export default function DashboardFranquiciado() {
         </table>
 
         <p class="note">
-          Simulación orientativa SpainRoom para propietario. El inquilino ve el precio final con servicios incluidos.
+          Valoración orientativa SpainRoom para propietario. El inquilino ve el precio final con servicios incluidos.
           El desglose operativo de servicios, baño y balcón queda como criterio interno de SpainRoom.
         </p>
 
@@ -1072,7 +1111,7 @@ export default function DashboardFranquiciado() {
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
         <button type="button" style={tabStyle("negocio")} onClick={() => setActiveTab("negocio")}>📊 Mi negocio</button>
-        <button type="button" style={tabStyle("simulador")} onClick={() => setActiveTab("simulador")}>🧮 Simulador</button>
+        <button type="button" style={tabStyle("simulador")} onClick={() => setActiveTab("simulador")}>📈 Valoración finca</button>
         <button type="button" style={tabStyle("fincas")} onClick={() => setActiveTab("fincas")}>🏠 Fincas</button>
         <button type="button" style={tabStyle("propietarios")} onClick={() => setActiveTab("propietarios")}>👤 Propietarios</button>
         <button type="button" style={tabStyle("inquilinos")} onClick={() => setActiveTab("inquilinos")}>👥 Inquilinos</button>
@@ -1106,7 +1145,7 @@ export default function DashboardFranquiciado() {
       </section>}
 
       {activeTab === "simulador" && <section className="sr-pro-grid-main" style={{display:"grid",gridTemplateColumns:"1fr .8fr",gap:16,alignItems:"start"}}>
-        <Card title="Simulador de precios por finca" icon="🧮" right={<Badge tone="ok">{selectedEstate.id}</Badge>}>
+        <Card title="Valoración de finca" icon="📈" right={<Badge tone="ok">{selectedEstate.id}</Badge>}><div id="sr-valuation-card" />
           <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>Calcula precios finales por habitación. El inquilino solo ve el precio final con servicios incluidos.</p>
           <div className="sr-sim-form" style={{display:"grid",gridTemplateColumns:"1.2fr .8fr .7fr",gap:10,marginBottom:14}}>
             <Field label="Finca" value={`${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}`} onChange={() => {}} />
@@ -1120,14 +1159,14 @@ export default function DashboardFranquiciado() {
           </div>
           <div style={{display:"grid",gap:10}}>
             {simRooms.map((r, idx) => <div key={r.id} className="sr-room-row" style={{display:"grid",gridTemplateColumns:"150px 1fr 1fr 1fr auto",gap:10,alignItems:"end",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
-              <div><button type="button" style={linkBtn} onClick={() => openRoom(`${selectedEstate.id}-H${String(idx + 1).padStart(2, "0")}`)}>{selectedEstate.id}-H{String(idx + 1).padStart(2, "0")}</button><div style={{fontSize:12,color:"#64748b"}}>Precio final: {money(calculatedSimRooms[idx]?.finalPrice)}</div></div>
+              <div><button type="button" style={linkBtn} onClick={() => openRoom(`${selectedEstate.id}-H${String(idx + 1).padStart(2, "0")}`)}>{selectedEstate.id}-H{String(idx + 1).padStart(2, "0")}</button><div style={{fontSize:12,color:"#64748b"}}>Precio calculado: {money(calculatedSimRooms[idx]?.finalPrice)}</div></div>
               <Field label="m² habitación" type="number" value={r.m2} onChange={v => updateSimRoom(r.id, { m2:Number(v) })} />
               <Field label="m² baño privado" type="number" value={r.bathM2} onChange={v => updateSimRoom(r.id, { bathM2:Number(v), bath:Number(v) > 0 ? true : r.bath })} />
               <Field label="m² balcón privado" type="number" value={r.balconyM2} onChange={v => updateSimRoom(r.id, { balconyM2:Number(v), balcony:Number(v) > 0 ? true : r.balcony })} />
               <div style={{display:"grid",gap:8}}><Check checked={r.bath} onChange={v => updateSimRoom(r.id, { bath:v })} label="+25 baño" /><Check checked={r.balcony} onChange={v => updateSimRoom(r.id, { balcony:v })} label="+25 balcón" /><Button small danger onClick={() => removeSimRoom(r.id)}>Quitar</Button></div>
             </div>)}
           </div>
-          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}><Button secondary onClick={addSimRoom}>+ Añadir habitación</Button><Button onClick={saveSimulation}>💾 Guardar simulación</Button><Button secondary onClick={downloadSimulationPDF}>📄 Descargar PDF</Button><Button onClick={applySimulationToEstate}>💾 Aplicar valoración al expediente</Button></div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}><Button secondary onClick={addSimRoom}>+ Añadir habitación</Button><Button onClick={saveSimulation}>💾 Guardar valoración</Button><Button secondary onClick={downloadSimulationPDF}>📄 Descargar PDF</Button><Button onClick={applySimulationToEstate}>💾 Guardar valoración en expediente</Button></div>
           {simNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{simNotice}</div>}
         </Card>
         <Card title="Resultado" icon="💰" right={<Badge tone="dark">Interno</Badge>}>
@@ -1202,7 +1241,7 @@ export default function DashboardFranquiciado() {
         </div>
 
         <div style={{display:"grid",gap:16}}>
-          <Card title={`${selectedEstate.id} · ${estateCity} · ${estateZone}`} icon="📁" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">{selectedEstate.franchisee}</Badge><Button small secondary onClick={sendEstateToSimulator}>🧮 Enviar al simulador</Button></div>}><div id="sr-estate-master" />
+          <Card title={`${selectedEstate.id} · ${estateCity} · ${estateZone}`} icon="📁" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">{selectedEstate.franchisee}</Badge><Button small secondary onClick={sendEstateToSimulator}>📈 Valorar finca</Button></div>}><div id="sr-estate-master" />
             <div className="sr-estate-summary" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:12}}>
               <KPI icon="🚪" label="Habitaciones" value={selectedEstateRooms.length} hint={`${selectedEstateRooms.filter(r => r.status === "Ocupada").length} ocupadas`} tone="ok" />
               <KPI icon="💶" label="Bruto finca" value={money(selectedLiq.gross)} hint="Precio final" />
@@ -1425,10 +1464,10 @@ export default function DashboardFranquiciado() {
             </div>}
           </Card>
 
-          <div id="sr-simulator-card" />
-          <Card title="Simulador de precios de habitación" icon="🧮" right={<Badge tone="ok">Visible en finca</Badge>}>
+          <div id="sr-valuation-card" />
+          <Card title="Valoración de finca" icon="📈" right={<Badge tone="ok">Visible en finca</Badge>}><div id="sr-valuation-card" />
             <p style={{color:"#64748b",lineHeight:1.55,marginTop:0}}>
-              Calcula el precio final por habitación de esta finca. El inquilino solo verá el precio final con servicios incluidos.
+              Valoración económica de esta finca. Primero defina las habitaciones en la finca; después calcule rentabilidad, genere el PDF para el propietario y guarde la valoración en el expediente.
             </p>
             <div className="sr-sim-form" style={{display:"grid",gridTemplateColumns:"1.2fr .8fr .7fr",gap:10,marginBottom:14}}>
               <Field label="Finca" value={`${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}`} onChange={() => {}} />
@@ -1444,7 +1483,7 @@ export default function DashboardFranquiciado() {
               {simRooms.map((r, idx) => <div key={r.id} className="sr-room-row" style={{display:"grid",gridTemplateColumns:"145px 1fr 1fr 1fr auto",gap:10,alignItems:"end",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12}}>
                 <div>
                   <button type="button" style={linkBtn} onClick={() => openRoom(`${selectedEstate.id}-H${String(idx + 1).padStart(2, "0")}`)}>{selectedEstate.id}-H{String(idx + 1).padStart(2, "0")}</button>
-                  <div style={{fontSize:12,color:"#64748b"}}>Precio final: {money(calculatedSimRooms[idx]?.finalPrice)}</div>
+                  <div style={{fontSize:12,color:"#64748b"}}>Precio calculado: {money(calculatedSimRooms[idx]?.finalPrice)}</div>
                 </div>
                 <Field label="m² habitación" type="number" value={r.m2} onChange={v => updateSimRoom(r.id, { m2:Number(v) })} />
                 <Field label="m² baño privado" type="number" value={r.bathM2} onChange={v => updateSimRoom(r.id, { bathM2:Number(v), bath:Number(v) > 0 ? true : r.bath })} />
@@ -1464,9 +1503,9 @@ export default function DashboardFranquiciado() {
             </div>
             <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}>
               <Button secondary onClick={addSimRoom}>+ Añadir habitación</Button>
-              <Button onClick={saveSimulation}>💾 Guardar simulación</Button>
+              <Button onClick={saveSimulation}>💾 Guardar valoración</Button>
               <Button secondary onClick={downloadSimulationPDF}>📄 Descargar PDF</Button>
-              <Button onClick={applySimulationToEstate}>💾 Aplicar valoración al expediente</Button>
+              <Button onClick={applySimulationToEstate}>💾 Guardar valoración en expediente</Button>
             </div>
             {simNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{simNotice}</div>}
           </Card>
@@ -1536,6 +1575,16 @@ export default function DashboardFranquiciado() {
               </div>
               {roomNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{roomNotice}</div>}
             </>}
+          </Card>
+
+          <Card title="Valoraciones guardadas" icon="📈" right={<Badge tone={latestValuation ? "ok" : "wait"}>{selectedValuations.length || (latestValuation ? 1 : 0)} valoración(es)</Badge>}>
+            {!latestValuation ? <p style={{color:"#64748b",margin:0}}>Todavía no hay valoración guardada en el expediente. Complete las habitaciones, calcule la rentabilidad y pulse 💾 Guardar valoración en expediente.</p> : <div style={{display:"grid",gap:10}}>
+              <div style={metricLine}><span>Última valoración</span><strong>{latestValuation.appliedAt || latestValuation.savedAt || "—"}</strong></div>
+              <div style={metricLine}><span>Ingreso bruto</span><strong>{money(latestValuation.gross)}</strong></div>
+              <div style={metricLine}><span>Propietario</span><strong>{money(latestValuation.owner)}</strong></div>
+              <div style={metricLine}><span>Mi ingreso</span><strong>{money(latestValuation.franchisee)}</strong></div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button small secondary onClick={downloadSimulationPDF}>📄 Ver / generar PDF propietario</Button><Button small onClick={sendEstateToSimulator}>📈 Nueva valoración</Button></div>
+            </div>}
           </Card>
 
           <Card title="Incidencias de la finca" icon="⚠️" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone={selectedIncidents.length ? "wait" : "ok"}>{selectedIncidents.length}</Badge><Button small secondary onClick={addIncident}>+ Nueva incidencia</Button></div>}>
