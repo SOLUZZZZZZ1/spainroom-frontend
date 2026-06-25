@@ -287,17 +287,11 @@ export default function DashboardFranquiciado() {
   const allRooms = safeArray(estates).flatMap(e => safeArray(e.rooms).map(r => ({...r, estateId:e.id, ownerId:e.ownerId})));
   const selectedEstateOps = estateOps[selectedEstate.id] || {};
   const selectedEstateDetails = selectedEstateOps.estateDetails || {};
-  const mergeById = (base, dynamic) => {
-    const map = new Map();
-    safeArray(base).forEach(item => item?.id && map.set(item.id, item));
-    safeArray(dynamic).forEach(item => item?.id && map.set(item.id, { ...(map.get(item.id) || {}), ...item }));
-    return Array.from(map.values());
-  };
-  const dynamicCommonAreas = safeArray(selectedEstateOps.commonAreasFull || selectedEstateOps.commonAreas);
-  const selectedCommonAreas = mergeById(selectedEstate.commonAreas, dynamicCommonAreas);
+  const selectedCommonAreas = Array.isArray(selectedEstateOps.commonAreasFull)
+    ? selectedEstateOps.commonAreasFull
+    : [...safeArray(selectedEstate.commonAreas), ...safeArray(selectedEstateOps.commonAreas)];
   const selectedCommonArea = selectedCommonAreas.find(x => x.id === selectedCommonAreaId) || null;
-  const dynamicInventory = safeArray(selectedEstateOps.inventory);
-  const selectedInventory = mergeById(selectedEstate.inventory, dynamicInventory);
+  const selectedInventory = [...safeArray(selectedEstate.inventory), ...safeArray(selectedEstateOps.inventory)];
   const selectedIncidents = [...safeArray(selectedEstate.incidents), ...safeArray(selectedEstateOps.incidents)];
   const selectedInventoryItem = selectedInventory.find(x => x.id === selectedInventoryId) || null;
   const selectedIncident = selectedIncidents.find(x => x.id === selectedIncidentId) || null;
@@ -409,6 +403,33 @@ export default function DashboardFranquiciado() {
 
   function normalizePhone(phone) {
     return String(phone || "").replace(/\s+/g, "");
+  }
+
+  function roomIndexFromId(roomId) {
+    const m = String(roomId || "").match(/-H(\d+)$/);
+    return m ? Math.max(0, Number(m[1]) - 1) : -1;
+  }
+
+  function syncValuationRoomFromRoom(roomId, roomData = {}) {
+    const idx = roomIndexFromId(roomId);
+    if (idx < 0) return;
+    setSimRooms(rows => {
+      const next = [...rows];
+      while (next.length <= idx) {
+        next.push({ id: next.length + 1, m2:0, bathM2:0, balconyM2:0, bath:false, balcony:false });
+      }
+      const current = next[idx] || { id: idx + 1, m2:0, bathM2:0, balconyM2:0, bath:false, balcony:false };
+      next[idx] = {
+        ...current,
+        id: idx + 1,
+        m2:Number(roomData.m2 ?? roomData.privateM2 ?? current.m2 ?? 0),
+        bathM2:Number(roomData.bathM2 ?? current.bathM2 ?? 0),
+        balconyM2:Number(roomData.balconyM2 ?? current.balconyM2 ?? 0),
+        bath:!!(roomData.bath ?? current.bath),
+        balcony:!!(roomData.balcony ?? current.balcony),
+      };
+      return next;
+    });
   }
 
   function addTask() {
@@ -620,8 +641,9 @@ export default function DashboardFranquiciado() {
     setEstates(nextEstates);
     localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next));
     localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    syncValuationRoomFromRoom(key, merged);
     setRoomNotice(`✅ Ficha de habitación guardada correctamente: ${key}`);
-    setFlowNotice(`✅ Ficha de habitación guardada correctamente: ${key}`);
+    setFlowNotice(`✅ Ficha de habitación guardada correctamente: ${key}. Datos sincronizados con Valoración de finca.`);
   }
 
   function handlePhotos(files) {
@@ -683,28 +705,20 @@ export default function DashboardFranquiciado() {
   }
 
   function persistCommonAreas(list, notice = "Zonas comunes actualizadas.") {
-    saveEstateOps({ commonAreasFull:safeArray(list) });
+    saveEstateOps({ commonAreasFull:list });
     setEstateOpsNotice(notice);
-  }
-
-  function prepareNewCommonArea() {
-    setSelectedCommonAreaId(null);
-    setNewCommonArea({ area:"", description:"", photos:0, photoFiles:[] });
-    setEstateOpsNotice("➕ Nueva zona común preparada. Introduce los datos y pulsa 💾 Guardar zona común.");
-    setFlowNotice("➕ Nueva zona común preparada. Introduce los datos y guarda el bloque.");
   }
 
   function addCommonArea() {
     if (!newCommonArea.area.trim()) return;
-    const preparedPhotos = safeArray(newCommonArea.photoFiles);
     const item = {
       id:`CA-${Date.now()}`,
-      area:newCommonArea.area.trim(),
+      area:newCommonArea.area,
       description:newCommonArea.description,
-      photos:Number(newCommonArea.photos || 0) + preparedPhotos.length,
-      photoFiles:preparedPhotos,
+      photos:Number(newCommonArea.photos || 0) + (newCommonArea.photoFiles?.length || 0),
+      photoFiles:newCommonArea.photoFiles || [],
     };
-    const next = [...dynamicCommonAreas, item];
+    const next = [...selectedCommonAreas, item];
     persistCommonAreas(next, `✅ Zona común guardada correctamente en ${selectedEstate.id}: ${item.area}.`);
     setFlowNotice(`✅ Zona común guardada correctamente en ${selectedEstate.id}: ${item.area}.`);
     setSelectedCommonAreaId(item.id);
@@ -712,14 +726,8 @@ export default function DashboardFranquiciado() {
   }
 
   function updateCommonArea(id, patch) {
-    const existingDynamic = dynamicCommonAreas.find(x => x.id === id);
-    const existingAny = selectedCommonAreas.find(x => x.id === id);
-    if (!existingAny) return;
-    const updated = { ...(existingDynamic || existingAny), ...patch };
-    const next = existingDynamic
-      ? dynamicCommonAreas.map(x => x.id === id ? updated : x)
-      : [...dynamicCommonAreas, updated];
-    persistCommonAreas(next, "Zona común actualizada. Pulse 💾 Guardar zona común para cerrar el bloque.");
+    const next = selectedCommonAreas.map(x => x.id === id ? { ...x, ...patch } : x);
+    persistCommonAreas(next, "Zona común actualizada.");
   }
 
   function openCommonArea(id) {
@@ -791,32 +799,19 @@ export default function DashboardFranquiciado() {
   }
 
   function saveCommonAreaBlock(id) {
-    let next = dynamicCommonAreas;
-    if (id) {
-      const existingDynamic = dynamicCommonAreas.find(x => x.id === id);
-      const existingAny = selectedCommonAreas.find(x => x.id === id);
-      if (existingAny && !existingDynamic) next = [...dynamicCommonAreas, existingAny];
-    }
     const msg = id ? `✅ Zona común guardada correctamente en ${selectedEstate.id}.` : `✅ Zonas comunes guardadas correctamente en ${selectedEstate.id}.`;
-    persistCommonAreas(next, msg);
+    persistCommonAreas(selectedCommonAreas, msg);
     setFlowNotice(msg);
   }
 
   function persistInventory(list, notice = "Inventario actualizado.") {
-    saveEstateOps({ inventory:safeArray(list) });
+    saveEstateOps({ inventory:list });
     setEstateOpsNotice(notice);
-  }
-
-  function prepareNewInventory() {
-    setSelectedInventoryId(null);
-    setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0, photoFiles:[] });
-    setEstateOpsNotice("➕ Nuevo inventario preparado. Introduce los datos y pulsa 💾 Guardar inventario.");
-    setFlowNotice("➕ Nuevo inventario preparado. Introduce los datos y guarda el bloque.");
   }
 
   function handleNewInventoryPhotos(files) {
     readImageFiles(files, (uploaded) => {
-      setNewInventory(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
+      setNewInventory(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded] }));
       setEstateOpsNotice(`📸 ${uploaded.length} foto(s) preparada(s). Por favor, pulse 💾 Guardar inventario.`);
       setFlowNotice(`📸 Fotos preparadas. Por favor, guarde el inventario.`);
     });
@@ -824,6 +819,7 @@ export default function DashboardFranquiciado() {
 
   function handleInventoryPhotos(id, files) {
     readImageFiles(files, (uploaded) => {
+      const dynamicInventory = safeArray(selectedEstateOps.inventory);
       const exists = dynamicInventory.some(x => x.id === id);
       if (!exists) { setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para subir fotos."); return; }
       const nextInventory = dynamicInventory.map(x => x.id === id ? { ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length } : x);
@@ -833,6 +829,7 @@ export default function DashboardFranquiciado() {
   }
 
   function saveInventoryBlock(id) {
+    const dynamicInventory = safeArray(selectedEstateOps.inventory);
     const msg = id ? `✅ Inventario guardado correctamente en ${selectedEstate.id}.` : `✅ Inventario de la finca guardado correctamente en ${selectedEstate.id}.`;
     persistInventory(dynamicInventory, msg);
     setFlowNotice(msg);
@@ -848,14 +845,17 @@ export default function DashboardFranquiciado() {
       setTimeout(() => document.getElementById("sr-rooms-block")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
       return;
     }
-    setSimRooms(rooms.map((r, idx) => ({
-      id:idx + 1,
-      m2:Number(r.m2 || r.privateM2 || 0),
-      bathM2:Number(r.bathM2 || 0),
-      balconyM2:Number(r.balconyM2 || 0),
-      bath:!!r.bath,
-      balcony:!!r.balcony,
-    })));
+    setSimRooms(rooms.map((r, idx) => {
+      const draft = roomDrafts[r.id] || {};
+      return {
+        id:idx + 1,
+        m2:Number(draft.m2 ?? r.m2 ?? r.privateM2 ?? 0),
+        bathM2:Number(draft.bathM2 ?? r.bathM2 ?? 0),
+        balconyM2:Number(draft.balconyM2 ?? r.balconyM2 ?? 0),
+        bath:!!(draft.bath ?? r.bath),
+        balcony:!!(draft.balcony ?? r.balcony),
+      };
+    }));
     setSimServicesIncluded(selectedEstate.servicesIncluded !== false);
     setSimServicesFee(Number(selectedEstate.servicesFee || 25));
     const msg = `✅ ${selectedEstate.id} enviada a valoración con ${rooms.length} habitación(es).`;
@@ -957,6 +957,14 @@ export default function DashboardFranquiciado() {
     setEstates(nextEstates);
     localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
     setSelectedRoomId(roomId);
+    setSimRooms(rows => {
+      const next = [...rows];
+      while (next.length < nextNumber - 1) {
+        next.push({ id: next.length + 1, m2:0, bathM2:0, balconyM2:0, bath:false, balcony:false });
+      }
+      next[nextNumber - 1] = { id:nextNumber, m2:0, bathM2:0, balconyM2:0, bath:false, balcony:false };
+      return next;
+    });
     setEstateOpsNotice(`✅ Habitación creada: ${roomId}. Puede completar sus datos y guardar.`);
     setFlowNotice(`✅ Habitación creada: ${roomId}. Complete la ficha y pulse 💾 Guardar ficha.`);
     setTimeout(() => document.getElementById("sr-room-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
@@ -1028,28 +1036,47 @@ export default function DashboardFranquiciado() {
     setFlowNotice(msg);
   }
 
+  function startNewInventoryItem() {
+    setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0, photoFiles:[] });
+    setSelectedInventoryId(null);
+    const msg = "📦 Nuevo inventario preparado. Introduzca los datos y pulse 💾 Guardar inventario.";
+    setEstateOpsNotice(msg);
+    setFlowNotice(msg);
+    setTimeout(() => document.getElementById("sr-inventory-form")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
+  }
+
   function addInventoryItem() {
-    if (!newInventory.item.trim()) return;
-    const preparedPhotos = safeArray(newInventory.photoFiles);
+    const itemName = String(newInventory.item || "").trim();
+    if (!itemName) {
+      const msg = "🐕 Por favor, indique el elemento del inventario antes de guardar.";
+      setEstateOpsNotice(msg);
+      setFlowNotice(msg);
+      setTimeout(() => document.getElementById("sr-inventory-form")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
+      return;
+    }
+    const files = safeArray(newInventory.photoFiles);
     const item = {
       id:`INV-${Date.now()}`,
-      ...newInventory,
-      item:newInventory.item.trim(),
-      photos:Number(newInventory.photos || 0) + preparedPhotos.length,
-      photoFiles:preparedPhotos,
+      item:itemName,
+      brand:String(newInventory.brand || "").trim(),
+      model:String(newInventory.model || "").trim(),
+      status:newInventory.status || "Bueno",
+      photos:Math.max(Number(newInventory.photos || 0), files.length),
+      photoFiles:files,
+      savedAt:new Date().toLocaleString("es-ES"),
     };
-    persistInventory([...dynamicInventory, item], `✅ Inventario guardado correctamente: ${item.item}.`);
-    setFlowNotice(`✅ Inventario guardado correctamente: ${item.item}.`);
+    const nextInventory = [...safeArray(selectedEstateOps.inventory), item];
+    persistInventory(nextInventory, `✅ Inventario guardado correctamente en ${selectedEstate.id}: ${item.item}.`);
+    setFlowNotice(`✅ Inventario guardado correctamente en ${selectedEstate.id}: ${item.item}.`);
     setSelectedInventoryId(item.id);
     setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0, photoFiles:[] });
+    setTimeout(() => document.getElementById("sr-inventory-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
   }
 
   function updateInventoryItem(id, patch) {
-    const existingDynamic = dynamicInventory.find(x => x.id === id);
-    const existingAny = selectedInventory.find(x => x.id === id);
-    if (!existingAny) return;
-    if (!existingDynamic) return setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para editarlo.");
-    const nextInventory = dynamicInventory.map(x => x.id === id ? { ...x, ...patch } : x);
+    const isDynamic = (selectedEstateOps.inventory || []).some(x => x.id === id);
+    if (!isDynamic) return setEstateOpsNotice("Este elemento demo es solo lectura. Añade uno nuevo para editarlo.");
+    const nextInventory = safeArray(selectedEstateOps.inventory).map(x => x.id === id ? { ...x, ...patch } : x);
     persistInventory(nextInventory, "Inventario actualizado. Pulse 💾 Guardar inventario para cerrar el bloque.");
   }
 
@@ -1555,14 +1582,14 @@ export default function DashboardFranquiciado() {
             </div>}
           </Card>
 
-          <Card title="Zonas comunes" icon="🏘️" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="dark">Operativo franquiciado</Badge><Button small secondary onClick={prepareNewCommonArea}>+ Añadir zona</Button></div>}>
+          <Card title="Zonas comunes" icon="🏘️" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="dark">Operativo franquiciado</Badge><Button small secondary onClick={addCommonArea}>+ Añadir zona</Button></div>}>
             <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr 2fr .5fr auto",gap:10,marginBottom:12,alignItems:"end"}}>
               <Field label="Zona común" value={newCommonArea.area} onChange={v => setNewCommonArea(x => ({...x,area:v}))} />
               <Field label="Descripción" value={newCommonArea.description} onChange={v => setNewCommonArea(x => ({...x,description:v}))} />
               <Field label="Fotos" type="number" value={newCommonArea.photos} onChange={v => setNewCommonArea(x => ({...x,photos:Number(v)}))} />
               <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"10px 12px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",whiteSpace:"nowrap"}}>
                 📸 Subir fotos
-                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => { handleNewCommonAreaPhotos(e.target.files); e.target.value = null; }} />
+                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleNewCommonAreaPhotos(e.target.files)} />
               </label>
               <Button small onClick={addCommonArea}>💾 Guardar zona común</Button>
             </div>
@@ -1586,7 +1613,7 @@ export default function DashboardFranquiciado() {
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
                 <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer"}}>
                   + Subir fotos a esta zona
-                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => { handleCommonAreaPhotos(selectedCommonArea.id, e.target.files); e.target.value = null; }} />
+                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleCommonAreaPhotos(selectedCommonArea.id, e.target.files)} />
                 </label>
                 <Button small onClick={() => saveCommonAreaBlock(selectedCommonArea.id)}>💾 Guardar zona común</Button>
                 <Button small secondary onClick={() => setSelectedCommonAreaId(null)}>Cerrar ficha</Button>
@@ -1605,8 +1632,8 @@ export default function DashboardFranquiciado() {
             {estateOpsNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{estateOpsNotice}</div>}
           </Card>
 
-          <Card title="Inventario visible de la finca" icon="📦" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Para incidencias</Badge><Button small secondary onClick={prepareNewInventory}>+ Añadir inventario</Button></div>}>
-            <div className="sr-inventory-form" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr .8fr .5fr auto auto",gap:10,marginBottom:12,alignItems:"end"}}>
+          <Card title="Inventario visible de la finca" icon="📦" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Para incidencias</Badge><Button small secondary onClick={startNewInventoryItem}>+ Añadir inventario</Button></div>}>
+            <div id="sr-inventory-form" className="sr-inventory-form" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr .8fr .5fr auto auto",gap:10,marginBottom:12,alignItems:"end"}}>
               <Field label="Elemento" value={newInventory.item} onChange={v => setNewInventory(x => ({...x,item:v}))} />
               <Field label="Marca" value={newInventory.brand} onChange={v => setNewInventory(x => ({...x,brand:v}))} />
               <Field label="Modelo / medida" value={newInventory.model} onChange={v => setNewInventory(x => ({...x,model:v}))} />
@@ -1614,11 +1641,11 @@ export default function DashboardFranquiciado() {
               <Field label="Fotos" type="number" value={newInventory.photos} onChange={v => setNewInventory(x => ({...x,photos:Number(v)}))} />
               <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"10px 12px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer",whiteSpace:"nowrap"}}>
                 📸 Subir fotos
-                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => { handleNewInventoryPhotos(e.target.files); e.target.value = null; }} />
+                <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleNewInventoryPhotos(e.target.files)} />
               </label>
               <Button small onClick={addInventoryItem}>💾 Guardar inventario</Button>
             </div>
-            {safeArray(newInventory.photoFiles).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas: {safeArray(newInventory.photoFiles).length}</div>}
+            {safeArray(newInventory.photoFiles).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas: {safeArray(newInventory.photoFiles).length}. Se guardarán con este elemento.</div>}
             <Table columns={[
               { key:"item", label:"Elemento", bold:true, render:i => <button type="button" style={linkBtn} onClick={() => openInventoryItem(i.id)}>{i.item}</button> },
               { key:"brand", label:"Marca" },
@@ -1638,7 +1665,7 @@ export default function DashboardFranquiciado() {
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
                 <label style={{display:"inline-flex",alignItems:"center",justifyContent:"center",border:"1px solid #cfe0ff",borderRadius:13,padding:"8px 10px",fontWeight:950,color:blue,background:"#fff",cursor:"pointer"}}>
                   📸 Subir fotos inventario
-                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => { handleInventoryPhotos(selectedInventoryItem.id, e.target.files); e.target.value = null; }} />
+                  <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handleInventoryPhotos(selectedInventoryItem.id, e.target.files)} />
                 </label>
                 <Button small onClick={() => saveInventoryBlock(selectedInventoryItem.id)}>💾 Guardar inventario</Button>
               </div>
