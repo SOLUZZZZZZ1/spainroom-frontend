@@ -248,6 +248,8 @@ export default function DashboardFranquiciado() {
   const [ownerPanelMode, setOwnerPanelMode] = useState("view");
   const [editingTenant, setEditingTenant] = useState(null);
   const [tenantPanelMode, setTenantPanelMode] = useState("view");
+  const [newTenantForRoom, setNewTenantForRoom] = useState({ existingTenantId:"", name:"", phone:"", email:"", document:"", startDate:"", status:"Activo" });
+  const [tenantRoomNotice, setTenantRoomNotice] = useState("");
   const [editingContact, setEditingContact] = useState(null);
   const [newContact, setNewContact] = useState({ name:"", type:"Propietario", phone:"", email:"", zone:"", next:"" });
   const [roomDrafts, setRoomDrafts] = useState(() => {
@@ -739,9 +741,26 @@ export default function DashboardFranquiciado() {
   }
 
   function saveEstateDetailsBlock() {
-    updateEstateDetails({ savedAt:new Date().toLocaleString("es-ES") });
+    const currentDetails = selectedEstateOps.estateDetails || {};
+    const savedAt = new Date().toLocaleString("es-ES");
+    const details = { ...currentDetails, savedAt };
+    saveEstateOps({ estateDetails:details });
+
+    // Sincroniza el resumen de la finca con el expediente para que el listado no siga mostrando "Pendiente".
+    const nextEstates = safeArray(estates).map(e => e.id === selectedEstate.id ? {
+      ...e,
+      province: details.province ?? e.province,
+      city: details.city || e.city,
+      zone: details.zone || e.zone,
+      address: details.address || e.address,
+      description: details.description || e.description,
+      status: e.status === "Borrador" ? "Borrador" : e.status,
+    } : e);
+    setEstates(nextEstates);
+    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+
     setEstateOpsNotice(`✅ Datos inmueble guardados correctamente en ${selectedEstate.id}.`);
-    setFlowNotice(`✅ Datos inmueble guardados correctamente en ${selectedEstate.id}.`);
+    setFlowNotice(`✅ Datos inmueble guardados correctamente en ${selectedEstate.id}. Siguiente paso: definir habitaciones.`);
   }
 
   function saveEstatePhotosBlock() {
@@ -886,6 +905,8 @@ export default function DashboardFranquiciado() {
     const roomId = `${selectedEstate.id}-H${String(nextNumber).padStart(2, "0")}`;
     const item = {
       id:roomId,
+      estateId:selectedEstate.id,
+      ownerId:selectedEstate.ownerId,
       title:`Habitación ${nextNumber}`,
       price:0,
       basePrice:0,
@@ -905,7 +926,75 @@ export default function DashboardFranquiciado() {
     setEstates(nextEstates);
     localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
     setSelectedRoomId(roomId);
-    setEstateOpsNotice(`Habitación real creada: ${roomId}.`);
+    setEstateOpsNotice(`✅ Habitación creada: ${roomId}. Puede completar sus datos y guardar.`);
+    setFlowNotice(`✅ Habitación creada: ${roomId}. Complete la ficha y pulse 💾 Guardar ficha.`);
+    setTimeout(() => document.getElementById("sr-room-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
+    return roomId;
+  }
+
+  function saveTenantFromRoom() {
+    if (!selectedRoom?.id) return;
+    let tenant;
+    let nextTenants = safeArray(tenants);
+
+    if (newTenantForRoom.existingTenantId) {
+      tenant = nextTenants.find(t => t.id === newTenantForRoom.existingTenantId);
+      if (!tenant) {
+        const msg = "No se ha encontrado el inquilino seleccionado.";
+        setTenantRoomNotice(msg);
+        setFlowNotice(msg);
+        return;
+      }
+      tenant = { ...tenant, room:selectedRoom.id, status:newTenantForRoom.status || tenant.status || "Activo" };
+      nextTenants = nextTenants.map(t => t.id === tenant.id ? tenant : t);
+    } else {
+      if (!newTenantForRoom.name.trim()) {
+        const msg = "🐕 Por favor, indique el nombre del inquilino antes de guardar.";
+        setTenantRoomNotice(msg);
+        setFlowNotice(msg);
+        return;
+      }
+      tenant = {
+        id:newTenantCode(),
+        name:newTenantForRoom.name.trim(),
+        phone:newTenantForRoom.phone.trim(),
+        email:newTenantForRoom.email.trim(),
+        document:newTenantForRoom.document.trim(),
+        startDate:newTenantForRoom.startDate,
+        room:selectedRoom.id,
+        status:newTenantForRoom.status || "Activo",
+      };
+      nextTenants = [tenant, ...nextTenants];
+    }
+
+    const nextEstates = safeArray(estates).map(e => ({
+      ...e,
+      rooms:safeArray(e.rooms).map(r => r.id === selectedRoom.id ? { ...r, tenantId:tenant.id, status:"Ocupada" } : r)
+    }));
+
+    setTenants(nextTenants);
+    setEstates(nextEstates);
+    localStorage.setItem("SR_V2_TENANTS", JSON.stringify(nextTenants));
+    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    setSelectedRoomId(selectedRoom.id);
+    setNewTenantForRoom({ existingTenantId:"", name:"", phone:"", email:"", document:"", startDate:"", status:"Activo" });
+    const msg = `✅ Inquilino ${tenant.name} vinculado a ${selectedRoom.id}.`;
+    setTenantRoomNotice(msg);
+    setRoomNotice(msg);
+    setFlowNotice(`${msg} También aparece en el módulo Inquilinos.`);
+  }
+
+  function clearTenantFromRoom() {
+    if (!selectedRoom?.id) return;
+    const nextEstates = safeArray(estates).map(e => ({
+      ...e,
+      rooms:safeArray(e.rooms).map(r => r.id === selectedRoom.id ? { ...r, tenantId:null, status:r.status === "Ocupada" ? "Libre" : r.status } : r)
+    }));
+    setEstates(nextEstates);
+    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    const msg = `✅ Inquilino desvinculado de ${selectedRoom.id}.`;
+    setTenantRoomNotice(msg);
+    setFlowNotice(msg);
   }
 
   function addInventoryItem() {
@@ -1381,8 +1470,39 @@ export default function DashboardFranquiciado() {
                   <input type="file" accept="image/*" multiple style={{display:"none"}} onChange={e => handlePhotos(e.target.files)} />
                 </label>
                 <Button small onClick={() => saveRoomDraft()}>💾 Guardar ficha</Button>
+                <Button small secondary onClick={addRealRoom}>➕ Nueva habitación</Button>
                 <Button small secondary onClick={publishRoom}>🚀 Publicar si está completa</Button>
               </div>
+              <div style={{marginTop:12,background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+                  <strong>👤 Inquilino de esta habitación</strong>
+                  <Badge tone={selectedRoom.tenantId ? "ok" : "wait"}>{selectedRoom.tenantId ? "Asignado" : "Sin asignar"}</Badge>
+                </div>
+                {selectedRoom.tenantId && <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:12,padding:10,marginBottom:10,color:"#334155",fontWeight:850}}>
+                  Inquilino actual: <button type="button" style={linkBtn} onClick={() => goTenant(selectedRoom.tenantId)}>{tenants.find(t => t.id === selectedRoom.tenantId)?.name || selectedRoom.tenantId}</button>
+                  <span style={{marginLeft:10}}><Button small secondary onClick={clearTenantFromRoom}>Quitar vínculo</Button></span>
+                </div>}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}} className="sr-room-fields">
+                  <label style={{display:"grid",gap:6}}>
+                    <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Seleccionar inquilino existente</span>
+                    <select value={newTenantForRoom.existingTenantId} onChange={e => setNewTenantForRoom(x => ({...x, existingTenantId:e.target.value}))} style={{width:"100%",boxSizing:"border-box",border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",color:"#0b1220",fontWeight:750,background:"#fff",outline:"none"}}>
+                      <option value="">Crear nuevo / sin seleccionar</option>
+                      {tenants.map(t => <option key={t.id} value={t.id}>{t.name} · {t.id}</option>)}
+                    </select>
+                  </label>
+                  <Field label="Nombre nuevo inquilino" value={newTenantForRoom.name} onChange={v => setNewTenantForRoom(x => ({...x,name:v, existingTenantId:""}))} />
+                  <Field label="Teléfono" value={newTenantForRoom.phone} onChange={v => setNewTenantForRoom(x => ({...x,phone:v, existingTenantId:""}))} />
+                  <Field label="Email" value={newTenantForRoom.email} onChange={v => setNewTenantForRoom(x => ({...x,email:v, existingTenantId:""}))} />
+                  <Field label="DNI / NIE / Pasaporte" value={newTenantForRoom.document} onChange={v => setNewTenantForRoom(x => ({...x,document:v, existingTenantId:""}))} />
+                  <Field label="Fecha entrada" type="date" value={newTenantForRoom.startDate} onChange={v => setNewTenantForRoom(x => ({...x,startDate:v}))} />
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+                  <Button small onClick={saveTenantFromRoom}>💾 Guardar inquilino en habitación</Button>
+                  <Badge tone="dark">Se crea en Inquilinos y se vincula a {selectedRoom.id}</Badge>
+                </div>
+                {tenantRoomNotice && <div style={{marginTop:10,color:tenantRoomNotice.startsWith("✅") ? "#047857" : "#92400e",fontWeight:900}}>{tenantRoomNotice}</div>}
+              </div>
+
               {safeArray(roomDrafts[selectedRoom.id]?.photos).length > 0 && <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:10}} className="sr-photo-grid">
                 {safeArray(roomDrafts[selectedRoom.id]?.photos).slice(0,4).map((photo, idx) => <div key={`quick-${photo.name}-${idx}`} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:14,padding:8}}>
                   <div style={{height:72,borderRadius:10,background:"linear-gradient(135deg,#dbeafe,#f8fafc)",display:"grid",placeItems:"center",overflow:"hidden"}}>
@@ -1601,6 +1721,7 @@ export default function DashboardFranquiciado() {
 
               <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
                 <Button onClick={() => saveRoomDraft()}>💾 Guardar ficha</Button>
+                <Button secondary onClick={addRealRoom}>➕ Nueva habitación</Button>
                 <Button secondary onClick={publishRoom}>🚀 Publicar si está completa</Button>
               </div>
               {roomNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{roomNotice}</div>}
