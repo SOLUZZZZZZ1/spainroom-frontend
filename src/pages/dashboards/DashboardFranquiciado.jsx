@@ -295,12 +295,7 @@ export default function DashboardFranquiciado() {
   const [simHomeValue, setSimHomeValue] = useState(240000);
   const [simServicesIncluded, setSimServicesIncluded] = useState(true);
   const [simServicesFee, setSimServicesFee] = useState(25);
-  const [simRooms, setSimRooms] = useState([
-    { id:1, m2:9, bathM2:3, balconyM2:0, bath:true, balcony:false },
-    { id:2, m2:12, bathM2:0, balconyM2:2, bath:false, balcony:true },
-    { id:3, m2:11, bathM2:0, balconyM2:0, bath:false, balcony:false },
-    { id:4, m2:14, bathM2:0, balconyM2:0, bath:false, balcony:false },
-  ]);
+  const [simRooms, setSimRooms] = useState([]);
   const [simNotice, setSimNotice] = useState("");
   const [estateOps, setEstateOps] = useState(() => {
     try { return JSON.parse(localStorage.getItem("SR_V2_ESTATE_OPS") || "{}"); } catch { return {}; }
@@ -417,6 +412,18 @@ export default function DashboardFranquiciado() {
   const guideProgress = Math.round((completedGuideSteps / guideSteps.length) * 100);
   const nextGuideStep = guideSteps.find(x => !x.done);
   const lastNotice = flowNotice || estateOpsNotice || roomNotice || simNotice;
+
+  useEffect(() => {
+    const e = safeArray(estates).find(x => x.id === selectedEstateId);
+    const built = buildSimRoomsFromEstate(e);
+    setSimRooms(built);
+    if (e) {
+      setSimServicesIncluded(e.servicesIncluded !== false);
+      setSimServicesFee(Number(e.servicesFee || 25));
+      const hv = e.valuation?.homeValue || estateOps[e.id]?.valuation?.homeValue || estateOps[e.id]?.simulation?.homeValue;
+      if (hv) setSimHomeValue(Number(hv));
+    }
+  }, [selectedEstateId, selectedEstateRooms.length]);
 
   const simMaxMonthlyRent = simHomeValue * 0.0052;
   const simTotalPrivateM2 = simRooms.reduce((sum, r) => sum + Number(r.m2 || 0) + Number(r.bathM2 || 0) + Number(r.balconyM2 || 0), 0);
@@ -622,7 +629,7 @@ export default function DashboardFranquiciado() {
     if (!selectedRoom?.id) return;
     const key = selectedRoom.id;
     const current = roomDrafts[key] || {};
-    const next = { ...roomDrafts, [key]: { ...current, ...patch } };
+    const next = { ...roomDrafts, [key]: { ...current, ...patch, _dirty:true } };
     setRoomDrafts(next);
     safeSetStorage("SR_V2_ROOM_DRAFTS", next);
   }
@@ -644,7 +651,7 @@ export default function DashboardFranquiciado() {
       photos:safeArray(patch.photos ?? current.photos ?? selectedRoom.photosFiles),
       savedAt:new Date().toLocaleString("es-ES"),
     };
-    const nextDrafts = { ...roomDrafts, [key]: merged };
+    const nextDrafts = { ...roomDrafts, [key]: { ...merged, _dirty:false } };
     const nextEstates = safeArray(estates).map(e => ({
       ...e,
       rooms: safeArray(e.rooms).map(r => r.id === key ? {
@@ -696,7 +703,7 @@ export default function DashboardFranquiciado() {
         photos:safeArray(d.photos ?? r.photosFiles).length || Number(r.photos || 0),
         savedAt,
       };
-      nextDrafts[r.id] = { ...nextDrafts[r.id], ...merged, photos:safeArray(merged.photosFiles) };
+      nextDrafts[r.id] = { ...nextDrafts[r.id], ...merged, photos:safeArray(merged.photosFiles), _dirty:false };
       return merged;
     });
 
@@ -724,7 +731,7 @@ export default function DashboardFranquiciado() {
     readImageFiles(files, (uploaded) => {
       const key = selectedRoom.id;
       const current = roomDrafts[key] || {};
-      const next = {...roomDrafts, [key]: {...current, photos:[...safeArray(current.photos || selectedRoom.photosFiles), ...uploaded]}};
+      const next = {...roomDrafts, [key]: {...current, photos:[...safeArray(current.photos || selectedRoom.photosFiles), ...uploaded], _dirty:true}};
       setRoomDrafts(next);
       safeSetStorage("SR_V2_ROOM_DRAFTS", next);
       setRoomNotice(`📸 ${uploaded.length} foto(s) añadida(s). Por favor, pulse 💾 Guardar ficha para unirlas al expediente.`);
@@ -746,12 +753,33 @@ export default function DashboardFranquiciado() {
     setSimRooms(rows => rows.map(r => r.id === id ? { ...r, ...patch } : r));
   }
   function addSimRoom() {
-    const nextId = Math.max(...simRooms.map(r => r.id)) + 1;
-    setSimRooms(rows => [...rows, { id:nextId, m2:10, bathM2:0, balconyM2:0, bath:false, balcony:false }]);
+    const ids = safeArray(simRooms).map(r => Number(r.id || 0));
+    const nextId = (ids.length ? Math.max(...ids) : 0) + 1;
+    setSimRooms(rows => [...safeArray(rows), { id:nextId, m2:10, bathM2:0, balconyM2:0, bath:false, balcony:false }]);
   }
   function removeSimRoom(id) {
     setSimRooms(rows => rows.length <= 1 ? rows : rows.filter(r => r.id !== id));
   }
+
+  function buildSimRoomsFromEstate(estate = selectedEstate) {
+    const realRooms = safeArray(estate?.rooms);
+    if (!realRooms.length) return [];
+    return realRooms.map((r, idx) => {
+      const d = roomDrafts[r.id];
+      // Solo usamos borradores no guardados de esta sesión (_dirty).
+      // Los borradores antiguos de localStorage no deben pisar los datos reales de la finca.
+      const source = d?._dirty ? { ...r, ...d } : r;
+      return {
+        id:idx + 1,
+        m2:Number(source.m2 ?? source.privateM2 ?? 0),
+        bathM2:Number(source.bathM2 ?? 0),
+        balconyM2:Number(source.balconyM2 ?? 0),
+        bath:!!source.bath,
+        balcony:!!source.balcony,
+      };
+    });
+  }
+
   function saveSimulation() {
     const saved = {
       estateId:selectedEstate.id,
@@ -947,7 +975,10 @@ export default function DashboardFranquiciado() {
   }
 
   function sendEstateToSimulator() {
-    const rooms = safeArray(selectedEstate.rooms).map(r => ({ ...r, ...(roomDrafts[r.id] || {}) }));
+    const rooms = safeArray(selectedEstate.rooms).map(r => {
+      const d = roomDrafts[r.id];
+      return d?._dirty ? { ...r, ...d } : r;
+    });
     if (!rooms.length) {
       const msg = "🐕 Por favor, cree primero las habitaciones de la finca antes de calcular la valoración.";
       setEstateOpsNotice(msg);
@@ -1008,7 +1039,7 @@ export default function DashboardFranquiciado() {
         incidents:existing.incidents || "🟢",
         valuedAt:appliedAt,
       };
-      nextDrafts[roomId] = { ...existingDraft, ...valued, photos:safeArray(valued.photosFiles) };
+      nextDrafts[roomId] = { ...existingDraft, ...valued, photos:safeArray(valued.photosFiles), _dirty:false };
       return valued;
     });
     const valuationRecord = {
@@ -1383,7 +1414,7 @@ export default function DashboardFranquiciado() {
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
         <button type="button" style={tabStyle("negocio")} onClick={() => setActiveTab("negocio")}>📊 Mi negocio</button>
-        <button type="button" style={tabStyle("simulador")} onClick={() => setActiveTab("simulador")}>📈 Valoración finca</button>
+        <button type="button" style={tabStyle("simulador")} onClick={sendEstateToSimulator}>📈 Valoración finca</button>
         <button type="button" style={tabStyle("fincas")} onClick={() => setActiveTab("fincas")}>🏠 Fincas</button>
         <button type="button" style={tabStyle("propietarios")} onClick={() => setActiveTab("propietarios")}>👤 Propietarios</button>
         <button type="button" style={tabStyle("inquilinos")} onClick={() => setActiveTab("inquilinos")}>👥 Inquilinos</button>
