@@ -1,5 +1,5 @@
 // src/pages/dashboards/DashboardFranquiciado.jsx
-// SpainRoom® — Dashboard Franquiciado V3.12 · Persistencia y precios conectados
+// SpainRoom® — Dashboard Franquiciado V3.13 · Demo inmobiliaria estable sin Base64
 import React, { useState, useEffect } from "react";
 
 const blue = "#0A58CA";
@@ -30,38 +30,43 @@ function isFilled(value) {
   return !!text && !["pendiente", "—", "null", "undefined"].includes(text.toLowerCase());
 }
 
+function cleanupLegacyHeavyStorage() {
+  // Demo urgente: libera localStorage si versiones anteriores guardaron fotos en Base64.
+  // Las fotos reales deben ir a S3/backend; aquí solo guardamos referencias ligeras.
+  try {
+    ["SR_V2_ROOM_DRAFTS", "SR_V2_ESTATE_OPS", "SR_V2_ESTATES"].forEach((key) => {
+      const raw = localStorage.getItem(key) || "";
+      if (raw.length > 900000 || raw.includes("data:image")) localStorage.removeItem(key);
+    });
+  } catch {}
+}
+cleanupLegacyHeavyStorage();
+
+function safeSetStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.error("SpainRoom localStorage error", key, err);
+    return false;
+  }
+}
+
 function readImageFiles(files, onDone) {
   const list = Array.from(files || []);
   if (!list.length) return;
 
-  const resizeOne = (file) => new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const original = String(reader.result || "");
-      const img = new Image();
-      img.onload = () => {
-        try {
-          const maxSide = 900;
-          const scale = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.max(1, Math.round((img.width || 1) * scale));
-          canvas.height = Math.max(1, Math.round((img.height || 1) * scale));
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const url = canvas.toDataURL("image/jpeg", 0.72);
-          resolve({ name:file.name, url, originalName:file.name, compressed:true });
-        } catch {
-          resolve({ name:file.name, url:original });
-        }
-      };
-      img.onerror = () => resolve({ name:file.name, url:original });
-      img.src = original;
-    };
-    reader.onerror = () => resolve({ name:file.name, url:"" });
-    reader.readAsDataURL(file);
-  });
-
-  Promise.all(list.map(resizeOne)).then(onDone);
+  // IMPORTANTE: no convertir a Base64. Eso llena localStorage y hace la demo lentísima.
+  // Para la prueba guardamos solo metadatos ligeros. La subida real irá a Backend → S3.
+  const lightweight = list.map((file) => ({
+    id:`PHOTO-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name:file.name,
+    url:"",
+    size:file.size,
+    type:file.type,
+    pendingUpload:true,
+  }));
+  onDone(lightweight);
 }
 
 function Badge({ children, tone = "info" }) {
@@ -248,7 +253,7 @@ export default function DashboardFranquiciado() {
   useEffect(() => {
     if (!Array.isArray(estates) || estates.length === 0) {
       setEstates(ESTATES);
-      localStorage.setItem("SR_V2_ESTATES", JSON.stringify(ESTATES));
+      safeSetStorage("SR_V2_ESTATES", ESTATES);
     }
   }, [estates]);
 
@@ -257,14 +262,14 @@ export default function DashboardFranquiciado() {
   useEffect(() => {
     if (!Array.isArray(owners) || owners.length === 0) {
       setOwners(OWNERS);
-      localStorage.setItem("SR_V2_OWNERS", JSON.stringify(OWNERS));
+      safeSetStorage("SR_V2_OWNERS", OWNERS);
     }
   }, [owners]);
 
   useEffect(() => {
     if (!Array.isArray(tenants) || tenants.length === 0) {
       setTenants(TENANTS);
-      localStorage.setItem("SR_V2_TENANTS", JSON.stringify(TENANTS));
+      safeSetStorage("SR_V2_TENANTS", TENANTS);
     }
   }, [tenants]);
   const [taskList, setTaskList] = useState(() => {
@@ -445,18 +450,18 @@ export default function DashboardFranquiciado() {
     if (!newTask.title.trim()) return;
     const item = { id:`TASK-${Date.now()}`, ...newTask, done:false };
     const next = [item, ...taskList];
-    setTaskList(next); localStorage.setItem("SR_V2_TASKS", JSON.stringify(next));
+    setTaskList(next); safeSetStorage("SR_V2_TASKS", next);
     setNewTask({ title:"", type:"Seguimiento", estateId:selectedEstate.id, priority:"Media", due:"Hoy" });
   }
 
   function toggleTask(id) {
     const next = taskList.map(t => t.id === id ? { ...t, done:!t.done } : t);
-    setTaskList(next); localStorage.setItem("SR_V2_TASKS", JSON.stringify(next));
+    setTaskList(next); safeSetStorage("SR_V2_TASKS", next);
   }
 
   function deleteTask(id) {
     const next = taskList.filter(t => t.id !== id);
-    setTaskList(next); localStorage.setItem("SR_V2_TASKS", JSON.stringify(next));
+    setTaskList(next); safeSetStorage("SR_V2_TASKS", next);
   }
 
   function exportPortfolioCSV() {
@@ -516,7 +521,7 @@ export default function DashboardFranquiciado() {
     const exists = baseOwners.some(o => o.id === clean.id);
     const next = exists ? baseOwners.map(o => o.id === clean.id ? clean : o) : [clean, ...baseOwners];
     setOwners(next);
-    localStorage.setItem("SR_V2_OWNERS", JSON.stringify(next));
+    safeSetStorage("SR_V2_OWNERS", next);
     setEditingOwner(clean);
     setOwnerPanelMode("view");
   }
@@ -555,7 +560,7 @@ export default function DashboardFranquiciado() {
     };
     const next = [newEstate, ...(Array.isArray(estates) && estates.length ? estates : ESTATES)];
     setEstates(next);
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(next));
+    safeSetStorage("SR_V2_ESTATES", next);
     setSelectedEstateId(id);
     setEditingOwner(owner);
     setOwnerPanelMode("view");
@@ -565,7 +570,7 @@ export default function DashboardFranquiciado() {
     if (!estateId || !ownerId) return;
     const next = (Array.isArray(estates) && estates.length ? estates : ESTATES).map(e => e.id === estateId ? { ...e, ownerId } : e);
     setEstates(next);
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(next));
+    safeSetStorage("SR_V2_ESTATES", next);
     setSelectedEstateId(estateId);
     setOwnerPanelMode("view");
   }
@@ -581,19 +586,19 @@ export default function DashboardFranquiciado() {
     const exists = baseTenants.some(t => t.id === clean.id);
     const next = exists ? baseTenants.map(t => t.id === clean.id ? clean : t) : [clean, ...baseTenants];
     setTenants(next);
-    localStorage.setItem("SR_V2_TENANTS", JSON.stringify(next));
+    safeSetStorage("SR_V2_TENANTS", next);
     setEditingTenant(clean);
     setTenantPanelMode("view");
   }
   function saveContact() {
     const next = contacts.map(c => c.id === editingContact.id ? editingContact : c);
-    setContacts(next); localStorage.setItem("SR_V2_CONTACTS", JSON.stringify(next)); setEditingContact(null);
+    setContacts(next); safeSetStorage("SR_V2_CONTACTS", next); setEditingContact(null);
   }
   function addContact() {
     if (!newContact.name.trim()) return;
     const item = { id:`SR-C-${Date.now()}`, ...newContact };
     const next = [item, ...contacts];
-    setContacts(next); localStorage.setItem("SR_V2_CONTACTS", JSON.stringify(next));
+    setContacts(next); safeSetStorage("SR_V2_CONTACTS", next);
     setNewContact({ name:"", type:"Propietario", phone:"", email:"", zone:"", next:"" });
   }
 
@@ -602,10 +607,10 @@ export default function DashboardFranquiciado() {
     setTenants(TENANTS);
     setContacts(CONTACTS);
     setEstates(ESTATES);
-    localStorage.setItem("SR_V2_OWNERS", JSON.stringify(OWNERS));
-    localStorage.setItem("SR_V2_TENANTS", JSON.stringify(TENANTS));
-    localStorage.setItem("SR_V2_CONTACTS", JSON.stringify(CONTACTS));
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(ESTATES));
+    safeSetStorage("SR_V2_OWNERS", OWNERS);
+    safeSetStorage("SR_V2_TENANTS", TENANTS);
+    safeSetStorage("SR_V2_CONTACTS", CONTACTS);
+    safeSetStorage("SR_V2_ESTATES", ESTATES);
     setEditingOwner(null);
     setOwnerPanelMode("view");
     setEditingTenant(null);
@@ -619,7 +624,7 @@ export default function DashboardFranquiciado() {
     const current = roomDrafts[key] || {};
     const next = { ...roomDrafts, [key]: { ...current, ...patch } };
     setRoomDrafts(next);
-    localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next));
+    safeSetStorage("SR_V2_ROOM_DRAFTS", next);
   }
 
   function saveRoomDraft(patch = {}) {
@@ -654,8 +659,8 @@ export default function DashboardFranquiciado() {
     }));
     setRoomDrafts(nextDrafts);
     setEstates(nextEstates);
-    localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(nextDrafts));
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    safeSetStorage("SR_V2_ROOM_DRAFTS", nextDrafts);
+    safeSetStorage("SR_V2_ESTATES", nextEstates);
 
     const updatedEstate = nextEstates.find(e => e.id === selectedEstate.id) || selectedEstate;
     setSimRooms(safeArray(updatedEstate.rooms).map((r, idx) => ({
@@ -698,8 +703,8 @@ export default function DashboardFranquiciado() {
     const nextEstates = safeArray(estates).map(e => e.id === selectedEstate.id ? { ...e, rooms:mergedRooms } : e);
     setRoomDrafts(nextDrafts);
     setEstates(nextEstates);
-    localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(nextDrafts));
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    safeSetStorage("SR_V2_ROOM_DRAFTS", nextDrafts);
+    safeSetStorage("SR_V2_ESTATES", nextEstates);
     setSimRooms(mergedRooms.map((r, idx) => ({
       id:idx + 1,
       m2:Number(r.m2 || r.privateM2 || 0),
@@ -721,9 +726,9 @@ export default function DashboardFranquiciado() {
       const current = roomDrafts[key] || {};
       const next = {...roomDrafts, [key]: {...current, photos:[...safeArray(current.photos || selectedRoom.photosFiles), ...uploaded]}};
       setRoomDrafts(next);
-      localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next));
+      safeSetStorage("SR_V2_ROOM_DRAFTS", next);
       setRoomNotice(`📸 ${uploaded.length} foto(s) añadida(s). Por favor, pulse 💾 Guardar ficha para unirlas al expediente.`);
-      setFlowNotice(`📸 Fotos añadidas a ${key}. Por favor, guarde la ficha de habitación.`);
+      setFlowNotice(`📸 Fotos seleccionadas en modo demo ligero para ${key}. Pulse 💾 Guardar ficha.`);
     });
   }
 
@@ -772,7 +777,7 @@ export default function DashboardFranquiciado() {
     const next = { ...stored, [estateId]: { ...current, ...patch } };
     setEstateOps(next);
     try {
-      localStorage.setItem("SR_V2_ESTATE_OPS", JSON.stringify(next));
+      safeSetStorage("SR_V2_ESTATE_OPS", next);
     } catch (err) {
       const msg = "⚠️ No se ha podido guardar en este navegador. Pruebe con menos fotos o limpie datos de prueba.";
       setEstateOpsNotice(msg);
@@ -840,7 +845,7 @@ export default function DashboardFranquiciado() {
   function handleNewCommonAreaPhotos(files) {
     readImageFiles(files, (uploaded) => {
       setNewCommonArea(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
-      setFlowNotice(`📸 Fotos preparadas. Por favor, guarde la zona común.`);
+      setFlowNotice(`📸 Fotos seleccionadas en modo demo ligero. Guarde la zona común.`);
     });
   }
 
@@ -860,7 +865,7 @@ export default function DashboardFranquiciado() {
       const photos = [...safeArray(currentDetails.photos), ...uploaded];
       saveEstateOps({ estateDetails:{ ...currentDetails, photos } });
       setEstateOpsNotice(`📸 ${uploaded.length} foto(s) general(es) preparada(s) en ${selectedEstate.id}. Pulse 💾 Guardar fotos inmueble.`);
-      setFlowNotice(`📸 Fotos añadidas al inmueble. Por favor, guarde las fotos del inmueble.`);
+      setFlowNotice(`📸 Fotos seleccionadas en modo demo ligero. Pulse 💾 Guardar fotos inmueble.`);
     });
   }
 
@@ -883,7 +888,7 @@ export default function DashboardFranquiciado() {
       status: e.status === "Borrador" ? "Borrador" : e.status,
     } : e);
     setEstates(nextEstates);
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    safeSetStorage("SR_V2_ESTATES", nextEstates);
 
     setEstateOpsNotice(`✅ Datos inmueble guardados correctamente en ${selectedEstate.id}.`);
     setFlowNotice(`✅ Datos inmueble guardados correctamente en ${selectedEstate.id}. Siguiente paso: definir habitaciones.`);
@@ -916,7 +921,7 @@ export default function DashboardFranquiciado() {
     readImageFiles(files, (uploaded) => {
       setNewInventory(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
       setEstateOpsNotice(`📸 ${uploaded.length} foto(s) preparada(s). Por favor, pulse 💾 Guardar inventario.`);
-      setFlowNotice(`📸 Fotos preparadas. Por favor, guarde el inventario.`);
+      setFlowNotice(`📸 Fotos seleccionadas en modo demo ligero. Guarde el inventario.`);
     });
   }
 
@@ -1030,8 +1035,8 @@ export default function DashboardFranquiciado() {
     } : e);
     setEstates(nextEstates);
     setRoomDrafts(nextDrafts);
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
-    localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(nextDrafts));
+    safeSetStorage("SR_V2_ESTATES", nextEstates);
+    safeSetStorage("SR_V2_ROOM_DRAFTS", nextDrafts);
     saveEstateOps({ valuation:valuationRecord, valuations:[valuationRecord, ...safeArray(selectedEstateOps.valuations)] });
     setSelectedRoomId(valuedRooms[0]?.id || selectedRoomId);
     const msg = `✅ Valoración guardada en el expediente ${selectedEstate.id}. Precios trasladados a ${valuedRooms.length} habitación(es).`;
@@ -1068,7 +1073,7 @@ export default function DashboardFranquiciado() {
     };
     const nextEstates = safeArray(estates).map(e => e.id === selectedEstate.id ? { ...e, rooms:[...currentRooms, item] } : e);
     setEstates(nextEstates);
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    safeSetStorage("SR_V2_ESTATES", nextEstates);
     setSelectedRoomId(roomId);
     setEstateOpsNotice(`✅ Habitación creada: ${roomId}. Puede completar sus datos y guardar.`);
     setFlowNotice(`✅ Habitación creada: ${roomId}. Complete la ficha y pulse 💾 Guardar ficha.`);
@@ -1118,8 +1123,8 @@ export default function DashboardFranquiciado() {
 
     setTenants(nextTenants);
     setEstates(nextEstates);
-    localStorage.setItem("SR_V2_TENANTS", JSON.stringify(nextTenants));
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    safeSetStorage("SR_V2_TENANTS", nextTenants);
+    safeSetStorage("SR_V2_ESTATES", nextEstates);
     setSelectedRoomId(selectedRoom.id);
     setNewTenantForRoom({ existingTenantId:"", name:"", phone:"", email:"", document:"", startDate:"", status:"Activo" });
     const msg = `✅ Inquilino ${tenant.name} vinculado a ${selectedRoom.id}.`;
@@ -1135,7 +1140,7 @@ export default function DashboardFranquiciado() {
       rooms:safeArray(e.rooms).map(r => r.id === selectedRoom.id ? { ...r, tenantId:null, status:r.status === "Ocupada" ? "Libre" : r.status } : r)
     }));
     setEstates(nextEstates);
-    localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
+    safeSetStorage("SR_V2_ESTATES", nextEstates);
     const msg = `✅ Inquilino desvinculado de ${selectedRoom.id}.`;
     setTenantRoomNotice(msg);
     setFlowNotice(msg);
