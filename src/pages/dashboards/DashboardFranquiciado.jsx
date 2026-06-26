@@ -1,5 +1,5 @@
 // src/pages/dashboards/DashboardFranquiciado.jsx
-// SpainRoom® — Dashboard Franquiciado V3.6 · Edición completa + confirmaciones
+// SpainRoom® — Dashboard Franquiciado V3.11 · Demo inmobiliaria operativo
 import React, { useState, useEffect } from "react";
 
 const blue = "#0A58CA";
@@ -405,33 +405,6 @@ export default function DashboardFranquiciado() {
     return String(phone || "").replace(/\s+/g, "");
   }
 
-  function roomIndexFromId(roomId) {
-    const m = String(roomId || "").match(/-H(\d+)$/);
-    return m ? Math.max(0, Number(m[1]) - 1) : -1;
-  }
-
-  function syncValuationRoomFromRoom(roomId, roomData = {}) {
-    const idx = roomIndexFromId(roomId);
-    if (idx < 0) return;
-    setSimRooms(rows => {
-      const next = [...rows];
-      while (next.length <= idx) {
-        next.push({ id: next.length + 1, m2:0, bathM2:0, balconyM2:0, bath:false, balcony:false });
-      }
-      const current = next[idx] || { id: idx + 1, m2:0, bathM2:0, balconyM2:0, bath:false, balcony:false };
-      next[idx] = {
-        ...current,
-        id: idx + 1,
-        m2:Number(roomData.m2 ?? roomData.privateM2 ?? current.m2 ?? 0),
-        bathM2:Number(roomData.bathM2 ?? current.bathM2 ?? 0),
-        balconyM2:Number(roomData.balconyM2 ?? current.balconyM2 ?? 0),
-        bath:!!(roomData.bath ?? current.bath),
-        balcony:!!(roomData.balcony ?? current.balcony),
-      };
-      return next;
-    });
-  }
-
   function addTask() {
     if (!newTask.title.trim()) return;
     const item = { id:`TASK-${Date.now()}`, ...newTask, done:false };
@@ -641,9 +614,29 @@ export default function DashboardFranquiciado() {
     setEstates(nextEstates);
     localStorage.setItem("SR_V2_ROOM_DRAFTS", JSON.stringify(next));
     localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
-    syncValuationRoomFromRoom(key, merged);
+
+    // Sincroniza la valoración visible con los datos reales de la habitación guardada.
+    // Así, si H04 se guarda con 12 m², Valoración de finca no vuelve a mostrar 14 m².
+    const roomIndex = safeArray(selectedEstate.rooms).findIndex(r => r.id === key);
+    if (roomIndex >= 0) {
+      setSimRooms(rows => {
+        const copy = safeArray(rows).map(x => ({ ...x }));
+        const current = copy[roomIndex] || { id: roomIndex + 1 };
+        copy[roomIndex] = {
+          ...current,
+          id: current.id || roomIndex + 1,
+          m2: Number(merged.m2 ?? current.m2 ?? 0),
+          bathM2: Number(merged.bathM2 ?? current.bathM2 ?? 0),
+          balconyM2: Number(merged.balconyM2 ?? current.balconyM2 ?? 0),
+          bath: !!(merged.bath ?? current.bath),
+          balcony: !!(merged.balcony ?? current.balcony),
+        };
+        return copy;
+      });
+    }
+
     setRoomNotice(`✅ Ficha de habitación guardada correctamente: ${key}`);
-    setFlowNotice(`✅ Ficha de habitación guardada correctamente: ${key}. Datos sincronizados con Valoración de finca.`);
+    setFlowNotice(`✅ Ficha de habitación guardada correctamente: ${key}`);
   }
 
   function handlePhotos(files) {
@@ -709,8 +702,21 @@ export default function DashboardFranquiciado() {
     setEstateOpsNotice(notice);
   }
 
+  function startNewCommonArea() {
+    setSelectedCommonAreaId(null);
+    setNewCommonArea({ area:"", description:"", photos:0, photoFiles:[] });
+    const msg = "🏘️ Nueva zona común preparada. Introduzca los datos y pulse 💾 Guardar zona común.";
+    setEstateOpsNotice(msg);
+    setFlowNotice(msg);
+  }
+
   function addCommonArea() {
-    if (!newCommonArea.area.trim()) return;
+    if (!newCommonArea.area.trim()) {
+      const msg = "🐕 Por favor, indique la zona común antes de guardar.";
+      setEstateOpsNotice(msg);
+      setFlowNotice(msg);
+      return;
+    }
     const item = {
       id:`CA-${Date.now()}`,
       area:newCommonArea.area,
@@ -811,7 +817,7 @@ export default function DashboardFranquiciado() {
 
   function handleNewInventoryPhotos(files) {
     readImageFiles(files, (uploaded) => {
-      setNewInventory(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded] }));
+      setNewInventory(x => ({ ...x, photoFiles:[...safeArray(x.photoFiles), ...uploaded], photos:Number(x.photos || 0) + uploaded.length }));
       setEstateOpsNotice(`📸 ${uploaded.length} foto(s) preparada(s). Por favor, pulse 💾 Guardar inventario.`);
       setFlowNotice(`📸 Fotos preparadas. Por favor, guarde el inventario.`);
     });
@@ -845,17 +851,14 @@ export default function DashboardFranquiciado() {
       setTimeout(() => document.getElementById("sr-rooms-block")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
       return;
     }
-    setSimRooms(rooms.map((r, idx) => {
-      const draft = roomDrafts[r.id] || {};
-      return {
-        id:idx + 1,
-        m2:Number(draft.m2 ?? r.m2 ?? r.privateM2 ?? 0),
-        bathM2:Number(draft.bathM2 ?? r.bathM2 ?? 0),
-        balconyM2:Number(draft.balconyM2 ?? r.balconyM2 ?? 0),
-        bath:!!(draft.bath ?? r.bath),
-        balcony:!!(draft.balcony ?? r.balcony),
-      };
-    }));
+    setSimRooms(rooms.map((r, idx) => ({
+      id:idx + 1,
+      m2:Number(r.m2 || r.privateM2 || 0),
+      bathM2:Number(r.bathM2 || 0),
+      balconyM2:Number(r.balconyM2 || 0),
+      bath:!!r.bath,
+      balcony:!!r.balcony,
+    })));
     setSimServicesIncluded(selectedEstate.servicesIncluded !== false);
     setSimServicesFee(Number(selectedEstate.servicesFee || 25));
     const msg = `✅ ${selectedEstate.id} enviada a valoración con ${rooms.length} habitación(es).`;
@@ -957,14 +960,6 @@ export default function DashboardFranquiciado() {
     setEstates(nextEstates);
     localStorage.setItem("SR_V2_ESTATES", JSON.stringify(nextEstates));
     setSelectedRoomId(roomId);
-    setSimRooms(rows => {
-      const next = [...rows];
-      while (next.length < nextNumber - 1) {
-        next.push({ id: next.length + 1, m2:0, bathM2:0, balconyM2:0, bath:false, balcony:false });
-      }
-      next[nextNumber - 1] = { id:nextNumber, m2:0, bathM2:0, balconyM2:0, bath:false, balcony:false };
-      return next;
-    });
     setEstateOpsNotice(`✅ Habitación creada: ${roomId}. Puede completar sus datos y guardar.`);
     setFlowNotice(`✅ Habitación creada: ${roomId}. Complete la ficha y pulse 💾 Guardar ficha.`);
     setTimeout(() => document.getElementById("sr-room-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
@@ -1036,41 +1031,35 @@ export default function DashboardFranquiciado() {
     setFlowNotice(msg);
   }
 
-  function startNewInventoryItem() {
-    setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0, photoFiles:[] });
+  function startNewInventory() {
     setSelectedInventoryId(null);
+    setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0, photoFiles:[] });
     const msg = "📦 Nuevo inventario preparado. Introduzca los datos y pulse 💾 Guardar inventario.";
     setEstateOpsNotice(msg);
     setFlowNotice(msg);
-    setTimeout(() => document.getElementById("sr-inventory-form")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
   }
 
   function addInventoryItem() {
-    const itemName = String(newInventory.item || "").trim();
-    if (!itemName) {
-      const msg = "🐕 Por favor, indique el elemento del inventario antes de guardar.";
+    if (!newInventory.item.trim()) {
+      const msg = "🐕 Por favor, indique el elemento antes de guardar inventario.";
       setEstateOpsNotice(msg);
       setFlowNotice(msg);
-      setTimeout(() => document.getElementById("sr-inventory-form")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
       return;
     }
-    const files = safeArray(newInventory.photoFiles);
     const item = {
       id:`INV-${Date.now()}`,
-      item:itemName,
-      brand:String(newInventory.brand || "").trim(),
-      model:String(newInventory.model || "").trim(),
+      item:newInventory.item.trim(),
+      brand:newInventory.brand || "",
+      model:newInventory.model || "",
       status:newInventory.status || "Bueno",
-      photos:Math.max(Number(newInventory.photos || 0), files.length),
-      photoFiles:files,
+      photos:Number(newInventory.photos || 0),
+      photoFiles:safeArray(newInventory.photoFiles),
       savedAt:new Date().toLocaleString("es-ES"),
     };
-    const nextInventory = [...safeArray(selectedEstateOps.inventory), item];
-    persistInventory(nextInventory, `✅ Inventario guardado correctamente en ${selectedEstate.id}: ${item.item}.`);
+    persistInventory([...safeArray(selectedEstateOps.inventory), item], `✅ Inventario guardado correctamente en ${selectedEstate.id}: ${item.item}.`);
     setFlowNotice(`✅ Inventario guardado correctamente en ${selectedEstate.id}: ${item.item}.`);
     setSelectedInventoryId(item.id);
     setNewInventory({ item:"", brand:"", model:"", status:"Bueno", photos:0, photoFiles:[] });
-    setTimeout(() => document.getElementById("sr-inventory-detail")?.scrollIntoView({ behavior:"smooth", block:"start" }), 80);
   }
 
   function updateInventoryItem(id, patch) {
@@ -1134,6 +1123,7 @@ export default function DashboardFranquiciado() {
           .grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin:18px 0; }
           .grid.two { grid-template-columns:1fr 1fr; }
           .actions { display:flex; gap:10px; justify-content:flex-end; margin:0 0 18px; }
+          @media print { .actions { display:none !important; } }
           button { border:0; border-radius:10px; padding:10px 14px; font-weight:800; cursor:pointer; }
           .primary { background:#0b65d8; color:white; }
           .secondary { background:#f1f5f9; color:#0b1220; }
@@ -1151,7 +1141,7 @@ export default function DashboardFranquiciado() {
         </div>
         <div class="header">
           <h1>SpainRoom® · Valoración de finca</h1>
-          <div>${selectedEstate.id} · ${selectedEstate.city} · ${selectedEstate.zone}</div>
+          <div>${selectedEstate.id} · ${estateCity} · ${estateZone}</div>
         </div>
 
         <h2>Propietario</h2>
@@ -1582,7 +1572,7 @@ export default function DashboardFranquiciado() {
             </div>}
           </Card>
 
-          <Card title="Zonas comunes" icon="🏘️" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="dark">Operativo franquiciado</Badge><Button small secondary onClick={addCommonArea}>+ Añadir zona</Button></div>}>
+          <Card title="Zonas comunes" icon="🏘️" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="dark">Operativo franquiciado</Badge><Button small secondary onClick={startNewCommonArea}>+ Añadir zona</Button></div>}>
             <div className="sr-contact-form" style={{display:"grid",gridTemplateColumns:"1fr 2fr .5fr auto",gap:10,marginBottom:12,alignItems:"end"}}>
               <Field label="Zona común" value={newCommonArea.area} onChange={v => setNewCommonArea(x => ({...x,area:v}))} />
               <Field label="Descripción" value={newCommonArea.description} onChange={v => setNewCommonArea(x => ({...x,description:v}))} />
@@ -1632,8 +1622,8 @@ export default function DashboardFranquiciado() {
             {estateOpsNotice && <div style={{marginTop:10,color:"#047857",fontWeight:900}}>{estateOpsNotice}</div>}
           </Card>
 
-          <Card title="Inventario visible de la finca" icon="📦" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Para incidencias</Badge><Button small secondary onClick={startNewInventoryItem}>+ Añadir inventario</Button></div>}>
-            <div id="sr-inventory-form" className="sr-inventory-form" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr .8fr .5fr auto auto",gap:10,marginBottom:12,alignItems:"end"}}>
+          <Card title="Inventario visible de la finca" icon="📦" right={<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><Badge tone="info">Para incidencias</Badge><Button small secondary onClick={startNewInventory}>+ Añadir inventario</Button></div>}>
+            <div className="sr-inventory-form" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr .8fr .5fr auto auto",gap:10,marginBottom:12,alignItems:"end"}}>
               <Field label="Elemento" value={newInventory.item} onChange={v => setNewInventory(x => ({...x,item:v}))} />
               <Field label="Marca" value={newInventory.brand} onChange={v => setNewInventory(x => ({...x,brand:v}))} />
               <Field label="Modelo / medida" value={newInventory.model} onChange={v => setNewInventory(x => ({...x,model:v}))} />
@@ -1645,7 +1635,7 @@ export default function DashboardFranquiciado() {
               </label>
               <Button small onClick={addInventoryItem}>💾 Guardar inventario</Button>
             </div>
-            {safeArray(newInventory.photoFiles).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas: {safeArray(newInventory.photoFiles).length}. Se guardarán con este elemento.</div>}
+            {safeArray(newInventory.photoFiles).length > 0 && <div style={{margin:"-4px 0 12px",color:"#047857",fontWeight:900}}>Fotos preparadas: {safeArray(newInventory.photoFiles).length}</div>}
             <Table columns={[
               { key:"item", label:"Elemento", bold:true, render:i => <button type="button" style={linkBtn} onClick={() => openInventoryItem(i.id)}>{i.item}</button> },
               { key:"brand", label:"Marca" },
@@ -1754,17 +1744,17 @@ export default function DashboardFranquiciado() {
               </div>
 
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}} className="sr-room-fields">
-                <Field label="Título público" value={roomDrafts[selectedRoom.id]?.title ?? selectedRoom.title} onChange={v => saveRoomDraft({title:v})} />
-                <Field label="m² habitación" type="number" value={roomDrafts[selectedRoom.id]?.m2 ?? selectedRoom.m2 ?? selectedRoom.privateM2 ?? 0} onChange={v => saveRoomDraft({m2:Number(v)})} />
-                <Field label="Estado" value={roomDrafts[selectedRoom.id]?.status ?? selectedRoom.status} onChange={v => saveRoomDraft({status:v})} />
-                <Field label="m² baño privado" type="number" value={roomDrafts[selectedRoom.id]?.bathM2 ?? selectedRoom.bathM2 ?? 0} onChange={v => saveRoomDraft({bathM2:Number(v), bath:Number(v) > 0})} />
-                <Field label="m² balcón privado" type="number" value={roomDrafts[selectedRoom.id]?.balconyM2 ?? selectedRoom.balconyM2 ?? 0} onChange={v => saveRoomDraft({balconyM2:Number(v), balcony:Number(v) > 0})} />
+                <Field label="Título público" value={roomDrafts[selectedRoom.id]?.title ?? selectedRoom.title} onChange={v => updateRoomDraftLocal({title:v})} />
+                <Field label="m² habitación" type="number" value={roomDrafts[selectedRoom.id]?.m2 ?? selectedRoom.m2 ?? selectedRoom.privateM2 ?? 0} onChange={v => updateRoomDraftLocal({m2:Number(v)})} />
+                <Field label="Estado" value={roomDrafts[selectedRoom.id]?.status ?? selectedRoom.status} onChange={v => updateRoomDraftLocal({status:v})} />
+                <Field label="m² baño privado" type="number" value={roomDrafts[selectedRoom.id]?.bathM2 ?? selectedRoom.bathM2 ?? 0} onChange={v => updateRoomDraftLocal({bathM2:Number(v), bath:Number(v) > 0})} />
+                <Field label="m² balcón privado" type="number" value={roomDrafts[selectedRoom.id]?.balconyM2 ?? selectedRoom.balconyM2 ?? 0} onChange={v => updateRoomDraftLocal({balconyM2:Number(v), balcony:Number(v) > 0})} />
                 <div style={infoBox}>Precio final:<br/><strong>{money(roomDrafts[selectedRoom.id]?.price ?? selectedRoom.price)}</strong><br/><span style={{color:"#64748b",fontSize:12}}>Lo asigna la valoración SpainRoom.</span></div>
               </div>
 
               <label style={{display:"grid",gap:6,marginBottom:12}}>
                 <span style={{color:"#64748b",fontSize:13,fontWeight:850}}>Descripción para publicar</span>
-                <textarea value={roomDrafts[selectedRoom.id]?.description ?? "Habitación en finca gestionada por SpainRoom, con servicios incluidos y acceso a zonas comunes equipadas."} onChange={e => saveRoomDraft({description:e.target.value})} rows={4} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} />
+                <textarea value={roomDrafts[selectedRoom.id]?.description ?? "Habitación en finca gestionada por SpainRoom, con servicios incluidos y acceso a zonas comunes equipadas."} onChange={e => updateRoomDraftLocal({description:e.target.value})} rows={4} style={{border:"1px solid #cbd5e1",borderRadius:12,padding:"10px 11px",fontWeight:750,resize:"vertical"}} />
               </label>
 
               <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,padding:12,marginBottom:12}}>
